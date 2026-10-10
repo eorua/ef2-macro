@@ -173,7 +173,52 @@ def run_cycle_mid():
     return bulk_ok and final_ok
 
 
+def _barracks_fallback(why):
+    """병영 편성이 중간에 실패하면 영웅 기본 프리셋으로 되돌림 (편성이 어중간하게 남지 않게)"""
+    log("병영 편성 실패: %s -> 영웅 기본 프리셋으로 복구" % why)
+    try:
+        preset.set_presets("기본", "기본")
+    except Abort:
+        raise
+    except Exception as e:
+        log("복구 중 오류: %r" % (e,))
+    return False
+
+
+def _retry_step(name, fn, *a, **k):
+    """한 단계를 실행하고, 실패하면 열려 있는 창을 닫은 뒤 한 번 더 시도"""
+    import closer
+    if fn(*a, **k):
+        return True
+    n = closer.close_all()
+    log("%s 실패 -> 열린 창 %d개 닫고 한 번 더 시도" % (name, n))
+    return bool(fn(*a, **k))
+
+
+def run_cycle_barracks():
+    """병영 편성 방식 고레벨 단계 (패널 옵션 barracks_swap)"""
+    import barracks, closer
+    closer.close_all()                      # 시작 전에 남아 있는 창이 있으면 정리
+    if not _retry_step("골렘 편성(1단계)", barracks.phase1):
+        return _barracks_fallback("골렘 편성(1단계)")
+    if not _retry_step("유물 프리셋 변경", preset.set_presets, None, "영웅강화골드"):
+        return _barracks_fallback("유물 프리셋 변경")
+    if not _retry_step("일괄 레벨업", preset.bulk_levelup, max_rounds=1):
+        return _barracks_fallback("일괄 레벨업")
+    if not _retry_step("최종 편성(2단계)", barracks.phase2):
+        return _barracks_fallback("최종 편성(2단계)")
+    for _ in range(3):
+        if preset.set_presets(None, "기본"):
+            return True
+        closer.close_all()
+        time.sleep(2)
+    log("최종 유물 프리셋(기본) 설정 실패 -> 다음 기회에 재시도")
+    return False
+
+
 def run_cycle_high():
+    if opt_on("barracks_swap"):
+        return run_cycle_barracks()
     ok = preset.set_presets("최대레벨", "영웅강화골드")
     if not ok:
         return False
@@ -267,7 +312,8 @@ def after_restart_setup(st):
         return
     ok = activate.activate_presets()
     log("프리셋 활성화: " + ("성공" if ok else "실패"))
-    hero, relic = ("렙뻥", "기본") if st.get("high_done") else ("기본", "시간")
+    hero, relic = (None, "기본") if (st.get("high_done") and opt_on("barracks_swap")) else \
+        (("렙뻥", "기본") if st.get("high_done") else ("기본", "시간"))
     ok2 = preset.set_presets(hero, relic)
     log(f"프리셋 선택({hero}/{relic}): " + ("성공" if ok2 else "실패"))
     if not st.get("high_done"):
@@ -304,6 +350,7 @@ def recover():
     good = 0
     last_launch = time.time()          # 마지막으로 게임을 실행한 시각
     last_check = 0
+    last_x = 0
     relaunch = 0
     while time.time() - t0 < RECOVER_TIMEOUT:
         time.sleep(2)
@@ -329,6 +376,17 @@ def recover():
                 return True
             continue
         good = 0
+        if time.time() - last_x >= 10:        # 어떤 창이 가리고 있을 수 있음 -> 빨간 X 를 찾아 닫기
+            last_x = time.time()
+            try:
+                import closer
+                nx = closer.close_all(2)
+                if nx:
+                    log("복귀 중 열린 창 %d개 닫음" % nx)
+                    time.sleep(1.5)
+                    continue
+            except Exception as e:
+                log("창 닫기 오류: %r" % (e,))
         # 웨이브가 안 보이는데 게임 화면도 아니면(홈 화면 등) 게임을 다시 실행
         if time.time() - last_launch >= 25 and time.time() - last_check >= 10:
             last_check = time.time()
@@ -632,6 +690,13 @@ def main():
                             chk = cap()
                             if chk is not None and wave.read_wave(chk) is None:
                                 log("고레벨 단계 실패: 알 수 없는 팝업/화면으로 추정 → 실패 횟수에 넣지 않음")
+                                try:
+                                    import closer
+                                    log("열린 창 %d개 닫음" % closer.close_all())
+                                except Abort:
+                                    raise
+                                except Exception as e:
+                                    log("창 닫기 오류: %r" % (e,))
                                 time.sleep(5)
                             else:
                                 st["high_fails"] += 1

@@ -300,7 +300,8 @@ class App:
         row.pack(fill="x", padx=14, pady=(0, 14))
         for key, label, sub in (
                 ("fairy", "정령의 고원: 티켓 구매 + 소탕", "다이아를 사용합니다. 기본은 꺼짐."),
-                ("fall_continue", "성 함락 시 이어하기 우선", "켜면 하트를 써서 이어하기, 하트가 없으면 환생. 끄면 바로 환생."),):
+                ("fall_continue", "성 함락 시 이어하기 우선", "켜면 하트를 써서 이어하기, 하트가 없으면 환생. 끄면 바로 환생."),
+                ("barracks_swap", "병영 편성으로 최대레벨 단계 진행", "6200 웨이브에서 병영을 재편성해 일괄 레벨업합니다. 켜면 기존 렙뻥 프리셋 방식 대신 사용. 기본은 꺼짐."),):
             v = tk.BooleanVar(value=bool(self.set.get(key, False)))
             self.opt_vars[key] = v
             ttk.Checkbutton(row, text=label, variable=v, command=self.save_opts).pack(anchor="w", pady=(4, 0))

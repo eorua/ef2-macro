@@ -131,17 +131,17 @@ def set_presets(hero, relic):
             print("통합 프리셋 팝업이 안 열려 중단"); return False
     cur_h, cur_r = selected(img, HERO_TABS), selected(img, RELIC_TABS)
     print(f"현재 영웅={cur_h}, 유물={cur_r} / 목표 영웅={hero}, 유물={relic}")
-    if cur_h == hero and cur_r == relic:
+    if (hero is None or cur_h == hero) and cur_r == relic:
         print("이미 목표 상태 → 취소로 닫기")
         tap(PRE_CANCEL, "취소")
         time.sleep(1.0)
         return True
-    if cur_h != hero:
+    if hero is not None and cur_h != hero:
         tap(HERO_TABS[hero], f"영웅 {hero}")
     if cur_r != relic:
         tap(RELIC_TABS[relic], f"유물 {relic}")
-    img = wait_for(lambda im: selected(im, HERO_TABS) == hero and selected(im, RELIC_TABS) == relic, 4.0, first=0.5)
-    if img is None or selected(img, HERO_TABS) != hero or selected(img, RELIC_TABS) != relic:
+    img = wait_for(lambda im: (hero is None or selected(im, HERO_TABS) == hero) and selected(im, RELIC_TABS) == relic, 4.0, first=0.5)
+    if img is None or (hero is not None and selected(img, HERO_TABS) != hero) or selected(img, RELIC_TABS) != relic:
         print("탭 선택 확인 실패 → 취소로 닫고 중단")
         tap(PRE_CANCEL, "취소")
         return False
@@ -239,7 +239,7 @@ if __name__ == "__main__":
         if cmd != "read":
             print("(시험 모드: 아무것도 누르지 않았습니다. 실제 실행은 맨 끝에 go 를 붙이세요)")
     elif cmd == "set" and len(args) >= 3:
-        set_presets(args[1], args[2])
+        set_presets(None if args[1] in ('-', '유지') else args[1], args[2])
     elif cmd == "bulk":
         bulk_levelup()
     elif cmd == "high":

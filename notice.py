@@ -15,6 +15,27 @@ ROW_BOX = (60, 1115, 105, 1155)
 _last_check = 0.0
 
 
+_row_y = None
+
+
+def find_row(g):
+    """'오늘 하루 보지 않기' 줄의 중심 y. 공지 창 높이가 달라져도 아래쪽부터 찾음. 없으면 None"""
+    H = g.shape[0]
+    for y in range(min(1200, H - 45), 900, -4):
+        if int((g[y:y + 40, 120:330] > 150).sum()) < 80:
+            continue
+        seg = g[y - 10:y + 50, 120:330]
+        rows = np.nonzero((seg > 150).sum(axis=1) >= 3)[0]
+        if len(rows) == 0:
+            continue
+        cy = y - 10 + int(np.median(rows))
+        box = g[cy - 20:cy + 20, 60:105]
+        if int(((box > 90) & (box < 200)).sum()) < 25:
+            continue
+        return cy
+    return None
+
+
 def detect(img):
     """공지 팝업이면 닫기(X) 좌표 (x, y), 아니면 None"""
     if img is None or img.shape[0] < 1200:
@@ -29,14 +50,19 @@ def detect(img):
     cx, cy = xs.mean() + x1, ys.mean() + y1
     if abs(cx - X_CENTER[0]) > 8 or abs(cy - X_CENTER[1]) > 14:
         return None                  # 통합 프리셋 등 다른 팝업의 X 는 위치가 달라 걸러짐
+    global _row_y
     g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    a, b, c, d = ROW_TEXT
-    if int((g[b:d, a:c] > 150).sum()) < 80:
-        return None                  # 아래쪽 '오늘 하루 보지 않기' 글자 줄이 없으면 아님
-    a, b, c, d = ROW_BOX
-    box = g[b:d, a:c]
-    if int(((box > 90) & (box < 200)).sum()) < 25:
-        return None
+    row = find_row(g)
+    if row is None:                  # 예전 창 모양(고정 위치)도 인정
+        a, b, c, d = ROW_TEXT
+        ok = int((g[b:d, a:c] > 150).sum()) >= 80
+        a, b, c, d = ROW_BOX
+        box = g[b:d, a:c]
+        ok = ok and int(((box > 90) & (box < 200)).sum()) >= 25
+        if not ok:
+            return None              # 아래쪽 '오늘 하루 보지 않기' 줄이 없으면 아님
+        row = CHECK_PT[1]
+    _row_y = row
     return X_CENTER
 
 
@@ -47,7 +73,7 @@ def check_today():
         return False
     _last_check = time.time()
     if GO:
-        D.tap(CHECK_PT, 0.6)
+        D.tap((CHECK_PT[0], _row_y or CHECK_PT[1]), 0.6)
     return True
 
 

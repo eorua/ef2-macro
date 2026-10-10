@@ -1,4 +1,4 @@
-"""barracks.py (v44) - 병영 편성 자동화 (최대레벨 유닛으로 레벨업 -> 렙뻥 유닛으로 재편성)
+"""barracks.py (v48) - 병영 편성 자동화 (최대레벨 유닛으로 레벨업 -> 렙뻥 유닛으로 재편성)
 
 시험 모드(기본): 화면만 읽고 아무것도 누르지 않음. 실제 실행은 맨 끝에 go.
   py barracks.py read                 현재 화면 상태 읽기 (병영/영웅 목록 어디서든)
@@ -12,6 +12,9 @@
 """
 import sys, os, time, cv2, numpy as np
 import preset
+
+# main.py 의 speed.py 가 time.sleep 을 줄여 놓아도, 여기서는 시험한 그대로의 대기시간을 씀
+_sleep = getattr(sys.modules.get("speed"), "_real_sleep", time.sleep)
 
 BASE = r"C:\macro"
 TPL = os.path.join(BASE, "tpl")
@@ -48,7 +51,7 @@ def capture():
 
 
 def snap(wait=0.5):
-    time.sleep(wait)
+    _sleep(wait)
     return capture()
 
 
@@ -199,9 +202,9 @@ def open_hero_tab():
         log("상세창이 열려 있음 -> 닫기 불가(해제 위험), 중단"); return False
     if img is not None and barracks_open(img):
         tap(BK_X, "병영 닫기")
-        time.sleep(0.45)
+        _sleep(0.45)
     tap(TAB_HERO, "영웅 탭")
-    time.sleep(0.35)
+    _sleep(0.35)
     return True
 
 
@@ -238,7 +241,7 @@ def _toggle_to(want_on, off):
         if not todo:
             return img
         tap_multi([RACES[n] for n in todo], "종족 " + ",".join(todo))
-        time.sleep(0.3)
+        _sleep(0.3)
     img = capture()
     return img
 
@@ -265,8 +268,9 @@ def set_races_for(race):
     return bool(ok)
 
 
-SW_MS = 800        # 스크롤 드래그 시간(ms). 느릴수록 관성(밀림)이 적어 줄을 건너뛰지 않음
-SW_A, SW_B = 850, 1090   # 드래그 구간 (240px = 약 2.8줄, 화면에 보이는 4줄보다 작게)
+SW_MS = 600        # 스크롤 드래그 시간(ms)
+TOP_A, TOP_B = 850, 1100    # 맨 위로 올릴 때 드래그 구간 (크게, 빠르게)
+STEP_A, STEP_B = 1010, 900  # 아래로 찾으며 내릴 때 드래그 구간 (110px: 게임이 실제로는 몇 배로 움직여도 화면(355px)을 건너뛰지 않게 작게)
 
 
 def _best(img, key):
@@ -275,33 +279,44 @@ def _best(img, key):
 
 def _scroll_once(direction):
     if direction == "up":
-        swipe(360, SW_A, SW_B, SW_MS)
+        swipe(360, TOP_A, TOP_B, SW_MS)
     else:
-        swipe(360, SW_B, SW_A, SW_MS)
-    return snap(0.6)
+        swipe(360, STEP_A, STEP_B, SW_MS)
+    return snap(0.55)
 
 
-def _scroll_search(key, direction, steps):
-    """direction 'up' = 맨 위쪽으로, 'down' = 아래쪽으로 조금씩 움직이며 찾기. (찾은 y 또는 None, 끝에 닿았는지)"""
+def to_top(steps=10):
+    """목록을 맨 위까지 올림 (같은 화면이 두 번 나오면 끝)"""
+    prev = capture()
+    for _ in range(steps):
+        img = _scroll_once("up")
+        if img is None:
+            return
+        if same_view(prev, img):
+            return
+        prev = img
+
+
+def _scroll_search(key, steps):
+    """아래로 조금씩 내리며 찾기. (찾은 y 또는 None, 끝에 닿았는지)"""
     prev = capture()
     for n in range(steps):
-        img = _scroll_once(direction)
+        img = _scroll_once("down")
         if img is None:
             return None, True
         y = find_unit(img, key)
-        log("  %s %d: 최고점 %.2f%s" % (direction, n + 1, _best(img, key), " -> 찾음" if y else ""))
+        log("  아래 %d: 최고점 %.2f%s" % (n + 1, _best(img, key), " -> 찾음" if y else ""))
         if y is not None:
             return y, False
         if same_view(prev, img):
             img2 = snap(0.5)                      # 정말 끝인지 한 번 더 확인
             if same_view(img, img2):
                 return None, True
-            img = img2
         prev = img
     return None, False
 
 
-def locate(key, tries=12):
+def locate(key, tries=30):
     """유닛 줄 찾기: 지금 화면 -> 맨 위까지 올리며 -> 맨 위부터 아래로 내리며. 줄 중심 y 반환"""
     img = snap(0.2)
     if img is None:
@@ -309,9 +324,11 @@ def locate(key, tries=12):
     y = find_unit(img, key)
     log("  지금 화면: 최고점 %.2f" % _best(img, key))
     if y is None:
-        y, _ = _scroll_search(key, "up", 6)
+        to_top()
+        img = snap(0.2)
+        y = find_unit(img, key) if img is not None else None
         if y is None:
-            y, _ = _scroll_search(key, "down", tries)
+            y, _ = _scroll_search(key, tries)
     if y is None:
         return None
     # 스크롤 관성이 멈춘 뒤 위치를 다시 확인
@@ -356,9 +373,9 @@ def deploy(key, n):
                 log(f"{name} 줄이 사라짐(다 배치함?) -> 중지"); break
             y = y2
         k = min(CHUNK, n - done)
-        tap_multi([(DEPLOY_X, y)] * k, f"{name} 배치 {done + 1}~{done + k}", gap=0.1)
+        tap_multi([(DEPLOY_X, y)] * k, f"{name} 배치 {done + 1}~{done + k}", gap=0.2)
         done += k
-        time.sleep(0.2)
+        _sleep(0.2)
     return done
 
 
@@ -391,12 +408,26 @@ def release_rest(start=KEEP + 1, cap=10):
     return False
 
 
+def topup(key, tries=3):
+    """슬롯이 10/10 이 아니면 key 유닛을 한 명씩 더 배치 (연타 중 누락된 탭 보충)"""
+    for _ in range(tries):
+        img = snap(0.3)
+        if img is None or is_full(img):
+            return True
+        log("슬롯이 덜 찼음 -> %s 1명 보충" % UNITS[key][0])
+        if deploy(key, 1) == 0:
+            return False
+    img = snap(0.3)
+    return img is not None and is_full(img)
+
+
 def phase1():
     """2명만 남기고 골렘(부족하면 죽음의 손)으로 채움"""
     if not release_rest():
         return False
     need = 10 - KEEP
     got = deploy("golem", need)
+    topup("golem", 2)
     img = capture()
     if img is not None and not is_full(img) and got < need:
         got += deploy("hand", need - got)
@@ -408,42 +439,18 @@ def phase1():
 
 
 def phase2():
-    """3번째 줄부터 해제하고 드루이드 6, 전장의북 1, 불의정령 1 로 채움"""
+    """3번째 줄부터 해제하고 드루이드 6, 전장의북 1, 불의정령 1 로 채움 (빈 슬롯은 드루이드로 보충)"""
     if not release_rest():
         return False
     deploy("druid", 6)
     deploy("drum", 1)
     deploy("spirit", 1)
+    full = topup("druid", 3)
     close_barracks()
     img = snap(0.3)
-    log("phase2 끝", "병영 닫힘" if img is not None and not barracks_open(img) else "병영이 안 닫힘")
+    log("phase2 끝", "병영 닫힘" if img is not None and not barracks_open(img) else "병영이 안 닫힘",
+        "| 슬롯 가득" if full else "| 슬롯이 덜 참(확인 필요)")
     return img is not None and not barracks_open(img)
-
-
-def scan(key):
-    """진단: 그 유닛의 종족만 앞에 오게 하고 맨 위 -> 맨 아래로 훑으며 점수를 찍고 화면을 저장"""
-    name, race = UNITS[key]
-    if not open_barracks() or not set_races_for(race):
-        return
-    prev = None
-    for n in range(8):                      # 맨 위로
-        img = _scroll_once("up")
-        if img is None or same_view(prev, img):
-            break
-        prev = img
-    prev = None
-    for n in range(14):
-        img = snap(0.2)
-        if img is None:
-            break
-        rows = row_centers(img)
-        sc = {k: round(max([unit_score(img, k, yc) for yc in rows] or [0]), 2) for k in UNITS}
-        log("화면 %d 줄=%s 점수=%s" % (n, rows, sc))
-        cv2.imwrite(os.path.join(BASE, "scan_%02d.png" % n), img)
-        if same_view(prev, img):
-            break
-        prev = img
-        _scroll_once("down")
 
 
 def read_state():

@@ -1,0 +1,11 @@
+shots/
+*.log
+state.json
+PAUSE
+main.pid
+*.bak*
+__pycache__/
+settings.json
+fossil_trace.jsonl
+*.mp4
+*.zip

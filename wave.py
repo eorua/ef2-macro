@@ -45,6 +45,36 @@ def _score(a, b):
     return float((a * b).sum() / np.sqrt((a * a).sum() * (b * b).sum() + 1e-9))
 
 
+_G = None
+
+
+def _game_templates():
+    """tpl 폴더의 wave_digits.png (게임 글꼴로 만든 숫자 그림, 숫자마다 평균 1 + 대표 12) 을 읽음. 없으면 False"""
+    global _G
+    if _G is None:
+        _G = False
+        try:
+            m = cv2.imread(os.path.join(BASE, "tpl", "wave_digits.png"), cv2.IMREAD_GRAYSCALE)
+            if m is not None and m.shape == (9 * 36, 13 * 40):
+                G = {}
+                for r, d in enumerate("023456789"):
+                    tiles = [m[r * 36:(r + 1) * 36, k * 40:(k + 1) * 40].astype(np.float32) / 255 for k in range(13)]
+                    G[d] = (tiles[0], tiles[1:])
+                _G = G
+        except Exception:
+            _G = False
+    return _G
+
+
+def _classify(c, T):
+    """숫자 조각 c 의 [(점수, 숫자)] (높은 순). 게임 글꼴 그림이 있으면 그것으로, 없으면 예전 글꼴 그림으로"""
+    G = _game_templates()
+    if not G:
+        return sorted(((_score(c, T[d]), d) for d in T), reverse=True)
+    out = [(0.5 * _score(c, mean) + 0.5 * max(_score(c, e) for e in ex), d) for d, (mean, ex) in G.items()]
+    return sorted(out, reverse=True)
+
+
 def read_wave(img, exact=False):
     """'Wave NNNN'에서 마지막 두 자리를 버린 백 단위 값 반환 (5184 -> 5100). 실패하면 None"""
     if img is None:
@@ -71,7 +101,7 @@ def read_wave(img, exact=False):
     groups = [[cs[0]]]
     for c in cs[1:]:
         prev = groups[-1][-1]
-        if c[0] - (prev[0] + prev[2]) > 100:
+        if c[0] - (prev[0] + prev[2]) > 50:
             groups.append([c])
         else:
             groups[-1].append(c)
@@ -87,9 +117,11 @@ def read_wave(img, exact=False):
             out += "1"
             continue
         c = _norm(((lab == i) * 255).astype(np.uint8))
-        sc = sorted(((_score(c, T[d]), d) for d in T), reverse=True)
+        sc = _classify(c, T)
         if sc[0][0] < 0.5:
             return None
+        if _game_templates() and sc[0][0] - sc[1][0] < 0.02:
+            return None                  # 두 숫자가 거의 같은 점수면 읽지 않음 (오독보다 미인식이 낫다)
         out += sc[0][1]
     if exact:
         return int(out)

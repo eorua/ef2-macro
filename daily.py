@@ -501,7 +501,7 @@ def guild_pending(d):
     if time.time() < d.get("guild_next", 0):
         return None
     for key, opt in GUILD_TASKS:
-        if not d.get(key) and setting(opt, opt != "archery"):     # 양궁은 기본 꺼짐
+        if not d.get(key) and (opt in ("guild_post", "raid_shop") or setting(opt, False)):     # 출석/레이드 상점은 항상 켜짐, 양궁은 기본 꺼짐
             return key
     return None
 

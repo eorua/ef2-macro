@@ -138,6 +138,17 @@ def parse_end(text, now=None):
     return end
 
 
+def _is_maint_text(text):
+    """점검 팝업 글자인지. 메일함/보상 같은 화면 속 '점검 보상' 글자는 제외"""
+    t = text.replace(" ", "")
+    for bad in ("모두받기", "메일함", "점검보상", "보상"):
+        if bad in t:
+            return False
+    if parse_end(text) is not None:
+        return True
+    return ("서버점검" in t) or ("점검중" in t) or ("점검안내" in t) or ("점검" in t and "KST" in t.upper())
+
+
 def save_shot(img, tag):
     try:
         os.makedirs(SHOTS, exist_ok=True)
@@ -159,7 +170,7 @@ def detect(img):
     lines = ocr_lines(crop)
     if lines is not None:
         text = " ".join(lines)
-        hit = ("점검" in text) or ("KST" in text.upper()) or ("서버" in text)
+        hit = _is_maint_text(text)
         info = {"end": parse_end(text, now) if hit else None, "text": text} if hit else None
         if hit:
             log("점검 팝업 인식 (OCR): %s" % text[:80])

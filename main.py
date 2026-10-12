@@ -90,6 +90,18 @@ def cap():
     return wave.capture()
 
 
+def cont_limit():
+    """성 함락 시 이어하기 횟수 (환생 한 번당, 0~3). 패널의 fall_continue_n, 없으면 예전 체크박스 값(켬=3)"""
+    try:
+        with open(os.path.join(BASE, "settings.json"), encoding="utf-8") as f:
+            d = json.load(f)
+        if "fall_continue_n" in d:
+            return max(0, min(3, int(d["fall_continue_n"])))
+        return 3 if d.get("fall_continue") else 0
+    except Exception:
+        return 0
+
+
 def opt_on(name):
     """settings.json (조작 패널의 옵션 탭에서 켜고 끔) 에서 옵션을 읽음. 없으면 꺼짐"""
     try:
@@ -473,6 +485,25 @@ def do_restart(kind, st=None):
     return False
 
 
+_wv = {"v": None, "t": 0.0}
+
+
+def wave_sane(w):
+    """연속성 검사: 직전에 믿은 웨이브보다 갑자기 너무 크게 오른 값(예: 5400 -> 6400)은 숫자 오독으로 보고 None.
+    낮아지는 값은 환생이나 앞선 오독 정정이라 그대로 받음. 15분 넘게 지나면 기준을 새로 잡음"""
+    if w is None:
+        return None
+    now = time.time()
+    v, t = _wv["v"], _wv["t"]
+    if v is not None and 0 <= now - t < 900 and w > v + 250 + 6 * (now - t):
+        if now - _wv.get("log", 0) > 60:
+            _wv["log"] = now
+            log("웨이브 %s 는 직전 %s 에서 너무 급하게 올라 오독으로 보고 무시" % (w, v))
+        return None
+    _wv["v"], _wv["t"] = w, now
+    return w
+
+
 class StuckWatch:
     """웨이브 숫자가 STUCK_SEC 동안 오르지 않으면 정체로 판단"""
 
@@ -497,7 +528,7 @@ class StuckWatch:
             self.since += dt
             self.last = None
             return False
-        if w == self.last:                       # 같은 값이 연속 2번 읽힐 때만 인정 (오독 방지)
+        if self.last is not None and abs(w - self.last) <= 60:      # 연속 두 값이 서로 가까울 때만 인정 (오독 방지)
             if w > self.best or (self.best and w < self.best - 500):
                 self.best = w
                 self.since = now
@@ -700,7 +731,7 @@ def main():
         cap_fails = 0
         try:
             # 서버 점검 팝업: BlueStacks 를 끄고 점검이 끝날 때쯤 다시 실행
-            if GO and daily.setting("maint", True):
+            if GO:
                 _mt = maint_check(img)
                 if _mt:
                     handle_maintenance(st, _mt)
@@ -730,23 +761,25 @@ def main():
                         continue
             # 1순위: 성 함락 팝업 → 환생
             ok, (gx, gy) = fall_popup(img)
-            if ok and opt_on("fall_continue"):
+            if ok and cont_limit() > 0:
                 now = time.time()
                 recent = [t for t in _cont_hist if now - t < 90]
                 if recent and now - recent[-1] < 8:
                     time.sleep(2)               # 방금 눌렀음: 화면이 바뀔 때까지 대기 (하트 중복 소모 방지)
                     continue
                 cok, (cx, cy), cfrac = continue_btn(img)
-                if cok and len(recent) < 3:
-                    log("성 함락 감지 → 이어하기 클릭 (버튼 %.2f, 90초 내 %d회째)" % (cfrac, len(recent) + 1))
+                if cok and st.get("cont_used", 0) < cont_limit():
+                    log("성 함락 감지 → 이어하기 클릭 (버튼 %.2f, 이번 환생 %d/%d회째)" % (cfrac, st.get("cont_used", 0) + 1, cont_limit()))
                     if GO:
                         rebirth.tap(cx, cy)
                         _cont_hist.append(now)
+                        st["cont_used"] = st.get("cont_used", 0) + 1
+                        save_state(st)
                         time.sleep(3)
                     else:
                         time.sleep(5)
                     continue
-                log("이어하기 불가 (버튼 %.2f, 90초 내 %d회) → 환생" % (cfrac, len(recent)))
+                log("이어하기 불가 (버튼 %.2f, 사용 %d/%d회) → 환생" % (cfrac, st.get("cont_used", 0), cont_limit()))
             if ok:
                 log("성 함락 감지 → 환생 클릭")
                 if GO:
@@ -767,7 +800,7 @@ def main():
                     if _chk is not None and fall_popup(_chk)[0] and not result_popup(_chk)[0]:
                         log("성 함락 팝업이 그대로 남아 있음 → 환생 기록 없이 다음 루프에서 재시도")
                         continue
-                    record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0)
+                    record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0, cont_used=0)
                     save_state(st)
                     hist.clear()
                 else:
@@ -778,7 +811,7 @@ def main():
                 log("환생결과 팝업 감지 → 확인 클릭")
                 if GO:
                     rebirth.tap(bx, by)
-                    record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0)
+                    record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0, cont_used=0)
                     save_state(st)
                     hist.clear()
                     time.sleep(2)
@@ -874,7 +907,14 @@ def main():
                     raise
                 except Exception as e:
                     log("웨이브 미인식 처리 오류: %r" % (e,))
+            w = wave_sane(w)
             if w is not None:
+                if GO:
+                    try:
+                        import wavecall
+                        if wavecall.tick(st, w): save_state(st)
+                    except Exception as _e:
+                        log("웨이브 호출 오류:", repr(_e))
                 hist.append(w)
                 hist[:] = hist[-3:]
                 if len(hist) == 3 and min(hist) > int(st.get("peak_wave") or 0):
@@ -933,7 +973,7 @@ def main():
                 continue
 
             # 같은 웨이브에서 너무 오래 정체 → 직접 환생
-            wx = wave.read_wave(img, exact=True)
+            wx = wave_sane(wave.read_wave(img, exact=True))
             if stuck.best and time.time() - stuck.since >= 45 and time.time() - getattr(stuck, "logged", 0) >= 30:
                 stuck.logged = time.time()
                 log("정체 감시: 웨이브 %s (최고 %s) %d초째 변화 없음" % (wx, stuck.best, int(time.time() - stuck.since)))
@@ -943,7 +983,7 @@ def main():
                 log(f"웨이브 {wx} (최고 {stuck.best}) 에서 {int(time.time() - stuck.since)}초 정체 → 환생 시도")
                 if GO:
                     if rebirth_now():
-                        record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0)
+                        record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0, cont_used=0)
                         save_state(st)
                         hist.clear()
                         stuck.reset()

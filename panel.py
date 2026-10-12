@@ -312,17 +312,27 @@ class App:
         row.pack(fill="x", padx=14, pady=(0, 14))
         for key, label, sub in (
                 ("fairy", "정령의 고원: 티켓 구매 + 소탕", "다이아를 사용합니다. 기본은 꺼짐."),
-                ("fall_continue", "성 함락 시 이어하기 우선", "켜면 하트를 써서 이어하기, 하트가 없으면 환생. 끄면 바로 환생."),
-                ("guild_post", "길드 출석 + 우체국 선물 5회", "하루 한 번, 일일 작업 때 자동으로 합니다. 기본은 켜짐."),
-                ("raid_shop", "길드레이드 상점 뽑기 (티켓 + 광고)", "티켓은 있는 만큼, 광고는 3회까지 뽑습니다. 광고 제거 패키지가 있어야 합니다. 기본은 켜짐."),
                 ("archery", "놀이터 양궁 게임 (실험)", "하루 한 번 양궁을 자동으로 플레이합니다. 먼저 py guild.py arch go 로 시험해 보세요. 기본은 꺼짐."),
                 ("soul", "신전 영혼의 휴식 (실험)", "다이아 5000 이상이고 일일 작업이 끝났을 때 최대 4시간 쉬며 훈장을 받습니다. 쉬는 동안 다른 동작은 멈춥니다. 먼저 py soul.py start go 로 시험해 보세요. 기본은 꺼짐."),
                 ("soul_x2", "영혼의 휴식 종료 시 훈장 2배 (다이아 1000)", "종료할 때 다이아 1000개를 써서 훈장을 2배로 받습니다. 끄면 1배로 받습니다. 기본은 켜짐."),
-                ("maint", "서버 점검 시 BlueStacks 종료 후 재실행", "점검 팝업을 글자로 읽고 BlueStacks 를 끈 뒤, 점검이 끝나는 시각에 다시 실행합니다. 기본은 켜짐."),):
+                ):
             v = tk.BooleanVar(value=bool(self.set.get(key, False)))
             self.opt_vars[key] = v
             ttk.Checkbutton(row, text=label, variable=v, command=self.save_opts).pack(anchor="w", pady=(4, 0))
             ttk.Label(row, text="      " + sub, style="Sub.TLabel").pack(anchor="w", pady=(0, 6))
+
+        crow = ttk.Frame(tab, style="Card.TFrame")
+        crow.pack(fill="x", padx=14, pady=(0, 14))
+        ttk.Label(crow, text="성 함락 시 이어하기 횟수 (환생 한 번당)", style="Sub.TLabel").pack(side="left")
+        try:
+            n0 = int(self.set.get("fall_continue_n", 3 if self.set.get("fall_continue") else 0))
+        except Exception:
+            n0 = 0
+        self.cont_var = tk.StringVar(value=str(max(0, min(3, n0))))
+        cb = ttk.Combobox(crow, values=("0", "1", "2", "3"), width=3, state="readonly", textvariable=self.cont_var)
+        cb.pack(side="left", padx=8)
+        cb.bind("<<ComboboxSelected>>", lambda e: self.save_cont())
+        ttk.Label(crow, text="0 = 바로 환생 / 하트가 없으면 횟수와 상관없이 환생", style="Sub.TLabel").pack(side="left")
 
     # ---- 탭 3: 도구
     def build_tool(self, tab):
@@ -557,6 +567,17 @@ class App:
             self.busy = None
 
     # ============================================================ 설정 · 도구
+    def save_cont(self):
+        try:
+            n = int(self.cont_var.get())
+            d = load_settings()
+            d["fall_continue_n"] = n
+            d["fall_continue"] = n > 0
+            save_settings(d)
+            self.note("성 함락 이어하기 횟수: %d" % n, "cmd")
+        except Exception as e:
+            self.note("이어하기 횟수 저장 실패: %r" % e, "warn")
+
     def save_opts(self):
         try:
             d = load_settings()

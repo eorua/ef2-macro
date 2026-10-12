@@ -30,8 +30,9 @@ HERO_ROW_X = 330                    # 영웅 목록 줄을 누를 x (이름 부�
 HERO_ROW_Y0, HERO_ROW_DY = 962, 87  # 영웅 목록 1번째 줄 중심, 줄 간격
 DETAIL_X = (683, 213)               # 병사 상세창의 빨간 X
 BTN_RELEASE = (408, 1220)           # 상세창의 '해제'
+TAB_DETAIL = (120, 415)                # 상세창의 '상세' 탭 (스킬 345 / 초월 571)
 LABEL_ROI = (50, 794, 102, 815)     # '10/10' 슬롯 표시
-KEEP = 2                            # 위에서 남길 영웅 수
+KEEP = 3                            # 위에서 남길 영웅 수 (불의정령 3마리)
 
 # 유닛: 이름, 종족
 UNITS = {"golem": ("골렘", "인간"), "hand": ("죽음의 손", "언데드"), "drum": ("전장의북", "오크"),
@@ -379,6 +380,22 @@ def deploy(key, n):
     return done
 
 
+def ensure_release_btn(img):
+    """상세창 아래에 빨간 '해제' 버튼이 없으면(예: '초월' 탭) '상세' 탭으로 돌려서 다시 확인. 이미지 반환"""
+    for k in range(2):
+        if red(img, BTN_RELEASE) > 0.5:
+            return img
+        log("해제 버튼이 안 보임(다른 탭?) -> '상세' 탭으로 이동")
+        tap(TAB_DETAIL, "상세 탭")
+        im2 = preset.wait_for(lambda im: red(im, BTN_RELEASE) > 0.5, 2.0, first=0.3, step=0.2)
+        if im2 is not None and red(im2, BTN_RELEASE) > 0.5:
+            return im2
+        img = snap(0.2)
+        if img is None:
+            return None
+    return img
+
+
 def release_rest(start=KEEP + 1, cap=10):
     """영웅 목록에서 start 번째 줄이 빌 때까지 그 줄의 영웅을 해제"""
     if not open_hero_tab():
@@ -400,12 +417,97 @@ def release_rest(start=KEEP + 1, cap=10):
                 log(f"{start}번째 줄이 비었음 -> 해제 완료 ({k}명 해제)")
                 return True
             log("상세창이 안 열림 -> 중단"); return False
+        img = ensure_release_btn(img)
+        if img is None or red(img, BTN_RELEASE) <= 0.5:
+            log("해제 버튼을 못 찾음 -> 중단"); return False
         tap(BTN_RELEASE, "해제")
         img = preset.wait_for(lambda im: not detail_open(im), 3.0, first=0.25, step=0.15)
         if img is None or detail_open(img):
             log("해제 후에도 상세창이 열려 있음 -> 중단"); return False
     log("해제를 너무 많이 반복해 중단")
     return False
+
+
+LIST_ROI = (60, 925, 580, 1195)      # 영웅 목록이 보이는 영역
+
+
+def _list_moved(a, b, thr=6.0):
+    ga = cv2.cvtColor(a[LIST_ROI[1]:LIST_ROI[3], LIST_ROI[0]:LIST_ROI[2]], cv2.COLOR_BGR2GRAY).astype(np.int16)
+    gb = cv2.cvtColor(b[LIST_ROI[1]:LIST_ROI[3], LIST_ROI[0]:LIST_ROI[2]], cv2.COLOR_BGR2GRAY).astype(np.int16)
+    return float(np.abs(ga - gb).mean()) > thr
+
+
+def scroll_bottom(max_swipes=4):
+    """영웅 목록을 더 안 움직일 때까지 위로 밀어 맨 아래로 보냄"""
+    prev = snap(0.1)
+    for _ in range(max_swipes):
+        swipe(360, 1150, 940, 250)
+        cur = snap(0.35)
+        if prev is None or cur is None:
+            return False
+        if not _list_moved(prev, cur):
+            return True
+        prev = cur
+    return True
+
+
+def _settle(tries=6):
+    """목록이 멈출 때까지(연속 두 장이 같을 때까지) 기다린 뒤 그 화면을 돌려줌"""
+    prev = snap(0.2)
+    for _ in range(tries):
+        cur = snap(0.25)
+        if prev is None or cur is None:
+            return cur
+        if not _list_moved(prev, cur, 3.0):
+            return cur
+        prev = cur
+    return prev
+
+
+def release_tail(keep=KEEP, total=10):
+    """맨 아래로 스크롤하면 마지막 영웅이 3번째 줄 자리에 옴 -> 그 줄을 해제 (목록이 아래로 채워짐). keep 명이 남으면 멈춤"""
+    if not open_hero_tab():
+        return False
+    img = snap(0.15)
+    if img is None:
+        return False
+    fixed = total - keep if is_full(img) else None       # 10/10 이면 정확히 7번
+    if not scroll_bottom():
+        return False
+    done = 0
+    for k in range(total - keep):
+        if fixed is None:
+            before = _settle()
+            swipe(360, 1000, 1100, 250)                  # 살짝 내려 봄: 안 움직이면 목록이 3줄 이하
+            after = _settle()
+            if before is None or after is None:
+                return False
+            if not _list_moved(before, after):
+                log(f"목록이 더 안 움직임 -> 해제 완료 ({done}명 해제)")
+                return True
+            if not scroll_bottom():
+                return False
+        img = snap(0.3) if (fixed is not None and done > 0) else _settle()
+        if img is None:
+            return False
+        if not hero_row_filled(img, 3):
+            log("3번째 줄이 비었음 -> 맨 아래로 다시 밀고 재확인")
+            if not scroll_bottom():
+                return False
+            img = _settle()
+            if img is None or not hero_row_filled(img, 3):
+                log("3번째 줄이 여전히 비었음 -> 해제 중단"); return done > 0
+        tap((HERO_ROW_X, hero_row_y(3)), "맨 아래 영웅")
+        img = preset.wait_for(detail_open, 3.0, first=0.12, step=0.1)
+        if img is None or not detail_open(img):
+            log("상세창이 안 열림 -> 중단"); return False
+        tap(BTN_RELEASE, "해제")
+        img = preset.wait_for(lambda im: not detail_open(im), 3.0, first=0.12, step=0.1)
+        if img is None or detail_open(img):
+            log("해제 후에도 상세창이 열려 있음 -> 중단"); return False
+        done += 1
+    log(f"해제 완료 ({done}명 해제)")
+    return True
 
 
 def topup(key, tries=3):
@@ -422,8 +524,8 @@ def topup(key, tries=3):
 
 
 def phase1():
-    """2명만 남기고 골렘(부족하면 죽음의 손)으로 채움"""
-    if not release_rest():
+    """3명만 남기고 골렘(부족하면 죽음의 손)으로 채움"""
+    if not release_tail():
         return False
     need = 10 - KEEP
     got = deploy("golem", need)
@@ -439,12 +541,11 @@ def phase1():
 
 
 def phase2():
-    """3번째 줄부터 해제하고 드루이드 6, 전장의북 1, 불의정령 1 로 채움 (빈 슬롯은 드루이드로 보충)"""
-    if not release_rest():
+    """3명(불의정령)만 남기고 해제한 뒤 드루이드 6, 전장의북 1 로 채움 (빈 슬롯은 드루이드로 보충)"""
+    if not release_tail():
         return False
     deploy("druid", 6)
     deploy("drum", 1)
-    deploy("spirit", 1)
     full = topup("druid", 3)
     close_barracks()
     img = snap(0.3)
@@ -498,7 +599,7 @@ if __name__ == "__main__":
     elif cmd == "scan" and len(args) >= 2 and args[1] in UNITS:
         scan(args[1])
     elif cmd == "release":
-        release_rest()
+        release_tail()
     elif cmd == "deploy" and len(args) >= 3 and args[1] in UNITS:
         log("배치 %d명" % deploy(args[1], int(args[2])))
     elif cmd == "phase1":

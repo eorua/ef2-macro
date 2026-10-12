@@ -19,7 +19,7 @@ STATE = os.path.join(BASE, "state.json")
 PIDFILE = os.path.join(BASE, "main.pid")
 SETTINGS = os.path.join(BASE, "settings.json")
 SHOTS = os.path.join(BASE, "shots")
-DEFAULTS = {"fairy": False, "log_font": 10}     # fairy: 정령의 고원 자동 구매/소탕 (다이아 사용이라 기본 꺼짐)
+DEFAULTS = {"fairy": False, "log_font": 10, "guild_post": True, "raid_shop": True, "archery": False, "soul": False, "soul_x2": True, "maint": True}     # fairy: 정령의 고원 자동 구매/소탕 (다이아 사용이라 기본 꺼짐)
 MAX_LINES = 400                                  # 로그창에 남기는 최대 줄 수
 FONT = "맑은 고딕"
 
@@ -208,6 +208,18 @@ class App:
             b.grid(row=0, column=i, sticky="ew", padx=(0 if i == 0 else 5, 0 if i == 2 else 5))
             ctl.columnconfigure(i, weight=1, uniform="ctl")
 
+        # ---- 최근 환생 층수
+        rb = ttk.Frame(root, style="Card.TFrame")
+        rb.pack(fill="x", padx=16, pady=(12, 0))
+        tk.Label(rb, text="최근 환생", font=(FONT, 9), bg=C_CARD, fg=C_MUTED).pack(side="left", padx=(14, 10), pady=10)
+        self.rb_last = tk.Label(rb, text="-", font=(FONT, 15, "bold"), bg=C_CARD, fg=C_TEXT)
+        self.rb_last.pack(side="left")
+        self.rb_time = tk.Label(rb, text="", font=(FONT, 9), bg=C_CARD, fg=C_DIM)
+        self.rb_time.pack(side="left", padx=(6, 12))
+        self.rb_rest = tk.Label(rb, text="", font=(FONT, 10), bg=C_CARD, fg=C_MUTED, anchor="w")
+        self.rb_rest.pack(side="left", fill="x", expand=True, padx=(0, 14))
+        self.rb_mt = None
+
         # ---- 코드 변경 안내 (평소엔 숨김)
         self.notice = tk.Label(root, text="", font=(FONT, 9), fg=C_WARN, bg="#2b2412", anchor="w", padx=12, pady=6)
 
@@ -301,7 +313,12 @@ class App:
         for key, label, sub in (
                 ("fairy", "정령의 고원: 티켓 구매 + 소탕", "다이아를 사용합니다. 기본은 꺼짐."),
                 ("fall_continue", "성 함락 시 이어하기 우선", "켜면 하트를 써서 이어하기, 하트가 없으면 환생. 끄면 바로 환생."),
-                ("barracks_swap", "병영 편성으로 최대레벨 단계 진행", "6200 웨이브에서 병영을 재편성해 일괄 레벨업합니다. 켜면 기존 렙뻥 프리셋 방식 대신 사용. 기본은 꺼짐."),):
+                ("guild_post", "길드 출석 + 우체국 선물 5회", "하루 한 번, 일일 작업 때 자동으로 합니다. 기본은 켜짐."),
+                ("raid_shop", "길드레이드 상점 뽑기 (티켓 + 광고)", "티켓은 있는 만큼, 광고는 3회까지 뽑습니다. 광고 제거 패키지가 있어야 합니다. 기본은 켜짐."),
+                ("archery", "놀이터 양궁 게임 (실험)", "하루 한 번 양궁을 자동으로 플레이합니다. 먼저 py guild.py arch go 로 시험해 보세요. 기본은 꺼짐."),
+                ("soul", "신전 영혼의 휴식 (실험)", "다이아 5000 이상이고 일일 작업이 끝났을 때 최대 4시간 쉬며 훈장을 받습니다. 쉬는 동안 다른 동작은 멈춥니다. 먼저 py soul.py start go 로 시험해 보세요. 기본은 꺼짐."),
+                ("soul_x2", "영혼의 휴식 종료 시 훈장 2배 (다이아 1000)", "종료할 때 다이아 1000개를 써서 훈장을 2배로 받습니다. 끄면 1배로 받습니다. 기본은 켜짐."),
+                ("maint", "서버 점검 시 BlueStacks 종료 후 재실행", "점검 팝업을 글자로 읽고 BlueStacks 를 끈 뒤, 점검이 끝나는 시각에 다시 실행합니다. 기본은 켜짐."),):
             v = tk.BooleanVar(value=bool(self.set.get(key, False)))
             self.opt_vars[key] = v
             ttk.Checkbutton(row, text=label, variable=v, command=self.save_opts).pack(anchor="w", pady=(4, 0))
@@ -412,7 +429,31 @@ class App:
             for b in self.cards:
                 b.state(["disabled"] if busy else ["!disabled"])
             self.btn_cancel.state(["!disabled"] if busy else ["disabled"])
+        self.show_rebirths()
         self.root.after(400, self.refresh)
+
+    def show_rebirths(self):
+        """state.json 의 rebirths(최근 환생 층수)를 표시. 파일이 바뀔 때만 다시 읽음"""
+        try:
+            mt = os.path.getmtime(STATE) if os.path.exists(STATE) else 0
+            if mt == self.rb_mt:
+                return
+            self.rb_mt = mt
+            lst = []
+            if mt:
+                with open(STATE, encoding="utf-8") as f:
+                    lst = json.load(f).get("rebirths") or []
+            if not lst:
+                self.rb_last.config(text="-")
+                self.rb_time.config(text="")
+                self.rb_rest.config(text="기록 없음 (다음 환생부터 기록)")
+                return
+            rev = list(reversed(lst))
+            self.rb_last.config(text="%d층" % rev[0]["wave"])
+            self.rb_time.config(text=time.strftime("%m-%d %H:%M", time.localtime(rev[0]["t"])))
+            self.rb_rest.config(text="  ".join(str(x["wave"]) for x in rev[1:10]))
+        except Exception:
+            pass
 
     # ============================================================ 메인 시작/중지
     def start(self):

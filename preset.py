@@ -143,7 +143,11 @@ def set_presets(hero, relic):
     img = wait_for(lambda im: (hero is None or selected(im, HERO_TABS) == hero) and selected(im, RELIC_TABS) == relic, 4.0, first=0.5)
     if img is None or (hero is not None and selected(img, HERO_TABS) != hero) or selected(img, RELIC_TABS) != relic:
         print("탭 선택 확인 실패 → 취소로 닫고 중단")
-        tap(PRE_CANCEL, "취소")
+        cur = capture()
+        if cur is not None and preset_open(cur):      # 팝업이 아직 열려 있을 때만 취소 (닫혀 있으면 뒤의 영웅 목록이 눌림)
+            tap(PRE_CANCEL, "취소")
+        else:
+            print("  (팝업이 이미 닫혀 있어 취소는 누르지 않음)")
         return False
     tap(PRE_SAVE, "저장")
     img = wait_for(lambda im: not preset_open(im), 5.0, first=1.0)
@@ -166,6 +170,31 @@ def tap_burst(pt, label, n):
         one = f"input tap {x} {y} & sleep {BURST_GAP}"
         cmd = "; ".join([one] * n) + "; wait"
         subprocess.run(ADB + ["shell", cmd])
+
+
+def _btn_x(i):
+    return BULK_BTNS[i][1][0]
+
+
+def btn_active(img, i):
+    """일괄 레벨업 버튼이 갈색(누를 수 있음)이면 True, 회색(골드 부족)이면 False"""
+    x = _btn_x(i)
+    hsv = cv2.cvtColor(img[1116:1124, x - 55:x + 55], cv2.COLOR_BGR2HSV)
+    return float(np.median(hsv[..., 1])) >= 60
+
+
+def cost_is_zero(img, i):
+    """버튼 아래 비용 글자가 '0' 한 글자뿐이면 True (올릴 레벨이 없음)"""
+    x = _btn_x(i)
+    hsv = cv2.cvtColor(img[1148:1174, x - 55:x + 60], cv2.COLOR_BGR2HSV)
+    m = (hsv[..., 2] > 190) & (hsv[..., 1] < 110)
+    n = int((m.sum(axis=0) >= 2).sum())
+    return 4 <= n <= 12
+
+
+def levels_maxed(img):
+    """체크된 영웅이 모두 최대 레벨이면 True (+1 버튼 비용이 0)"""
+    return cost_is_zero(img, 3)
 
 
 def bulk_levelup(max_rounds=3, max_press=40):
@@ -192,27 +221,53 @@ def bulk_levelup(max_rounds=3, max_press=40):
     noise = float(np.abs(a - b).mean())
     thr = max(0.25, noise * 3 + 0.1)
     print(f"변화 판단 기준: {thr:.2f}")
+    maxed = False
     for rnd in range(1, max_rounds + 1):
-        changed_round = False
-        for name, pt in BULK_BTNS:
-            before = level_crop(capture())
+        pressed_round = False
+        for i, (name, pt) in enumerate(BULK_BTNS):
             presses = 0
-            for k in range(max_press // BURST):
-                tap_burst(pt, name, BURST)
-                presses += BURST
-                time.sleep(0.25)
+            still = 0
+            before = None
+            zero = 0
+            why = "한도"
+            for k in range(max(max_press, 300) // BURST):
                 now = capture()
                 if now is None or not bulk_open(now):
                     print("일괄 레벨업 창 상태 이상 → 중단"); return False
-                cur = level_crop(now)
-                diff = float(np.abs(cur - before).mean())
-                before = cur
-                if diff > thr:
-                    changed_round = True
-                else:
+                if levels_maxed(now):
+                    zero += 1
+                    if zero == 1:
+                        print("  비용이 0으로 보이지만 한 번 눌러서 확인 (shots\\bulk_zero.png 저장)")
+                        try:
+                            os.makedirs(os.path.join(BASE, "shots"), exist_ok=True)
+                            cv2.imwrite(os.path.join(BASE, "shots", "bulk_zero.png"), now)
+                        except Exception:
+                            pass
+                    if zero >= 2 and before is not None and float(np.abs(level_crop(now) - before).mean()) <= thr:
+                        maxed = True
+                        why = "모든 영웅 최대 레벨(눌러 봐도 변화 없음)"
+                        break
+                if not btn_active(now, i):
+                    why = "골드 부족(회색)"
                     break
-            print(f"  라운드 {rnd} {name}: {presses}회 눌러 종료")
-        if not changed_round:
+                cur = level_crop(now)
+                if before is not None:
+                    if float(np.abs(cur - before).mean()) > thr:
+                        still = 0
+                    else:
+                        still += 1
+                        if still >= 3:                 # 눌러도 안 오름(렉 등) -> 안전장치
+                            why = "변화 없음"
+                            break
+                before = cur
+                tap_burst(pt, name, BURST)
+                presses += BURST
+                pressed_round = True
+                time.sleep(0.25)
+            print(f"  라운드 {rnd} {name}: {presses}회 눌러 종료 ({why})")
+            if maxed:
+                break
+        if maxed or not pressed_round:
             break
     tap(BULK_X, "X")
     img = snap(1.0)

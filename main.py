@@ -72,6 +72,20 @@ def save_state(st):
         log(f"state 저장 실패: {e}")
 
 
+def record_rebirth(st, why=""):
+    """환생 직전의 최고 웨이브(peak_wave)를 최근 환생 목록에 기록 (패널에서 표시)"""
+    try:
+        w = int(st.get("peak_wave") or 0)
+        if w > 0:
+            lst = list(st.get("rebirths") or [])
+            lst.append({"wave": w, "t": int(time.time()), "why": why})
+            st["rebirths"] = lst[-10:]
+            log("환생 기록: %d층 (%s)" % (w, why))
+        st["peak_wave"] = 0
+    except Exception as e:
+        log("환생 기록 오류: %r" % (e,))
+
+
 def cap():
     return wave.capture()
 
@@ -165,11 +179,11 @@ def popup_open(img):
 
 def run_cycle_mid():
     """중간 영웅 업그레이드: 최대레벨 프리셋으로 일괄 레벨업 후 기본/시간으로 복귀"""
-    ok = preset.set_presets("최대레벨", "영웅강화골드")
+    ok = preset.set_presets(None, "영웅강화골드")
     if not ok:
         return False
     bulk_ok = preset.bulk_levelup()
-    final_ok = preset.set_presets("기본", "시간")
+    final_ok = preset.set_presets(None, "시간")
     return bulk_ok and final_ok
 
 
@@ -195,6 +209,27 @@ def _retry_step(name, fn, *a, **k):
     return bool(fn(*a, **k))
 
 
+def _arrange_after():
+    """6200 사이클 직후 영웅 배치 정리 (불의정령 10/2/6시, 나머지 12시). 실패해도 사이클 결과에는 영향 없음"""
+    try:
+        if not daily.setting("arrange", True):
+            return
+        import arrange
+        arrange.GO = True
+        arrange.GUARD = _guard
+        arrange.log = lambda *a: log("  [배치] " + " ".join(str(x) for x in a))
+        log("영웅 배치 정리 시작")
+        ok = arrange.run()
+        log("영웅 배치 정리: " + ("성공" if ok else "실패 (원래 배치 유지)"))
+        if not ok:
+            import closer
+            closer.close_all()
+    except Abort:
+        raise
+    except Exception as e:
+        log("영웅 배치 정리 오류: %r" % (e,))
+
+
 def run_cycle_barracks():
     """병영 편성 방식 고레벨 단계 (패널 옵션 barracks_swap)"""
     import barracks, closer
@@ -209,6 +244,7 @@ def run_cycle_barracks():
         return _barracks_fallback("최종 편성(2단계)")
     for _ in range(3):
         if preset.set_presets(None, "기본"):
+            _arrange_after()
             return True
         closer.close_all()
         time.sleep(2)
@@ -217,13 +253,18 @@ def run_cycle_barracks():
 
 
 def run_cycle_high():
-    if opt_on("barracks_swap"):
+    if True:
         return run_cycle_barracks()
-    ok = preset.set_presets("최대레벨", "영웅강화골드")
+    ok = preset.set_presets(None, "영웅강화골드")      # 영웅 프리셋은 그대로 (바꾸면 레벨이 다시 바뀌어 골드 손실)
     if not ok:
         return False
     bulk_ok = preset.bulk_levelup()
-    final_ok = preset.set_presets("렙뻥", "기본")
+    final_ok = False
+    for _ in range(3):                                   # 유물이 영웅강화골드로 남지 않게 복귀는 재시도
+        if preset.set_presets(None, "기본"):
+            final_ok = True
+            break
+        time.sleep(2)
     return bulk_ok and final_ok
 
 
@@ -312,8 +353,7 @@ def after_restart_setup(st):
         return
     ok = activate.activate_presets()
     log("프리셋 활성화: " + ("성공" if ok else "실패"))
-    hero, relic = (None, "기본") if (st.get("high_done") and opt_on("barracks_swap")) else \
-        (("렙뻥", "기본") if st.get("high_done") else ("기본", "시간"))
+    hero, relic = (None, "기본") if st.get("high_done") else ("기본", "시간")
     ok2 = preset.set_presets(hero, relic)
     log(f"프리셋 선택({hero}/{relic}): " + ("성공" if ok2 else "실패"))
     if not st.get("high_done"):
@@ -329,6 +369,16 @@ def restart_game():
     launch_game()
 
 
+def _ocr_popup(img):
+    """그림으로 못 찾은 출석 보상 창을 글자(OCR)로 찾음 -> (이름, 누를 좌표) 또는 None"""
+    try:
+        import ocrx
+        return ocrx.find_attendance(img)
+    except Exception as e:
+        log("글자로 팝업 찾기 오류: %r" % (e,))
+        return None
+
+
 def find_popup(img):
     """POPUPS 목록 중 떠 있는 것 하나 -> (이름, 버튼 좌표) 또는 None"""
     nt = notice.detect(img)
@@ -341,7 +391,7 @@ def find_popup(img):
         bs, pos = rebirth.match(img, b_tpl, b_roi)
         if ts >= 0.85 and bs >= 0.90:
             return name, pos
-    return None
+    return _ocr_popup(img)
 
 
 def recover():
@@ -516,9 +566,92 @@ def bluestacks_running():
         return True
 
 
+MAINT_POLL_SEC = 1200            # 점검이 끝나는 시각을 모를 때, 이 간격(초)마다 BlueStacks 를 켜서 끝났는지 확인
+
+
+def maint_check(img):
+    """서버 점검 팝업이면 {'end': 끝나는 시각 또는 None, 'text': ...}, 아니면 None"""
+    try:
+        import maint
+        return maint.detect(img)
+    except Exception as e:
+        log("점검 확인 오류: %r" % (e,))
+        return None
+
+
+def _kill_bluestacks():
+    try:
+        pids = bsrestart.find_pids()
+    except Exception as e:
+        log("BlueStacks 프로세스 확인 오류: %r" % (e,))
+        return False
+    if len(pids) > 1:
+        log("오환2 BlueStacks 가 2개 이상으로 보여 끄지 않음")
+        return False
+    for p in pids:
+        subprocess.run(["taskkill", "/PID", str(p), "/F"], capture_output=True)
+    if pids:
+        log("BlueStacks(오환2) 종료")
+        time.sleep(8)
+    return True
+
+
+def handle_maintenance(st, info):
+    """점검 중이면 BlueStacks 를 끄고 점검이 끝날 때쯤 다시 켬. 아직 점검이면 반복. 끝나면 복귀 설정까지 하고 반환"""
+    import maint
+    end = (info or {}).get("end")
+    while True:
+        now = time.time()
+        wake = end + 180 if end else now + MAINT_POLL_SEC
+        wake = max(wake, now + 5)
+        log("서버 점검 -> BlueStacks 를 끄고 %s 에 다시 실행합니다%s" % (
+            time.strftime("%m-%d %H:%M", time.localtime(wake)), "" if end else " (끝나는 시각을 못 읽어 확인용으로 주기 실행)"))
+        st["maint"] = {"wake": wake}
+        save_state(st)
+        _kill_bluestacks()
+        last_msg = 0
+        while time.time() < wake:
+            time.sleep(20)
+            if time.time() - last_msg > 900:
+                last_msg = time.time()
+                log("점검 대기 중 (남은 %d분)" % max(0, int((wake - time.time()) / 60)))
+        log("BlueStacks 다시 실행")
+        if not restart_bluestacks_full():
+            log("BlueStacks 실행 실패 -> 7분 뒤 다시 시도")
+            end = time.time() + 240
+            continue
+        info2 = None
+        t0 = time.time()
+        while time.time() - t0 < 200:
+            time.sleep(6)
+            img = cap()
+            if img is None:
+                continue
+            info2 = maint_check(img)
+            if info2:
+                break
+            if wave.read_wave(img) is not None:
+                break
+        if info2:
+            log("아직 점검 중")
+            end = info2.get("end")
+            continue
+        break
+    st.pop("maint", None)
+    maint._last.update(t=0.0, hit=False)
+    log("점검이 끝난 것으로 보임 -> 복귀")
+    if recover():
+        after_restart_setup(st)
+    st["last_restart"] = time.time()
+    save_state(st)
+
+
 def main():
     log("매크로 시작 (" + ("실제 클릭 모드" if GO else "시험 모드: 클릭 안 함") + ") - 중지: Ctrl + C")
     st = load_state()
+    if GO and st.get("maint"):
+        log("점검 대기 중이던 상태를 이어서 처리")
+        handle_maintenance(st, {"end": st["maint"].get("wake", 0) - 180})
     if not st.get("last_restart"):
         st["last_restart"] = time.time()
         save_state(st)
@@ -566,6 +699,14 @@ def main():
             continue
         cap_fails = 0
         try:
+            # 서버 점검 팝업: BlueStacks 를 끄고 점검이 끝날 때쯤 다시 실행
+            if GO and daily.setting("maint", True):
+                _mt = maint_check(img)
+                if _mt:
+                    handle_maintenance(st, _mt)
+                    hist.clear()
+                    stuck.reset()
+                    continue
             # 게임이 튕겨서 홈 화면 등으로 나갔는지 주기적으로 확인
             if time.time() - last_focus_check >= FOCUS_CHECK_SEC:
                 last_focus_check = time.time()
@@ -610,9 +751,23 @@ def main():
                 log("성 함락 감지 → 환생 클릭")
                 if GO:
                     rebirth.tap(gx, gy)
-                    time.sleep(2)
+                    time.sleep(2.5)
+                    for _try in range(2):
+                        _chk = cap()
+                        if _chk is None or result_popup(_chk)[0]:
+                            break
+                        _ok2, (_gx2, _gy2) = fall_popup(_chk)
+                        if not _ok2:
+                            break
+                        log("환생 클릭이 안 먹힌 것 같음 → 다시 클릭 (%d/2)" % (_try + 1))
+                        rebirth.tap(_gx2, _gy2)
+                        time.sleep(2.5)
                     rebirth.after_click()
-                    st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0)
+                    _chk = cap()
+                    if _chk is not None and fall_popup(_chk)[0] and not result_popup(_chk)[0]:
+                        log("성 함락 팝업이 그대로 남아 있음 → 환생 기록 없이 다음 루프에서 재시도")
+                        continue
+                    record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0)
                     save_state(st)
                     hist.clear()
                 else:
@@ -623,7 +778,7 @@ def main():
                 log("환생결과 팝업 감지 → 확인 클릭")
                 if GO:
                     rebirth.tap(bx, by)
-                    st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0)
+                    record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0)
                     save_state(st)
                     hist.clear()
                     time.sleep(2)
@@ -639,8 +794,35 @@ def main():
                 else:
                     time.sleep(5)
                 continue
+            if GO:
+                try:
+                    import inf2
+                    if inf2.idle_check(img):
+                        hist.clear()
+                        stuck.reset()
+                        continue
+                except Abort:
+                    raise
+                except Exception as e:
+                    log("무한랭킹전 화면 확인 오류: %r" % (e,))
             if popup_open(img):
                 continue                     # 프리셋/일괄 레벨업 창이 열려 있으면 건드리지 않음
+
+            # 영혼의 휴식 중: 정체 감시/환생/일일 작업/재시작 등 모든 동작을 멈추고 종료만 기다림
+            if st.get("soul"):
+                stuck.reset()
+                hist.clear()
+                if GO:
+                    try:
+                        import soul
+                        soul.tick(st, img)
+                    except Abort:
+                        raise
+                    except Exception as e:
+                        log("영혼의 휴식 처리 오류: %r" % (e,))
+                    save_state(st)
+                time.sleep(3)
+                continue
 
             # 환생 직후: 기본 + 시간
             if st["need_low"]:
@@ -653,8 +835,18 @@ def main():
                     else:
                         low_fails += 1
                         log(f"프리셋 설정 실패 ({low_fails}회 연속), 다음 루프에서 재시도")
-                        if low_fails in (3, 8):
+                        if low_fails in (1, 3, 8):
                             snap_fail("preset_fail_%d" % low_fails)
+                        try:
+                            import closer
+                            nclosed = closer.close_all()
+                            if nclosed:
+                                log("프리셋 실패 후 열린 창 %d개 닫음" % nclosed)
+                        except Abort:
+                            raise
+                        except Exception as e:
+                            log("창 닫기 오류: %r" % (e,))
+                        if low_fails in (3, 8):
                             daily.close_panels()
                         if low_fails >= 12:
                             log("프리셋 설정이 계속 실패 -> 게임 강제 재시작으로 복구")
@@ -671,12 +863,25 @@ def main():
 
             # 웨이브 읽기 (최근 3번이 모두 기준 이상이면 고레벨 단계 시작)
             w = wave.read_wave(img)
+            if GO:
+                try:
+                    import inf2
+                    if inf2.nowave_watch(img, w):
+                        hist.clear()
+                        stuck.reset()
+                        continue
+                except Abort:
+                    raise
+                except Exception as e:
+                    log("웨이브 미인식 처리 오류: %r" % (e,))
             if w is not None:
                 hist.append(w)
                 hist[:] = hist[-3:]
+                if len(hist) == 3 and min(hist) > int(st.get("peak_wave") or 0):
+                    st["peak_wave"] = min(hist)      # 최근 3번 읽은 값 중 최솟값 = 오인식에 안 흔들리는 최고층
                 if st["high_done"] and len(hist) == 3 and max(hist) < HIGH_WAVE * 0.8:
                     log(f"웨이브가 {hist}로 떨어짐 → 환생한 것으로 보고 초기화")
-                    st.update(high_done=False, need_low=True, high_fails=0, mid_done=False, mid_fails=0)
+                    record_rebirth(st, "감지"); st.update(high_done=False, need_low=True, high_fails=0, mid_done=False, mid_fails=0)
                     save_state(st)
                     continue
                 if (not st["high_done"] and st["high_fails"] < MAX_HIGH_FAILS
@@ -738,7 +943,7 @@ def main():
                 log(f"웨이브 {wx} (최고 {stuck.best}) 에서 {int(time.time() - stuck.since)}초 정체 → 환생 시도")
                 if GO:
                     if rebirth_now():
-                        st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0)
+                        record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0)
                         save_state(st)
                         hist.clear()
                         stuck.reset()
@@ -758,6 +963,25 @@ def main():
                 hist.clear()
                 stuck.reset()
                 continue
+
+            # 영혼의 휴식 시작 (패널 옵션 soul): 일일 작업이 끝났고 다이아가 충분할 때만
+            if GO and opt_on("soul") and len(hist) >= 3:
+                import soul
+                if soul.ready_to_start(st, wx):
+                    log("영혼의 휴식 시도")
+                    try:
+                        res = soul.start(st)
+                    except Abort:
+                        raise
+                    except Exception as e:
+                        log("영혼의 휴식 시작 오류: %r" % (e,))
+                        res = "fail"
+                    log("영혼의 휴식 시작 결과: %s" % res)
+                    soul.handle_start_result(st, res)
+                    save_state(st)
+                    hist.clear()
+                    stuck.reset()
+                    continue
 
             # 정기 재시작 (처리할 일이 없을 때만)
             if time.time() - st["last_restart"] >= RESTART_HOURS * 3600 and len(hist) >= 3:

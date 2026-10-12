@@ -22,11 +22,20 @@ def find_red_x(img, min_s=40, max_s=78):
         x, y, w, hh, a = st[i]
         if not (min_s <= w <= max_s and min_s <= hh <= max_s):
             continue
-        if abs(int(w) - int(hh)) > 10 or a < 0.55 * w * hh:
+        if abs(int(w) - int(hh)) > 10 or a < 0.28 * w * hh:
             continue
         hv = hsv[y:y + hh, x:x + w]
-        wf = float(((hv[..., 1] < 60) & (hv[..., 2] > 200)).mean())
-        if not (0.06 <= wf <= 0.40):
+        white = ((hv[..., 1] < 100) & (hv[..., 2] > 170)).astype(np.uint8)
+        if not (0.06 <= float(white.mean()) <= 0.40):
+            continue
+        # 흰 글자가 'X' 모양인지: 대각선 두 줄은 대부분 흰색, 가로/세로 가운데 줄은 대부분 아님
+        k = cv2.dilate(white, np.ones((3, 3), np.uint8))
+        t = np.linspace(0.25, 0.75, 12)
+        d1 = np.mean([k[int(u * (hh - 1)), int(u * (w - 1))] for u in t])
+        d2 = np.mean([k[int(u * (hh - 1)), int((1 - u) * (w - 1))] for u in t])
+        ax = np.mean([k[int(hh * 0.5), int(u * (w - 1))] for u in (0.2, 0.3, 0.7, 0.8)] +
+                     [k[int(u * (hh - 1)), int(w * 0.5)] for u in (0.2, 0.3, 0.7, 0.8)])
+        if d1 < 0.7 or d2 < 0.7 or ax > 0.5:
             continue
         out.append((int(x + w // 2), int(y + hh // 2)))
     return out

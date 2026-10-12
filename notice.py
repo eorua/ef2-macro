@@ -1,69 +1,62 @@
-"""notice.py - 공지(NOTICE) 팝업: '오늘 하루 보지 않기' 체크 후 X 로 닫기
+"""notice.py - 공지(NOTICE) 팝업: '오늘 하루 보지 않기' 체크 후 X 로 닫기 (그림 찾기 방식)
   py notice.py       현재 화면에서 공지 팝업이 보이는지만 확인 (클릭 안 함)
   py notice.py go    보이면 체크 + X 클릭
+공지 창은 내용 양에 따라 위아래 위치와 높이가 달라지므로, 위치 대신 그림(제목 / X / 체크박스 줄)을 화면에서 찾습니다.
 """
-import sys, time
+import sys, os, time
 import cv2, numpy as np
 import daily as D
 
 GO = "go" in sys.argv[1:]
-X_ROI = (575, 125, 630, 195)        # 공지 팝업 우상단 빨간 X (원본 720x1280 기준)
-X_CENTER = (607, 158)
-CHECK_PT = (80, 1135)               # '오늘 하루 보지 않기' 체크박스
-ROW_TEXT = (120, 1115, 330, 1155)   # 체크박스 옆 글자 줄
-ROW_BOX = (60, 1115, 105, 1155)
+TPL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tpl")
+THR_TITLE, THR_X, THR_CHECK = 0.75, 0.70, 0.70
+CHECK_OFF = (22, 22)                # notice_check.png 왼쪽 위에서 체크박스 중심까지
 _last_check = 0.0
+_check_pt = None
+_cache = {}
 
 
-_row_y = None
+def _tpl(name):
+    if name not in _cache:
+        p = os.path.join(TPL, name)
+        _cache[name] = cv2.imread(p) if os.path.exists(p) else None
+    return _cache[name]
 
 
-def find_row(g):
-    """'오늘 하루 보지 않기' 줄의 중심 y. 공지 창 높이가 달라져도 아래쪽부터 찾음. 없으면 None"""
-    H = g.shape[0]
-    for y in range(min(1200, H - 45), 900, -4):
-        if int((g[y:y + 40, 120:330] > 150).sum()) < 80:
-            continue
-        seg = g[y - 10:y + 50, 120:330]
-        rows = np.nonzero((seg > 150).sum(axis=1) >= 3)[0]
-        if len(rows) == 0:
-            continue
-        cy = y - 10 + int(np.median(rows))
-        box = g[cy - 20:cy + 20, 60:105]
-        if int(((box > 90) & (box < 200)).sum()) < 25:
-            continue
-        return cy
-    return None
+def _find(img, name, roi):
+    """roi=(x1,y1,x2,y2) 안에서 그림 name 을 찾아 (점수, 왼쪽위 x, y). 그림이 없으면 (0,0,0)"""
+    t = _tpl(name)
+    if t is None:
+        return 0.0, 0, 0
+    x1, y1, x2, y2 = roi
+    H, W = img.shape[:2]
+    x1, y1, x2, y2 = max(0, x1), max(0, y1), min(W, x2), min(H, y2)
+    band = img[y1:y2, x1:x2]
+    if band.shape[0] < t.shape[0] or band.shape[1] < t.shape[1]:
+        return 0.0, 0, 0
+    r = cv2.matchTemplate(band, t, cv2.TM_CCOEFF_NORMED)
+    _, mx, _, loc = cv2.minMaxLoc(r)
+    return float(mx), x1 + loc[0], y1 + loc[1]
 
 
 def detect(img):
-    """공지 팝업이면 닫기(X) 좌표 (x, y), 아니면 None"""
+    """공지 팝업이면 닫기(X) 중심 좌표 (x, y), 아니면 None. 체크박스 위치도 함께 기억"""
+    global _check_pt
     if img is None or img.shape[0] < 1200:
         return None
-    x1, y1, x2, y2 = X_ROI
-    hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2HSV)
-    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
-    m = ((h <= 10) | (h >= 170)) & (s >= 120) & (v >= 90)
-    if int(m.sum()) < 800:
+    s, tx, ty = _find(img, "notice_title.png", (260, 80, 520, 900))
+    if s < THR_TITLE:
         return None
-    ys, xs = np.nonzero(m)
-    cx, cy = xs.mean() + x1, ys.mean() + y1
-    if abs(cx - X_CENTER[0]) > 8 or abs(cy - X_CENTER[1]) > 14:
-        return None                  # 통합 프리셋 등 다른 팝업의 X 는 위치가 달라 걸러짐
-    global _row_y
-    g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    row = find_row(g)
-    if row is None:                  # 예전 창 모양(고정 위치)도 인정
-        a, b, c, d = ROW_TEXT
-        ok = int((g[b:d, a:c] > 150).sum()) >= 80
-        a, b, c, d = ROW_BOX
-        box = g[b:d, a:c]
-        ok = ok and int(((box > 90) & (box < 200)).sum()) >= 25
-        if not ok:
-            return None              # 아래쪽 '오늘 하루 보지 않기' 줄이 없으면 아님
-        row = CHECK_PT[1]
-    _row_y = row
-    return X_CENTER
+    t = _tpl("notice_title.png")
+    ty_c = ty + t.shape[0] // 2
+    s, xx, xy = _find(img, "notice_x.png", (520, ty_c - 45, 720, ty_c + 45))
+    if s < THR_X:
+        return None
+    xt = _tpl("notice_x.png")
+    pos = (xx + xt.shape[1] // 2, xy + xt.shape[0] // 2)
+    s, cx, cy = _find(img, "notice_check.png", (30, ty_c + 200, 360, 1260))
+    _check_pt = (cx + CHECK_OFF[0], cy + CHECK_OFF[1]) if s >= THR_CHECK else None
+    return pos
 
 
 def check_today():
@@ -72,8 +65,10 @@ def check_today():
     if time.time() - _last_check < 60:
         return False
     _last_check = time.time()
+    if _check_pt is None:
+        return False
     if GO:
-        D.tap((CHECK_PT[0], _row_y or CHECK_PT[1]), 0.6)
+        D.tap(_check_pt, 0.6)
     return True
 
 
@@ -82,8 +77,7 @@ def close(go=None):
     pos = detect(img)
     if pos is None:
         return False
-    if check_today():
-        pass
+    check_today()
     D.tap(pos, 1.0)
     return True
 
@@ -94,7 +88,7 @@ if __name__ == "__main__":
     if pos is None:
         print("공지 팝업이 보이지 않음")
     elif not GO:
-        print("공지 팝업 감지: 체크 %s 누른 뒤 X %s 를 누를 예정 (시험 모드, 클릭 안 함)" % (CHECK_PT, pos))
+        print("공지 팝업 감지: 체크 %s 를 누른 뒤 X %s 를 누를 예정 (시험 모드, 클릭 안 함)" % (_check_pt, pos))
     else:
-        print("공지 팝업 닫는 중")
+        print("공지 팝업 닫는 중 (체크 %s, X %s)" % (_check_pt, pos))
         close()

@@ -47,7 +47,7 @@ HERO_BTN = (360, 1240)
 HERO_ROI = (300, 1215, 420, 1265)
 RES_OK = (360, 860)
 RES_ROI = (280, 835, 440, 885)
-INF_BATTLE_TIMEOUT = 200
+INF_BATTLE_TIMEOUT = 20
 INF_INTERVAL = 16200               # 티켓을 다 쓴 뒤 다음 확인까지 (4.5시간)
 INF_RETRY = 600
 
@@ -239,7 +239,18 @@ def claim_chests():
             log("포인트 상자 수령 (x=%d)" % cx)
     return n
 
+def hud_ensure(close=True):
+    """오른쪽 메뉴가 접혀 있으면 펼치고, 가려져 있으면 창을 닫음 (실패해도 그냥 진행)"""
+    try:
+        import hud
+        if not hud.ensure(close):
+            log("오른쪽 메뉴 펼침 확인 실패 (그냥 진행)")
+    except Exception as e:
+        log("hud_ensure 오류:", e)
+
+
 def do_quest(go, force=False):
+    hud_ensure(False)
     img = cap()
     dot = ratio(img, QUEST_DOT_ROI, "dot")
     log("퀘스트 아이콘 점 비율 %.2f" % dot)
@@ -250,6 +261,7 @@ def do_quest(go, force=False):
     if not safe_wave_ok(img):
         return False
     close_panels()
+    hud_ensure()
     tap(QUEST_ICON, 1.3)
     img = cap()
     if not has_x(img, QUEST_X_ROI):
@@ -329,6 +341,14 @@ def _inf_battle():
                 tap(RES_OK, 1.5)
                 return "ok"
         time.sleep(3.0)
+    try:
+        img = cap()
+        if img is not None:
+            os.makedirs(SHOTS, exist_ok=True)
+            cv2.imwrite(os.path.join(SHOTS, "inf_timeout.png"), img)
+            log("그때 화면 저장: shots\\inf_timeout.png")
+    except Exception:
+        pass
     log("전투 결과가 %d초 안에 안 뜸 -> 중단" % INF_BATTLE_TIMEOUT)
     return "abort"
 
@@ -342,6 +362,12 @@ def do_infinite(go):
         return "abort"
     tap(ROW_INF, 1.5)
     img = cap()
+    try:
+        import inf2
+        if inf2.is_open(img):
+            return inf2.run(go, img)
+    except Exception as e:
+        log("새 무한랭킹전 처리 오류: %r" % (e,))
     if img is None or not has_x(img, INF_X_ROI):
         log("무한랭킹전 상대 목록 화면을 못 찾음 -> 중단")
         close_panels()
@@ -467,6 +493,19 @@ def inf_due(st):
     return t
 
 
+GUILD_TASKS = (("g_post", "guild_post"), ("g_raid", "raid_shop"), ("g_arch", "archery"))   # (오늘 완료 표시 키, 패널 옵션 키)
+
+
+def guild_pending(d):
+    """오늘 아직 안 한 길드 작업 (옵션이 켜져 있고 재시도 대기 시간이 지난 것)"""
+    if time.time() < d.get("guild_next", 0):
+        return None
+    for key, opt in GUILD_TASKS:
+        if not d.get(key) and setting(opt, opt != "archery"):     # 양궁은 기본 꺼짐
+            return key
+    return None
+
+
 def due(st):
     """지금 일일 작업을 시도할 때인지 (화면 캡처 없이 빠르게 판단)"""
     if time.time() < st.get("daily_next", 0):
@@ -479,6 +518,8 @@ def due(st):
     if not d.get("ads") and time.time() >= d.get("ads_next", 0):
         return True
     if time.time() - d.get("quest_ts", 0) > QUEST_COOLDOWN:
+        return True
+    if guild_pending(d):
         return True
     return time.time() >= inf_due(st)
 
@@ -494,15 +535,23 @@ def run_daily(st):
         img = cap()
         if img is None or not safe_wave_ok(img):
             return False
-        if not d.get("dungeon"):
+        if not d.get("dungeon") and time.time() >= d.get("dungeon_next", 0):
             log("던전 소탕 시작")
-            do_dungeon(True)
-            d["dungeon"] = True
+            d["dungeon_tries"] = d.get("dungeon_tries", 0) + 1
+            if do_dungeon(True) or d["dungeon_tries"] >= 3:
+                d["dungeon"] = True
+            else:
+                log("던전 소탕 실패 -> 10분 뒤 재시도 (%d/3)" % d["dungeon_tries"])
+                d["dungeon_next"] = time.time() + 600
             return True
-        if not d.get("ranking"):
+        if not d.get("ranking") and time.time() >= d.get("ranking_next", 0):
             log("일일 랭킹전 시작")
-            do_ranking(True)
-            d["ranking"] = True
+            d["ranking_tries"] = d.get("ranking_tries", 0) + 1
+            if do_ranking(True) or d["ranking_tries"] >= 3:
+                d["ranking"] = True
+            else:
+                log("일일 랭킹전 참여 못 함 -> 10분 뒤 재시도 (%d/3)" % d["ranking_tries"])
+                d["ranking_next"] = time.time() + 600
             return True
         if not d.get("ads") and time.time() >= d.get("ads_next", 0):
             log("상점 광고 시작")
@@ -517,9 +566,24 @@ def run_daily(st):
             if do_quest(True):
                 log("퀘스트 보상 수령")
             return True
+        gk = guild_pending(d)
+        if gk:
+            log("길드 작업 시작:", gk)
+            import guild
+            d["tries_" + gk] = d.get("tries_" + gk, 0) + 1
+            if guild.run_task(gk) or d["tries_" + gk] >= 4:
+                d[gk] = True
+            else:
+                d["guild_next"] = time.time() + 600
+            return True
         if time.time() >= inf_due(st):
             log("무한랭킹전 시작")
             r = do_infinite(True)
+            try:
+                import inf2
+                inf2.close_if_open()
+            except Exception as e:
+                log("무한랭킹전 화면 닫기 오류: %r" % (e,))
             st["inf_next"] = time.time() + (INF_INTERVAL if r in ("ok", "empty") else INF_RETRY)
             return True
     except Exception as e:

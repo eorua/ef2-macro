@@ -9,10 +9,11 @@ import cv2, numpy as np, subprocess, sys, time, os, json, datetime
 import speed          # 대기시간 단축 (speed.py 의 FACTOR)
 
 ADB = r"C:\platform-tools\adb.exe"
-DEV = "127.0.0.1:5585"
+DEV = __import__("adbport").DEV
 SHOTS = r"C:\macro\shots"
 
-MAX_WAVE = 6200          # 이 웨이브 이상이면 일일 작업 안 함
+MAX_WAVE = 6500          # 이 웨이브 이상이면 일일 작업 안 함 (patch200: 메인이 지금 고레벨 단계 웨이브로 덮어씀)
+WAVE_SANE = 20000        # patch200: 이보다 큰 웨이브는 오독으로 봄 (던전 화면에서 39179 로 읽힌 적 있음)
 SWEEP_COUNT = 3          # 던전 소탕 횟수
 QUEST_COOLDOWN = 3600    # 퀘스트 보상 확인 최소 간격(초)
 
@@ -27,8 +28,8 @@ JOIN_BTN = (360, 1050)
 JOIN_ROI = (280, 1020, 440, 1085)
 X_PANEL = (678, 790)
 X_PANEL_ROI = (645, 765, 712, 815)
-QUEST_ICON = (595, 185)
-QUEST_DOT_ROI = (598, 155, 622, 180)
+QUEST_ICON = (600, 148)     # patch213: 10-21 업데이트로 오른쪽 메뉴 위치 변경 (예전 595, 185)
+QUEST_DOT_ROI = (609, 112, 633, 137)
 QUEST_X = (638, 194)
 QUEST_X_ROI = (610, 170, 668, 220)
 QUEST_ROWS_Y = [425, 515, 603, 692, 780, 869, 957]
@@ -47,8 +48,8 @@ HERO_BTN = (360, 1240)
 HERO_ROI = (300, 1215, 420, 1265)
 RES_OK = (360, 860)
 RES_ROI = (280, 835, 440, 885)
-INF_BATTLE_TIMEOUT = 20
-INF_INTERVAL = 16200               # 티켓을 다 쓴 뒤 다음 확인까지 (4.5시간)
+INF_BATTLE_TIMEOUT = 40          # patch123: 20 -> 40
+INF_INTERVAL = 7200                # 다음 자동 실행까지 (2시간) - patch100
 INF_RETRY = 600
 
 # 상점 광고 (광고제거 패키지: 클릭 한 번이면 보상)
@@ -141,8 +142,19 @@ def safe_wave_ok(img=None):
         return False
     w = get_wave(img)
     if w is not None and w >= MAX_WAVE:
-        log("웨이브 %d >= %d -> 중단" % (w, MAX_WAVE))
-        return False
+        # patch200: 오독 방지 - 말이 안 되게 큰 값은 무시, 아니면 0.3초 간격으로 두 번 더 읽어 둘 다 넘어야 중단
+        if w >= WAVE_SANE:
+            log("웨이브 %d 는 오독으로 보고 무시" % w)
+            return True
+        again = []
+        for _ in range(2):
+            time.sleep(0.3)
+            w2 = get_wave(cap())
+            again.append(w2)
+        if all(x is not None and MAX_WAVE <= x < WAVE_SANE for x in again):
+            log("웨이브 %d >= %d -> 중단 (다시 읽음 %s)" % (w, MAX_WAVE, again))
+            return False
+        log("웨이브 %d 는 한 번만 넘게 읽힘 (다시 읽음 %s) -> 계속" % (w, again))
     return True
 
 
@@ -163,6 +175,8 @@ def go_battle():
 
 # ---------------------------------------------------------------- 던전
 def do_dungeon(go):
+    import dungeon                              # patch101: 새 던전 소탕 (가장 적은 재화 보스 + 광고)
+    return dungeon.run(go)
     go_battle()
     if not safe_wave_ok():
         return False
@@ -331,9 +345,19 @@ def _inf_battle():
         return "abort"
     tap(HERO_BTN, 2.0)
     t0 = time.time()
+    left_list = False
     while time.time() - t0 < INF_BATTLE_TIMEOUT:
         img = cap()
         if img is not None:
+            try:                                       # patch123: 결과 창 없이 목록으로 돌아오면 끝난 것으로
+                import inf2
+                if not inf2.is_open(img):
+                    left_list = True
+                elif left_list and time.time() - t0 > 6:
+                    log("결과 창을 못 봤지만 목록으로 돌아옴 -> 전투 끝난 것으로 봄")
+                    return "ok"
+            except Exception:
+                pass
             if blocked(img):
                 log("전투 중 성 함락/결과 팝업 감지 -> 중단")
                 return "abort"
@@ -476,7 +500,7 @@ def do_ads(go):
 
 # ---------------------------------------------------------------- 메인 연동
 def game_day():
-    return (datetime.datetime.now() - datetime.timedelta(hours=9)).strftime("%Y-%m-%d")
+    return (datetime.datetime.now() - datetime.timedelta(hours=9, minutes=10)).strftime("%Y-%m-%d")     # patch125: 9시 10분부터 새 날
 
 
 INF_MANUAL_FILE = r"C:\macro\inf_manual.txt"
@@ -506,6 +530,27 @@ def guild_pending(d):
     return None
 
 
+FRIEND_DOT_EVERY = 3600     # patch146/147: 친구 아이콘 빨간 점 확인 간격(초) - 1시간
+
+
+def friend_prereset(st):
+    """patch147: 초기화(9시) 직전 08:30~08:59 에 하루 한 번 창을 열어 남은 선물 받기 (9시가 넘으면 의미 없음)"""
+    n = datetime.datetime.now()
+    if not (n.hour == 8 and n.minute >= 30):
+        return False
+    return st.get("friend_pre") != n.strftime("%Y-%m-%d")
+
+
+def friend_due(st, d):
+    """하루 한 번 모두 보내기 / 1시간마다 빨간 점 확인 (patch154: 패널 옵션 없이 항상)"""
+    now = time.time()
+    if not d.get("friend_send") and now >= d.get("friend_next", 0):
+        return True
+    if friend_prereset(st):
+        return True
+    return now >= st.get("friend_dot_next", 0)
+
+
 def due(st):
     """지금 일일 작업을 시도할 때인지 (화면 캡처 없이 빠르게 판단)"""
     if time.time() < st.get("daily_next", 0):
@@ -513,13 +558,17 @@ def due(st):
     d = st.get("daily", {})
     if d.get("date") != game_day():
         return True
-    if not d.get("dungeon") or not d.get("ranking"):
+    if time.time() >= st.get("dg_next", 0):     # patch101: 던전 1시간 주기
+        return True
+    if not d.get("ranking"):
         return True
     if not d.get("ads") and time.time() >= d.get("ads_next", 0):
         return True
     if time.time() - d.get("quest_ts", 0) > QUEST_COOLDOWN:
         return True
     if guild_pending(d):
+        return True
+    if friend_due(st, d):                       # patch146
         return True
     return time.time() >= inf_due(st)
 
@@ -535,14 +584,24 @@ def run_daily(st):
         img = cap()
         if img is None or not safe_wave_ok(img):
             return False
-        if not d.get("dungeon") and time.time() >= d.get("dungeon_next", 0):
-            log("던전 소탕 시작")
-            d["dungeon_tries"] = d.get("dungeon_tries", 0) + 1
-            if do_dungeon(True) or d["dungeon_tries"] >= 3:
+        # patch194: 상점 광고(게임속도 광고로 회색 갱신)를 던전보다 먼저 -> 던전 광고 칸도 갱신된 뒤 소탕
+        if not d.get("ads") and time.time() >= d.get("ads_next", 0):
+            log("상점 광고 시작")
+            d["ads_tries"] = d.get("ads_tries", 0) + 1
+            if do_ads(True) or d["ads_tries"] >= 6:
+                d["ads"] = True
+            else:
+                d["ads_next"] = time.time() + 600
+            return True
+        if time.time() >= st.get("dg_next", 0):          # patch101: 1시간마다 던전 소탕
+            import dungeon
+            log("던전 소탕 시작 (40분 주기)")     # patch123
+            ok = dungeon.run(True, d)
+            st["dg_next"] = time.time() + (dungeon.INTERVAL if ok else dungeon.RETRY)
+            if ok:
                 d["dungeon"] = True
             else:
-                log("던전 소탕 실패 -> 10분 뒤 재시도 (%d/3)" % d["dungeon_tries"])
-                d["dungeon_next"] = time.time() + 600
+                log("던전 소탕 실패 -> %d분 뒤 재시도" % (dungeon.RETRY // 60))
             return True
         if not d.get("ranking") and time.time() >= d.get("ranking_next", 0):
             log("일일 랭킹전 시작")
@@ -552,14 +611,6 @@ def run_daily(st):
             else:
                 log("일일 랭킹전 참여 못 함 -> 10분 뒤 재시도 (%d/3)" % d["ranking_tries"])
                 d["ranking_next"] = time.time() + 600
-            return True
-        if not d.get("ads") and time.time() >= d.get("ads_next", 0):
-            log("상점 광고 시작")
-            d["ads_tries"] = d.get("ads_tries", 0) + 1
-            if do_ads(True) or d["ads_tries"] >= 6:
-                d["ads"] = True
-            else:
-                d["ads_next"] = time.time() + 600
             return True
         if time.time() - d.get("quest_ts", 0) > QUEST_COOLDOWN:
             d["quest_ts"] = time.time()
@@ -576,6 +627,47 @@ def run_daily(st):
             else:
                 d["guild_next"] = time.time() + 600
             return True
+        if (not d.get("spirit") and time.time() >= d.get("spirit_next", 0)
+                and setting("fairy", True)):                 # patch164: 정령의 고원 (patch181: 패널의 '정령의 고원' 체크와 연결)
+            import spirit
+            spirit.GO = True
+            log("정령의 고원 시작")
+            d["sp_tries"] = d.get("sp_tries", 0) + 1
+            ok = False
+            try:
+                ok = spirit.run(d)
+            except Exception as e:
+                log("정령의 고원 오류: %r" % (e,))
+                close_panels()
+            if ok or d["sp_tries"] >= 3:
+                d["spirit"] = True
+            else:
+                d["spirit_next"] = time.time() + 600
+            return True
+        if friend_due(st, d):                                # patch146: 친구 선물
+            import friend
+            st["friend_dot_next"] = time.time() + FRIEND_DOT_EVERY
+            want_send = not d.get("friend_send") and time.time() >= d.get("friend_next", 0)
+            pre = friend_prereset(st)
+            if pre:
+                st["friend_pre"] = datetime.datetime.now().strftime("%Y-%m-%d")
+                log("초기화 전 친구 선물 확인")
+            friend.log = lambda *a: log("[친구]", *a)     # patch199: 친구 창 동작도 로그에 남김
+            r = friend.run(send=want_send, force=pre)
+            if want_send:
+                if r.get("sent"):
+                    d["friend_send"] = True
+                    log("친구 선물 보내기 완료")
+                else:
+                    d["friend_tries"] = d.get("friend_tries", 0) + 1
+                    if d["friend_tries"] >= 4:
+                        d["friend_send"] = True
+                    else:
+                        d["friend_next"] = time.time() + 600
+            if r.get("got"):
+                log("친구 선물 받기 완료: 보석 +%s%s" % (r.get("gems"), "" if not r.get("left") else " (아직 +%s 남음)" % r.get("left")))
+            if r.get("opened"):
+                return True
         if time.time() >= inf_due(st):
             log("무한랭킹전 시작")
             r = do_infinite(True)

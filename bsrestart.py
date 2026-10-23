@@ -1,7 +1,7 @@
 import subprocess, sys, time
 
 ADB_EXE = r"C:\platform-tools\adb.exe"
-DEV = "127.0.0.1:5585"
+DEV = __import__("adbport").DEV
 PLAYER = r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"
 INSTANCE = "Pie64_3"              # 오환2 인스턴스 이름 (bluestacks.conf 에서 확인)
 TITLE = "오환2"                   # BlueStacks 창 제목에 들어 있는 글자
@@ -30,9 +30,10 @@ def adb(args, timeout=20):
 
 def wait_boot(timeout=240):
     t0 = time.time()
+    import adbport
     while time.time() - t0 < timeout:
-        adb(["connect", DEV])
-        out = adb(["-s", DEV, "shell", "getprop", "sys.boot_completed"])
+        dev = adbport.sync(print, scan=time.time() - t0 > 60)     # patch202: 다시 켜면 포트가 바뀔 수 있음
+        out = adb(["-s", dev, "shell", "getprop", "sys.boot_completed"])
         if out.strip() == "1":
             print(f"안드로이드 부팅 완료 ({int(time.time() - t0)}초)")
             return True

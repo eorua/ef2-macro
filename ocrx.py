@@ -77,7 +77,7 @@ def words(img):
         return None
 
 
-def red_x_buttons(img, x_min=560, y_min=90, y_max=620):
+def red_x_buttons(img, x_min=560, y_min=40, y_max=620):     # patch137: 출석 보상 X 가 y=77 에 있어 90 -> 40
     """오른쪽의 빨간 X(닫기) 버튼들 -> [(x, y)] (위쪽부터). 제목줄의 작은 X(약 35px)도 찾음"""
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
@@ -114,21 +114,22 @@ def analyze(ws):
     return is_att, btn, joined
 
 
-def find_attendance(img):
-    """출석 보상 창이면 (이름, 눌러야 할 좌표) 아니면 None. 처음엔 받기, 이미 눌렀는데 창이 남아 있으면 X"""
+def find_attendance(img, force=False):
+    """출석 보상 창이면 (이름, 눌러야 할 좌표) 아니면 None. 처음엔 받기, 이미 눌렀는데 창이 남아 있으면 X
+    force=True: 제목 그림으로 이미 출석 창임을 확인함 -> 빨간 X/대기시간 검사 없이 바로 글자로 '받기' 찾기 (patch137)"""
     xs = red_x_buttons(img)
-    if not xs:
+    if not xs and not force:
         _state["active"] = False
         return None
     now = time.time()
-    if not _state["active"] and now - _state["t"] < OCR_COOLDOWN:
+    if not force and not _state["active"] and now - _state["t"] < OCR_COOLDOWN:
         return None
     _state["t"] = now
     ws = words(img)
     if not ws:
         return None
     is_att, btn, joined = analyze(ws)
-    if not is_att:
+    if not is_att and not force:
         _state["active"] = False
         return None
     _state["active"] = True
@@ -136,6 +137,8 @@ def find_attendance(img):
         _state["btn"] = now
         log("출석 보상 창 (글자로 인식) -> 받기 %s" % (btn,))
         return "출석 보상(글자)", btn
+    if not xs:
+        return None
     log("출석 보상 창이 남아 있음 -> 닫기 X %s" % (xs[0],))
     return "출석 보상 닫기(글자)", xs[0]
 

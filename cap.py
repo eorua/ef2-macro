@@ -1,6 +1,6 @@
 import subprocess, sys, cv2, numpy as np
 
-ADB = [r"C:\platform-tools\adb.exe", "-s", "127.0.0.1:5585"]
+ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 
 png = subprocess.run(ADB + ["exec-out", "screencap", "-p"],
                      capture_output=True).stdout

@@ -8,7 +8,7 @@
 import sys, os, time, subprocess
 import cv2, numpy as np
 
-ADB = [r"C:\platform-tools\adb.exe", "-s", "127.0.0.1:5585"]
+ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 TPL = r"C:\macro\tpl"
 SHOTS = r"C:\macro\shots"
 W, H = 720, 1280

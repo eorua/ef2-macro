@@ -48,17 +48,27 @@ def close_buttons(img):
 def close_all(max_n=4):
     """보이는 닫기 X 를 하나씩 눌러 창을 닫음. 닫은 개수 반환. 안 보이면 아무것도 안 누름"""
     n = 0
-    for _ in range(max_n):
+    skip = []                                # patch104: 눌러도 안 닫힌 X (다른 알림이 덮고 있음)
+    for _ in range(max_n + 2):
         img = preset.capture()
         if img is None:
             break
         pts = close_buttons(img)
-        if not pts:
+        cand = [p for p in pts if all(abs(p[0] - s[0]) > 8 or abs(p[1] - s[1]) > 8 for s in skip)]
+        if not cand:
             break
-        pts.sort(key=lambda p: -p[1])         # 아래쪽(보통 가장 앞에 뜬 창)부터
-        preset.tap(pts[0], "창 닫기 X")
-        n += 1
+        cand.sort(key=lambda p: -p[1])        # 아래쪽(보통 가장 앞에 뜬 창)부터
+        pt = cand[0]
+        preset.tap(pt, "창 닫기 X")
         time.sleep(0.8)
+        after = preset.capture()
+        if after is not None and any(abs(p[0] - pt[0]) <= 8 and abs(p[1] - pt[1]) <= 8 for p in close_buttons(after)):
+            skip.append(pt)                   # 그대로 남음 -> 다음엔 다른 X 부터
+            continue
+        skip = []
+        n += 1
+        if n >= max_n:
+            break
     return n
 
 

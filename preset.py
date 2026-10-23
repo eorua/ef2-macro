@@ -1,11 +1,13 @@
 import subprocess, sys, time, os, cv2, numpy as np
 
 BASE = r"C:\macro"
-ADB = [r"C:\platform-tools\adb.exe", "-s", "127.0.0.1:5585"]
+ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 GO = "go" in sys.argv[1:]
 
 # ---- 좌표 (720x1280, 눈금 캡처로 확인) ----
-HUD_PRESET = (527, 660)          # 전투 화면의 프리셋(금색 순환 화살표) 아이콘
+HUD_PRESET = (487, 655)          # 전투 화면의 프리셋(금색 순환 화살표) 아이콘 (patch218: 10-23 업데이트로 527→487, 옛 자리는 절전 버튼)
+HUD_PRESET_ROI = (380, 580, 660, 730)   # patch218: 아이콘 그림(tpl\\hud_preset.png)을 찾는 범위
+SLEEP_KNOB = (200, 822)                 # patch218: 절전 화면 '스와이프하면 복귀' 손잡이
 TAB_HERO = (185, 1240)           # 하단 '영웅' 탭
 BTN_PLUS = (326, 790)            # 영웅 탭의 '+' (일괄 레벨업)
 # 통합 프리셋 팝업
@@ -13,9 +15,9 @@ PRE_X = (631, 150)
 PRE_SAVE = (267, 1094)
 PRE_CANCEL = (452, 1094)
 HERO_TABS = {"기본": (115, 261), "렙뻥": (197, 261), "최대레벨": (283, 261),
-             "드루최대렙": (385, 261), "한계": (482, 261)}
-RELIC_TABS = {"기본": (113, 545), "성체력뻥튀기": (218, 545), "영웅강화골드": (348, 545),
-              "시간": (453, 545), "엘프": (535, 545)}
+             "골드": (385, 261), "한계": (482, 261)}                  # patch154: 4번째 탭 이름 '골드'
+RELIC_TABS = {"기본": (113, 545), "골드 모으기": (216, 545), "영웅강화골드": (348, 545),
+              "시간": (453, 545), "오픈골드 감소": (560, 545)}       # patch154: 2번째 '골드 모으기', 5번째 '오픈골드 감소'(10-18 스크린샷)
 # 일괄 레벨업 팝업
 BULK_X = (631, 525)
 BULK_ALL = (90, 583)
@@ -103,6 +105,56 @@ def wait_for(cond, timeout=4.0, first=0.5, step=0.4):
     return img
 
 
+# ---- patch218: 프리셋 아이콘 그림 찾기 + 절전 화면 풀기 ----
+_HP_TPL = None
+
+
+def find_preset_icon(img):
+    """전투 화면에서 금색 순환 화살표 아이콘 중심. 못 찾으면 기본 좌표"""
+    global _HP_TPL
+    try:
+        if _HP_TPL is None:
+            _HP_TPL = cv2.imread(os.path.join(BASE, "tpl", "hud_preset.png"))
+        if img is not None and _HP_TPL is not None:
+            x1, y1, x2, y2 = HUD_PRESET_ROI
+            r = cv2.matchTemplate(img[y1:y2, x1:x2], _HP_TPL, cv2.TM_CCOEFF_NORMED)
+            _, mx, _, loc = cv2.minMaxLoc(r)
+            if mx >= 0.7:
+                th, tw = _HP_TPL.shape[:2]
+                return (x1 + loc[0] + tw // 2, y1 + loc[1] + th // 2)
+    except Exception as e:
+        print("프리셋 아이콘 찾기 오류:", e)
+    return HUD_PRESET
+
+
+def is_sleep(img):
+    """절전 화면(어두운 배경 + 파란 스와이프 손잡이)이면 True"""
+    try:
+        v = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[..., 2]
+        if float(v.mean()) > 55:
+            return False
+        x, y = SLEEP_KNOB
+        p = img[y - 10:y + 11, x - 14:x + 15].reshape(-1, 3).astype(int)
+        blue = ((p[:, 0] > 110) & (p[:, 0] > p[:, 2] + 50)).mean()
+        return blue > 0.3
+    except Exception:
+        return False
+
+
+def exit_sleep(img=None):
+    """절전 화면이면 손잡이를 오른쪽으로 밀어 복귀. 풀었으면 True"""
+    if img is None:
+        img = capture()
+    if img is None or not is_sleep(img):
+        return False
+    print("절전 화면 감지 → 스와이프로 복귀")
+    if GO:
+        x, y = SLEEP_KNOB
+        subprocess.run(ADB + ["shell", "input", "swipe", str(x), str(y), "620", str(y), "500"])
+    time.sleep(1.5)
+    return True
+
+
 def read_state():
     img = capture()
     if img is None:
@@ -117,31 +169,63 @@ def read_state():
     return img
 
 
-def set_presets(hero, relic):
-    """통합 프리셋 팝업에서 영웅/유물 프리셋을 고르고 저장. 성공하면 True"""
+def set_presets(hero, relic, pet=None):
+    """통합 프리셋 팝업에서 영웅/유물 프리셋(+대표 펫)을 고르고 저장. 성공하면 True
+    patch116: relic=None 이면 유물은 그대로, pet 이 있으면 대표 펫도 교체 (펫 실패는 무시하고 진행)"""
     img = capture()
     if img is None:
         print("캡처 실패"); return False
     if bulk_open(img):
         print("일괄 레벨업 창이 열려 있어 중단"); return False
+    if exit_sleep(img):                                            # patch218
+        img = capture()
+        if img is None:
+            print("캡처 실패"); return False
     if not preset_open(img):
-        tap(HUD_PRESET, "프리셋 아이콘")
-        img = wait_for(preset_open, 5.0, first=0.8)
+        tap(find_preset_icon(img), "프리셋 아이콘")
+        img = wait_for(preset_open, 5.0, first=0.4, step=0.25)     # patch106
         if img is None or not preset_open(img):
-            print("통합 프리셋 팝업이 안 열려 중단"); return False
+            # patch213: 다른 창(펫 상세 등)이 남아 있으면 오른쪽 빨간 X 를 위에서부터 닫고 한 번 더
+            closed = 0
+            try:
+                import ocrx
+                for _ in range(4):
+                    cur = capture()
+                    xs = ocrx.red_x_buttons(cur) if cur is not None else []
+                    if not xs or preset_open(cur):
+                        break
+                    tap(xs[0], "남은 창 X")
+                    closed += 1
+                    time.sleep(0.8)
+            except Exception as e:
+                print("남은 창 닫기 오류:", e)
+            if closed:
+                print("통합 프리셋 팝업이 안 열려 남은 창 %d개 닫고 다시 시도" % closed)
+                tap(find_preset_icon(capture()), "프리셋 아이콘")
+                img = wait_for(preset_open, 5.0, first=0.4, step=0.25)
+            if img is None or not preset_open(img):
+                print("통합 프리셋 팝업이 안 열려 중단"); return False
     cur_h, cur_r = selected(img, HERO_TABS), selected(img, RELIC_TABS)
-    print(f"현재 영웅={cur_h}, 유물={cur_r} / 목표 영웅={hero}, 유물={relic}")
-    if (hero is None or cur_h == hero) and cur_r == relic:
+    want_r = relic if relic is not None else cur_r
+    pet_ok = True
+    if pet is not None:
+        try:
+            import pet as _petm
+            pet_ok = _petm.rep_pet(img) == pet
+        except Exception as e:
+            print("펫 판별 오류: %r" % (e,))
+    print(f"현재 영웅={cur_h}, 유물={cur_r} / 목표 영웅={hero}, 유물={relic}" + (f", 펫={pet}" if pet else ""))
+    if (hero is None or cur_h == hero) and cur_r == want_r and pet_ok:
         print("이미 목표 상태 → 취소로 닫기")
         tap(PRE_CANCEL, "취소")
-        time.sleep(1.0)
+        wait_for(lambda im: not preset_open(im), 2.0, first=0.2, step=0.25)     # patch106: 닫히면 바로
         return True
     if hero is not None and cur_h != hero:
         tap(HERO_TABS[hero], f"영웅 {hero}")
-    if cur_r != relic:
-        tap(RELIC_TABS[relic], f"유물 {relic}")
-    img = wait_for(lambda im: (hero is None or selected(im, HERO_TABS) == hero) and selected(im, RELIC_TABS) == relic, 4.0, first=0.5)
-    if img is None or (hero is not None and selected(img, HERO_TABS) != hero) or selected(img, RELIC_TABS) != relic:
+    if cur_r != want_r:
+        tap(RELIC_TABS[want_r], f"유물 {want_r}")
+    img = wait_for(lambda im: (hero is None or selected(im, HERO_TABS) == hero) and selected(im, RELIC_TABS) == want_r, 4.0, first=0.25, step=0.25)     # patch106
+    if img is None or (hero is not None and selected(img, HERO_TABS) != hero) or selected(img, RELIC_TABS) != want_r:
         print("탭 선택 확인 실패 → 취소로 닫고 중단")
         cur = capture()
         if cur is not None and preset_open(cur):      # 팝업이 아직 열려 있을 때만 취소 (닫혀 있으면 뒤의 영웅 목록이 눌림)
@@ -149,8 +233,20 @@ def set_presets(hero, relic):
         else:
             print("  (팝업이 이미 닫혀 있어 취소는 누르지 않음)")
         return False
+    if not pet_ok:                                   # patch116: 대표 펫 교체
+        try:
+            import pet as _petm
+            pet_ok = _petm.select(pet)
+        except Exception as e:
+            print("펫 교체 오류: %r" % (e,))
+        if not pet_ok:
+            print(f"대표 펫 {pet} 교체 실패 -> 펫은 그대로")
+            if (hero is None or cur_h == hero) and cur_r == want_r:
+                tap(PRE_CANCEL, "취소")
+                wait_for(lambda im: not preset_open(im), 2.0, first=0.2, step=0.25)
+                return False
     tap(PRE_SAVE, "저장")
-    img = wait_for(lambda im: not preset_open(im), 5.0, first=1.0)
+    img = wait_for(lambda im: not preset_open(im), 5.0, first=0.4, step=0.3)     # patch106
     if img is not None and preset_open(img):
         print("저장 후에도 팝업이 열려 있음 → 취소")
         tap(PRE_CANCEL, "취소")
@@ -197,11 +293,99 @@ def levels_maxed(img):
     return cost_is_zero(img, 3)
 
 
-def bulk_levelup(max_rounds=3, max_press=40):
+LAST_MAXED = False      # patch116: 마지막 일괄 레벨업이 '모든 영웅 최대 레벨'로 끝났는지
+
+# ---- patch139: 영웅 탭 AUTO (자동 레벨업) 로 일괄 레벨업 대체 ----
+USE_HERO_AUTO = True
+HERO_AUTO = (131, 778)              # 영웅 탭 '영웅 !' 옆 • AUTO
+HERO_AUTO_ROI = (106, 768, 158, 790)
+HERO_AUTO_SEC = 3.0                 # 켜 두는 시간
+
+
+def _auto_crop(img):
+    x1, y1, x2, y2 = HERO_AUTO_ROI
+    return img[y1:y2, x1:x2].astype(np.float32)
+
+
+def hero_auto_on(img):
+    """AUTO 가 켜져 있으면(글자/점이 색깔) True. 꺼짐은 회색"""
+    x1, y1, x2, y2 = HERO_AUTO_ROI
+    h = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2HSV)
+    return int(((h[..., 1] > 90) & (h[..., 2] > 140)).sum()) >= 15
+
+
+def _shot(name, img):
+    try:
+        os.makedirs(os.path.join(BASE, "shots"), exist_ok=True)
+        cv2.imwrite(os.path.join(BASE, "shots", name), img)
+    except Exception:
+        pass
+
+
+def auto_levelup(sec=None):
+    """AUTO 켜기 -> 3초 -> 끄기. 성공 True / AUTO 버튼이 반응 없음 None(예전 방식으로) / 끄기 실패 False"""
+    global LAST_MAXED
+    LAST_MAXED = False
     tap(TAB_HERO, "영웅 탭")
-    time.sleep(1.0)
+    time.sleep(0.8)
+    img = capture()
+    if img is None:
+        return None
+    if hero_auto_on(img):                            # 혹시 켜져 있으면 먼저 끔
+        print("  영웅 AUTO 가 이미 켜져 있음 -> 먼저 끔")
+        tap(HERO_AUTO, "영웅 AUTO 끄기")
+        time.sleep(0.8)
+        img = capture()
+        if img is None or hero_auto_on(img):
+            _shot("hero_auto_fail.png", img if img is not None else np.zeros((10, 10, 3), np.uint8))
+            return False
+    ref = _auto_crop(img)
+    turned = False
+    for k in range(2):
+        tap(HERO_AUTO, "영웅 AUTO 켜기")
+        t_on = time.time()
+        time.sleep(0.6)
+        img = capture()
+        if img is not None and (hero_auto_on(img) or float(np.abs(_auto_crop(img) - ref).mean()) > 6):
+            turned = True
+            break
+    if not turned:
+        print("  영웅 AUTO 를 눌러도 변화 없음 -> 예전 방식(+ 버튼)으로")
+        if img is not None:
+            _shot("hero_auto_nochange.png", img)
+        return None
+    if img is not None and not hero_auto_on(img):
+        _shot("hero_auto_on_look.png", img)          # 켜짐 모양이 예상(색깔)과 다르면 기록
+    sec = HERO_AUTO_SEC if sec is None else sec
+    time.sleep(max(0.0, sec - (time.time() - t_on)))
+    for k in range(3):
+        tap(HERO_AUTO, "영웅 AUTO 끄기")
+        time.sleep(0.7)
+        img = capture()
+        if img is not None and float(np.abs(_auto_crop(img) - ref).mean()) <= 6 and not hero_auto_on(img):
+            print("영웅 AUTO 레벨업 완료 (%.0f초)" % sec)
+            return True
+    print("  영웅 AUTO 가 안 꺼짐! (shots\\hero_auto_fail.png)")
+    if img is not None:
+        _shot("hero_auto_fail.png", img)
+    return False
+
+
+def bulk_levelup(max_rounds=3, max_press=40):
+    if USE_HERO_AUTO:
+        r = auto_levelup()
+        if r is not None:
+            return r
+    return _bulk_levelup_old(max_rounds, max_press)
+
+
+def _bulk_levelup_old(max_rounds=3, max_press=40):
+    global LAST_MAXED
+    LAST_MAXED = False
+    tap(TAB_HERO, "영웅 탭")
+    time.sleep(0.6)                                  # patch106: 1.0 -> 0.6
     tap(BTN_PLUS, "+")
-    img = wait_for(bulk_open, 5.0, first=0.8)
+    img = wait_for(bulk_open, 5.0, first=0.4, step=0.25)
     if img is None or not bulk_open(img):
         print("일괄 레벨업 창이 안 열려 중단"); return False
     for _ in range(3):
@@ -210,7 +394,7 @@ def bulk_levelup(max_rounds=3, max_press=40):
         tap(BULK_ALL, "전체 선택(1)")
         time.sleep(0.4)
         tap(BULK_ALL, "전체 선택(2)")
-        img = snap(0.6)
+        img = wait_for(all_checked, 1.5, first=0.25, step=0.2)     # patch106: 체크되면 바로
         if img is None:
             return False
     if not all_checked(img):
@@ -269,8 +453,13 @@ def bulk_levelup(max_rounds=3, max_press=40):
                 break
         if maxed or not pressed_round:
             break
+        _now = capture()                                 # patch135: 네 버튼이 다 회색(골드 부족)이면 다음 라운드 없이 끝
+        if _now is not None and not any(btn_active(_now, j) for j in range(len(BULK_BTNS))):
+            print("  모든 버튼이 회색(골드 부족) -> 라운드 %d 에서 끝" % rnd)
+            break
+    LAST_MAXED = maxed
     tap(BULK_X, "X")
-    img = snap(1.0)
+    img = wait_for(lambda im: not bulk_open(im), 2.5, first=0.3, step=0.25)     # patch106: 닫히면 바로
     if img is not None and bulk_open(img):
         print("X를 눌렀는데도 창이 열려 있음"); return False
     print("일괄 레벨업 완료")

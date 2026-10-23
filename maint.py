@@ -88,6 +88,7 @@ def candidate(img):
     if len(g) != 1:
         return False
     gx, gy, gw, gh = g[0]
+    _last["btn"] = (gx + gw // 2, gy + gh // 2)          # patch207: 확인 버튼 위치
     for rx, ry, rw, rh in blobs(red):
         if abs((ry + rh // 2) - (gy + gh // 2)) < 60:
             return False                      # 같은 줄에 빨간 버튼(취소 등)이 있으면 안내 팝업이 아님
@@ -113,10 +114,19 @@ def template_score(img):
 def parse_end(text, now=None):
     """'2026-10-12 09:40 ~ 10:40 (KST)' 같은 글에서 끝나는 시각(epoch 초)을 구함. 못 구하면 None"""
     now = now or time.time()
-    t = text.replace("：", ":").replace("∼", "~").replace("～", "~")
-    times = re.findall(r"(\d{1,2})\s*:\s*(\d{2})", t)
-    if len(times) < 2:
+    t = text.replace("：", ":").replace("∼", "~").replace("～", "~").replace("〜", "~")
+    # patch215: OCR 이 시각 숫자를 글자로 읽는 경우 (0->O/o/D, 1->l/I/|, 5->S, 8->B) - 숫자나 ':' 옆에 붙은 것만 바꿈
+    for a, b in (("O", "0"), ("o", "0"), ("D", "0"), ("l", "1"), ("I", "1"), ("|", "1"), ("S", "5"), ("B", "8")):
+        t = re.sub(r"(?<=[\d:])%s|%s(?=[\d:])" % (re.escape(a), re.escape(a)), b, t)
+    # patch207: 'HH:MM ~ (날짜) HH:MM' 처럼 물결로 이어진 시간 범위만 인정
+    #   (10-21 20:27 '게임 데이터 업데이트' 팝업 뒤 화면의 '3:48:49' 같은 숫자를 점검 시각으로 읽어 BlueStacks 를 3시간 30분 꺼 둔 사고)
+    # patch214: OCR 이 물결(~)을 빼먹거나 다른 글자로 읽는 경우(10-23 '16:30 ~ 18:30' 을 못 읽음)까지 -> 두 시각 사이에 숫자가 아닌 글자 0~6개
+    #   ':' 를 '.' / ';' 로 읽는 경우도 인정. (점검 글자가 있어야만 이 함수를 쓰므로 '3:48:49' 같은 오독 위험은 없음)
+    # patch216: 시작 시각의 ':' 를 빼먹는 경우도 (10-23 OCR: '1630 ~ 19:30')
+    m = re.search(r"(?<!\d)(\d{1,2})\s*[:.;]?\s*(\d{2})(?!\d)[^\d]{0,6}?(?:20\d{2}\s*[-./]\s*\d{1,2}\s*[-./]\s*\d{1,2}\s*)?(\d{1,2})\s*[:.;]\s*(\d{2})(?!\d)", t)
+    if not m:
         return None
+    times = [(m.group(1), m.group(2)), (m.group(3), m.group(4))]
     dates = re.findall(r"(20\d{2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})", t)
     sh, sm = int(times[0][0]), int(times[0][1])
     eh, em = int(times[-1][0]), int(times[-1][1])
@@ -144,8 +154,6 @@ def _is_maint_text(text):
     for bad in ("모두받기", "메일함", "점검보상", "보상"):
         if bad in t:
             return False
-    if parse_end(text) is not None:
-        return True
     return ("서버점검" in t) or ("점검중" in t) or ("점검안내" in t) or ("점검" in t and "KST" in t.upper())
 
 
@@ -173,7 +181,18 @@ def detect(img):
         hit = _is_maint_text(text)
         info = {"end": parse_end(text, now) if hit else None, "text": text} if hit else None
         if hit:
-            log("점검 팝업 인식 (OCR): %s" % text[:80])
+            log("점검 팝업 인식 (OCR): %s" % text[:160])
+            try:                                          # patch215: 읽은 글자 원문을 파일로 (끝나는 시각을 못 읽을 때 원인 확인용)
+                with open(os.path.join(SHOTS, "maint_text.txt"), "a", encoding="utf-8") as f:
+                    f.write(time.strftime("%m-%d %H:%M:%S ") + repr(text) + "\n")
+            except Exception:
+                pass
+            log("끝나는 시각: %s" % (time.strftime("%m-%d %H:%M", time.localtime(info["end"])) if info["end"] else "못 읽음"))
+        elif "업데이트" in text.replace(" ", ""):        # patch207: '게임 데이터가 업데이트 되었습니다' -> 확인만 누르면 됨 (점검 아님)
+            log("게임 데이터 업데이트 팝업 (점검 아님): %s" % text[:60])
+            save_shot(img, "update")
+            _last["hit"] = False
+            return {"update": True, "btn": _last.get("btn"), "text": text}
     else:
         sc = template_score(img)
         hit = sc >= 0.75

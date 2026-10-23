@@ -9,3 +9,5 @@ settings.json
 fossil_trace.jsonl
 *.mp4
 *.zip
+_archive/
+tests/img/

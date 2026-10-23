@@ -1,5 +1,5 @@
 """arrange.py - 성 클릭 '영웅 배치' 창에서 아이콘을 끌어 배치 정리
-  불의정령 3마리: 10시 / 2시 / 6시 자리에 한 마리씩, 나머지(드루이드/전장의북 등)는 전부 12시 자리에 겹쳐 놓고 '저장'
+  불의정령 2마리: 성 9시 / 3시, 전장의북: 성 가운데, 나머지(드루이드 등)는 전부 12시에 겹쳐 놓고 '저장' (patch153)
 
   py arrange.py look     지금 화면(영웅 배치 창이 열린 상태)에서 아이콘을 어떻게 찾는지 출력 (아무것도 안 누름)
   py arrange.py open     성을 눌러 '영웅 배치' 창만 열어 봄 (go 필요)
@@ -10,7 +10,7 @@
 import os, sys, time, subprocess
 import cv2, numpy as np
 
-ADB = [r"C:\platform-tools\adb.exe", "-s", "127.0.0.1:5585"]
+ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 TPL = r"C:\macro\tpl"
 SHOTS = r"C:\macro\shots"
 GO = "go" in sys.argv[1:]
@@ -23,7 +23,8 @@ SAVE_ROI = (190, 705, 345, 750)
 CANCEL_ROI = (375, 705, 530, 750)
 ICON_ROI = (120, 190, 600, 560)           # 아이콘이 놓이는 영역 (x1, y1, x2, y2)
 T12 = (350, 212)                          # 12시 (얼굴 중심 기준)
-T_SPIRIT = [(226, 314), (483, 317), (359, 474)]   # 10시 / 2시 / 6시
+T_SPIRIT = [(253, 368), (459, 372)]               # patch169: 사용자 스크린샷(10-18 15:37) 그대로 - 성 좌우, 북보다 조금 아래
+#               # 왼쪽 / 오른쪽 - patch110 (불의 정령 2마리)
 T_DRUM = (352, 342)                       # 전장의 북: 성 한가운데
 THR = {"spirit": 0.72, "druid": 0.72, "drum": 0.72}
 NEAR = 26                                 # 이 거리 안이면 '그 자리에 있다'
@@ -31,8 +32,13 @@ MAX_MOVES = 30
 GRAB = [(-12, 33), (0, 0), (18, 2), (-12, 18), (0, -10), (-22, 30)]   # 집는 위치(얼굴 중심 기준): 막대 끝 -> 얼굴 -> 화살표 끝 ...
 _gv = [0]
 # 놓을 지점 = 목표 얼굴 중심 + OFFS[목표]  (아이콘 기준점은 깃발 아래 막대 끝이라 위치마다 실측으로 맞춤)
-OFFS = {(352, 342): [0, 35], (350, 212): [9, 28], (226, 314): [-12, 33], (483, 317): [7, 40], (359, 474): [7, 41]}
+OFFS = {(352, 342): [0, 35], (350, 212): [9, 28], (226, 314): [-12, 33], (483, 317): [7, 40], (359, 474): [7, 41],
+        (276, 316): [-6, 35], (430, 315): [4, 38], (356, 406): [5, 39],
+        (249, 353): [-9, 34], (459, 348): [6, 39]}     # patch110: 새 자리(추정, 보정 로직이 맞춤)     # patch107: 새 자리(추정, 보정 로직이 맞춤)
 GUARD = None                              # main.py 가 환생 팝업 안전장치를 넣어 줌
+OFFS.setdefault((272, 396), [-9, 34]); OFFS.setdefault((437, 396), [6, 39])     # patch130
+OFFS.setdefault((221, 343), [-12, 33]); OFFS.setdefault((485, 346), [7, 40])
+OFFS.setdefault((253, 368), [-9, 34]); OFFS.setdefault((459, 372), [6, 39])     # patch169: 가까운 자리 보정값에서 시작     # patch157: 가까운 자리 실측값에서 시작 (보정 로직이 맞춤)
 
 
 def log(*a):
@@ -193,8 +199,12 @@ def status(img):
         else:
             free_t.append(t)
     stray_sp = [(x, y) for _, x, y in sp if all(dist((x, y), t) > NEAR for t in T_SPIRIT)]
-    stray_ot = [(x, y) for _, x, y in ot if dist((x, y), T12) > NEAR and all(dist((x, y), t) > NEAR for t in T_SPIRIT)]
+    occ = [t for t in T_SPIRIT if any(dist((x, y), t) <= NEAR for _, x, y in sp)]     # patch112: 정령이 이미 앉은 자리만 제외
+    stray_ot = [(x, y) for _, x, y in ot if dist((x, y), T12) > NEAR and all(dist((x, y), t) > NEAR for t in occ)]
     stray_dm = [(x, y) for _, x, y in dm if dist((x, y), T_DRUM) > NEAR]
+    if not free_t and stray_sp:                  # patch130: 좌우 자리가 다 찼으면 남는 정령(새 불정)은 12시로
+        stray_ot = stray_ot + [p for p in stray_sp if dist(p, T12) > NEAR]
+        stray_sp = []
     return placed, stray_ot, stray_sp, free_t, stray_dm
 
 
@@ -229,6 +239,10 @@ def run():
         return False
     fails = 0
     last = None
+    stuck = {}                                   # patch112: 옮겼는데 변화 없던 아이콘 위치
+    bad_pts = []                                 # patch124: 집었더니 제자리 정령이 딸려 나온 위치
+    prev_placed = None
+    last_src = None
     prev = None
     best = 0
     for mv in range(MAX_MOVES):
@@ -239,11 +253,15 @@ def run():
             return False
         placed, stray_ot, stray_sp, free_t, stray_dm = status(img)
         sig = (placed, len(stray_ot), len(stray_sp), len(stray_dm))
+        if prev_placed is not None and last_src is not None and placed < prev_placed:
+            bad_pts.append(last_src)
+            log("%s 를 옮겼더니 제자리 정령이 빠짐 -> 이 위치는 다시 집지 않음" % (last_src,))
+        prev_placed = placed
         if mv == 0:
             _sp, _dr, _dm = scan3(img)
             log("찾은 아이콘: 정령 %s / 드루이드 %s / 북 %s" % ([p[1:] for p in _sp], [p[1:] for p in _dr], [p[1:] for p in _dm]))
-        log("자리 잡은 불의정령 %d/3 / 12시 밖 드루이드 %d / 자리 밖 북 %d / 자리 밖 불의정령 %d" % (placed, len(stray_ot), len(stray_dm), len(stray_sp)))
-        if placed == 3 and not stray_ot and not stray_dm:
+        log("자리 잡은 불의정령 %d/%d / 12시 밖 드루이드 %d / 자리 밖 북 %d / 자리 밖 불의정령 %d" % (placed, len(T_SPIRIT), len(stray_ot), len(stray_dm), len(stray_sp)))
+        if placed == len(T_SPIRIT) and not stray_ot and not stray_dm:
             log("배치 완료 -> 저장")
             tap(BTN_SAVE, "저장")
             time.sleep(1.5)
@@ -257,11 +275,13 @@ def run():
             return ok
         if sig == last:
             fails += 1
+            if last_src is not None:
+                k_ = (last_src[0] // 20, last_src[1] // 20)
+                stuck[k_] = stuck.get(k_, 0) + 1
             if fails >= 6:
-                log("드래그해도 변화가 없음 (%s 방식) -> 취소" % MODE)
+                log("드래그해도 변화가 없음 (%s 방식)" % MODE)
                 snap("arrange_stuck.png")
-                tap(BTN_CANCEL, "취소")
-                return False
+                return _give_up(placed)
         else:
             fails = 0
         last = sig
@@ -274,23 +294,43 @@ def run():
         tgt = None
         kind = None
         best = max(best, placed)
-        if stray_sp and free_t and placed < best:
-            src = min(stray_sp, key=lambda p: dist(p, free_t[0]))
-            tgt = free_t[0]
-            kind = "sp"
-            log("밀려난 불의정령을 먼저 제자리로")
-        elif stray_ot:
-            src = max(stray_ot, key=lambda p: dist(p, T12))
-            tgt = T12
-            kind = "ot"
-        elif stray_dm:
-            src = stray_dm[0]
-            tgt = T_DRUM
-            kind = "dm"
-        elif stray_sp and free_t:
-            src = min(stray_sp, key=lambda p: dist(p, free_t[0]))
-            tgt = free_t[0]
-            kind = "sp"
+        # patch112: 후보 전부에 점수를 매겨 가장 집기 쉽고 목표가 비어 있는 것부터
+        sp_a, dr_a, dm_a = scan3(img)
+        allpts = [(x, y, "sp") for _, x, y in sp_a] + [(x, y, "ot") for _, x, y in dr_a] + [(x, y, "dm") for _, x, y in dm_a]
+        cands = []
+        for s in stray_sp:
+            if free_t:
+                cands.append(("sp", s, min(free_t, key=lambda q: dist(s, q))))
+        for s in stray_ot:
+            cands.append(("ot", s, T12))
+        for s in stray_dm:
+            cands.append(("dm", s, T_DRUM))
+        cands = [c for c in cands if all(dist(c[1], b) > 25 for b in bad_pts)]     # patch124
+
+        def _cscore(c):
+            k, s, t = c
+            oth = [(x, y) for x, y, _ in allpts if dist((x, y), s) > 3]
+            gp = grab_points(s, oth)[0]
+            iso = min([_rect_gap(gp, o) for o in oth] or [20])
+            blocked = any(kk != k and dist((x, y), t) <= 34 and dist((x, y), s) > 3 for x, y, kk in allpts)
+            sc = min(iso, 20) - (40 if blocked else 0) - 60 * stuck.get((s[0] // 20, s[1] // 20), 0)
+            # patch117: 겹쳐 쌓였으면 맨 앞(더 아래쪽에 그려진) 아이콘부터
+            cov = any(yy > s[1] + 3 and _rect_gap(gp, (xx, yy)) < 0 for xx, yy, _ in allpts if dist((xx, yy), s) > 3)
+            over = any(abs(xx - s[0]) < 65 and abs(yy - s[1]) < 42 for xx, yy, _ in allpts if dist((xx, yy), s) > 3)
+            if cov:
+                sc -= 80
+            elif over:
+                sc += 15
+            if k == "dm":
+                sc -= 5
+            if k == "sp" and stray_sp and placed < best:
+                sc += 10                                 # 밀려난 정령은 조금 먼저
+            return sc
+
+        if cands:
+            kind, src, tgt = max(cands, key=_cscore)
+            log("옮길 아이콘: %s %s -> %s (점수 %.0f)" % ({"sp": "불의정령", "ot": "드루이드 등", "dm": "북"}[kind], src, tgt, _cscore((kind, src, tgt))))
+        last_src = src if cands else None
         prev = (kind, len(stray_ot) if kind == "ot" else len(stray_dm))
         if tgt is not None:
             off = OFFS[tgt]
@@ -318,11 +358,41 @@ def run():
                     oth2 = [(x, y) for _, x, y in sp2 + dr2 + dm2 if dist((x, y), f) > 3]
                     drag(grab_points(f, oth2)[0], drop)
         else:
-            log("더 옮길 아이콘을 못 찾음 (가려져 있거나 못 읽음) -> 취소")
             snap("arrange_unknown.png")
+            if placed >= 1:                                          # patch122/124: 정령이 1마리 이상 제자리면 저장
+                log("정령 %d/%d (나머지는 가려져 안 보임), 드루이드·북은 제자리 -> 지금까지 옮긴 것 저장" % (placed, len(T_SPIRIT)))
+                tap(BTN_SAVE, "저장")
+                time.sleep(1.5)
+                if dialog_open(capture()):
+                    tap(BTN_SAVE, "저장(재시도)")
+                    time.sleep(1.5)
+                ok = not dialog_open(capture())
+                log("저장 " + ("성공" if ok else "실패 -> 취소"))
+                if not ok:
+                    tap(BTN_CANCEL, "취소")
+                return ok
+            log("더 옮길 아이콘을 못 찾음 (가려져 있거나 못 읽음) -> 취소")
             tap(BTN_CANCEL, "취소")
             return False
-    log("이동 횟수 한도 -> 취소")
+    log("이동 횟수 한도")
+    return _give_up(placed)
+
+
+def _give_up(placed):
+    """patch124: 정령이 1마리 이상 제자리면 지금까지 옮긴 것 저장, 아니면 취소"""
+    if placed >= 1:
+        log("정령 %d/%d 제자리 -> 지금까지 옮긴 것 저장" % (placed, len(T_SPIRIT)))
+        tap(BTN_SAVE, "저장")
+        time.sleep(1.5)
+        if dialog_open(capture()):
+            tap(BTN_SAVE, "저장(재시도)")
+            time.sleep(1.5)
+        ok = not dialog_open(capture())
+        log("저장 " + ("성공" if ok else "실패 -> 취소"))
+        if not ok:
+            tap(BTN_CANCEL, "취소")
+        return ok
+    log("-> 취소")
     tap(BTN_CANCEL, "취소")
     return False
 

@@ -1,0 +1,234 @@
+{
+ "_설명": "사람이 확인한 정답. 사진이름: {함수: 정답}. golden.json 과 달리 'record' 로 바뀌지 않음",
+ "arrange_default.png": {
+  "main.home_screen": false,
+  "arrange.dialog_open": true
+ },
+ "arrange_goal.png": {
+  "main.home_screen": false,
+  "arrange.dialog_open": true
+ },
+ "arrange_noopen.png": {
+  "main.home_screen": false,
+  "arrange.dialog_open": false
+ },
+ "arrange_stuck.png": {
+  "main.home_screen": false,
+  "arrange.dialog_open": true
+ },
+ "arrange_unknown.png": {
+  "main.home_screen": false,
+  "arrange.dialog_open": true
+ },
+ "attendance.png": {
+  "main.home_screen": false
+ },
+ "bk_notfull_1013_123911.png": {
+  "main.home_screen": false
+ },
+ "bulk_zero.png": {
+  "main.home_screen": false
+ },
+ "chest_after.png": {
+  "main.home_screen": false
+ },
+ "chest_noboost_1.png": {
+  "main.home_screen": false
+ },
+ "cont_cd_1.png": {
+  "main.home_screen": false
+ },
+ "daily_quest_after.png": {
+  "main.home_screen": false
+ },
+ "dg_ocr.png": {
+  "main.home_screen": false
+ },
+ "fairy_buy.png": {
+  "main.home_screen": false
+ },
+ "fairy_fav.png": {
+  "main.home_screen": false
+ },
+ "fairy_icon.png": {
+  "main.home_screen": false
+ },
+ "fairy_main.png": {
+  "main.home_screen": false
+ },
+ "fairy_sweep.png": {
+  "main.home_screen": false
+ },
+ "fairy_tab.png": {
+  "main.home_screen": false
+ },
+ "friend_after.png": {
+  "main.home_screen": false
+ },
+ "goldmenu.png": {
+  "main.home_screen": false
+ },
+ "guild_raid_after.png": {
+  "main.home_screen": false
+ },
+ "hero_active.png": {
+  "main.home_screen": false
+ },
+ "hero_auto_fail.png": {
+  "main.home_screen": false
+ },
+ "hero_inactive.png": {
+  "main.home_screen": false
+ },
+ "herolist.png": {
+  "main.home_screen": false
+ },
+ "high_fail_1.png": {
+  "main.home_screen": false
+ },
+ "home_screen.png": {
+  "main.home_screen": true
+ },
+ "hud_folded.png": {
+  "main.home_screen": false,
+  "hud.state": "fold"
+ },
+ "hud_open.png": {
+  "main.home_screen": false,
+  "hud.state": "open"
+ },
+ "inf_battle_fail.png": {
+  "main.home_screen": false,
+  "inf2.is_open": true
+ },
+ "inf_timeout.png": {
+  "main.home_screen": false,
+  "inf2.is_open": true
+ },
+ "inf_unreadable.png": {
+  "main.home_screen": false
+ },
+ "maint_hit_1792022393.png": {
+  "main.home_screen": false
+ },
+ "notice_now.png": {
+  "main.home_screen": false
+ },
+ "now.png": {
+  "main.home_screen": false
+ },
+ "nowave.png": {
+  "main.home_screen": false
+ },
+ "ns_gold_after.png": {
+  "main.home_screen": false
+ },
+ "ns_left.png": {
+  "main.home_screen": false
+ },
+ "ns_medal_nomenu.png": {
+  "main.home_screen": false
+ },
+ "ns_target.png": {
+  "main.home_screen": false
+ },
+ "offline.png": {
+  "main.home_screen": false
+ },
+ "pet_preset.png": {
+  "main.home_screen": false
+ },
+ "preset_fail_1.png": {
+  "main.home_screen": false
+ },
+ "probe_adb.png": {
+  "main.home_screen": false
+ },
+ "probe_fast.png": {
+  "main.home_screen": false
+ },
+ "probe_scrcpy.png": {
+  "main.home_screen": false
+ },
+ "quest_bottom.png": {
+  "main.home_screen": false
+ },
+ "quest_lv_ocr.png": {
+  "main.home_screen": false
+ },
+ "quest_nofind.png": {
+  "main.home_screen": false
+ },
+ "recruit_after_refresh.png": {
+  "main.home_screen": false
+ },
+ "recruit_screen.png": {
+  "main.home_screen": false
+ },
+ "relic_active.png": {
+  "main.home_screen": false
+ },
+ "relic_inactive.png": {
+  "main.home_screen": false
+ },
+ "skill_auto_fail.png": {
+  "main.home_screen": true
+ },
+ "skill_dbg_0.png": {
+  "main.home_screen": false
+ },
+ "skill_dbg_1.png": {
+  "main.home_screen": false
+ },
+ "skill_dbg_2.png": {
+  "main.home_screen": false
+ },
+ "skill_dbg_3.png": {
+  "main.home_screen": false
+ },
+ "skill_dbg_4.png": {
+  "main.home_screen": false
+ },
+ "skill_miss_1.png": {
+  "main.home_screen": false
+ },
+ "state_now.png": {
+  "main.home_screen": false
+ },
+ "unit_detail.png": {
+  "main.home_screen": false
+ },
+ "wc_dlg.png": {
+  "main.home_screen": false,
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": true,
+  "wavecall.auto_on": true
+ },
+ "wc_fail_1017_100327.png": {
+  "main.home_screen": false,
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": true,
+  "wavecall.auto_on": true
+ },
+ "wc_main.png": {
+  "main.home_screen": false,
+  "wavecall.dlg_open": false
+ },
+ "wc_off.png": {
+  "main.home_screen": false,
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": true,
+  "wavecall.auto_on": false
+ },
+ "wc_on.png": {
+  "main.home_screen": false,
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": true,
+  "wavecall.auto_on": true
+ },
+ "wc_other.png": {
+  "main.home_screen": false,
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": false
+ }
+}

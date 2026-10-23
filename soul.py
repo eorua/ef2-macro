@@ -264,12 +264,13 @@ def _find_row():
     return img, row_y(img)
 
 
-def start(st):
-    """영혼의 휴식 시작. 반환: 'started' / 'cooldown' / 'running' / 'low' / 'fail'"""
+def start(st, force=False):
+    """영혼의 휴식 시작. 반환: 'started' / 'cooldown' / 'running' / 'low' / 'fail'
+    patch206: force=True(사용자 예약) 면 다이아 5000 조건을 건너뛰고, 끝날 때 무조건 다이아 1000 으로 2배"""
     img = grab()
     dia, exact = read_diamonds(img)
     log("다이아 %s%s" % (dia, "" if exact else " (자릿수 기준 추정)"))
-    if dia is None or dia < MIN_DIA_START:
+    if not force and (dia is None or dia < MIN_DIA_START):
         log("다이아가 %d 미만이거나 읽지 못함 -> 시작 안 함" % MIN_DIA_START)
         return "low"
     if not _open_temple():
@@ -343,12 +344,17 @@ def _resolve_end(st, img):
     if dia is None:
         dia = d.get("dia", 0)
     want_x2 = daily.setting("soul_x2", True) and dia >= MIN_DIA_X2
+    if d.get("force_x2"):                                # patch206: 사용자 예약 - 무조건 2배
+        want_x2 = True
     log("종료창: 다이아 %s -> %s" % (dia, "훈장 x2 (다이아 1000)" if want_x2 else "그냥 받기"))
     tap(END_X2 if want_x2 else END_OK, "종료 선택", 1.5)
-    for _ in range(4):
+    for i in range(4):
         img = grab()
         if not end_dialog(img):
             return True, want_x2
+        if want_x2 and i >= 2:                           # patch206: 2배가 계속 안 되면(다이아 부족 등) 그냥 받기
+            log("2배 선택이 안 됨 -> 그냥 받기")
+            want_x2 = False
         tap(END_X2 if want_x2 else END_OK, "종료 선택(재시도)", 1.5)
     return False, want_x2
 
@@ -376,7 +382,7 @@ def tick(st, img):
         return True
     # 휴식 화면도 종료창도 안 보임 (다른 팝업이 가렸거나, 이미 끝났거나)
     last = d.get("last_seen", 0) or d.get("start", now)
-    if el > SOUL_HOURS * 3600 + 900 or now - last > 900:
+    if now - last > 900:                                 # patch207: 시간이 지났어도 화면을 다시 볼 수 있으면 끝까지 처리 (점검 뒤 종료 놓침 방지)
         log("휴식 화면을 15분 넘게 못 봄 -> 추적 종료 (상태 확인 필요)")
         shot("soul_lost")
         st.pop("soul", None)

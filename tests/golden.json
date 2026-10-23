@@ -1,0 +1,5219 @@
+{
+ "arrange_default.png": {
+  "arrange.dialog_open": true,
+  "arrange.status": [
+   0,
+   [
+    [
+     378,
+     425
+    ],
+    [
+     264,
+     342
+    ],
+    [
+     324,
+     425
+    ],
+    [
+     281,
+     291
+    ],
+    [
+     378,
+     259
+    ],
+    [
+     281,
+     393
+    ]
+   ],
+   [
+    [
+     439,
+     342
+    ],
+    [
+     422,
+     291
+    ],
+    [
+     422,
+     394
+    ]
+   ],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    133,
+    662
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    331,
+    749
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.99,
+   0.18
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 3900,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "arrange_goal.png": {
+  "arrange.dialog_open": true,
+  "arrange.status": [
+   0,
+   [],
+   [
+    [
+     223,
+     313
+    ],
+    [
+     357,
+     473
+    ],
+    [
+     480,
+     316
+    ]
+   ],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    133,
+    662
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    331,
+    749
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.99,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4000,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "arrange_noopen.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    214
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    137,
+    773
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    352,
+    698
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.97,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6300,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "arrange_stuck.png": {
+  "arrange.dialog_open": true,
+  "arrange.status": [
+   0,
+   [
+    [
+     324,
+     259
+    ]
+   ],
+   [
+    [
+     351,
+     211
+    ],
+    [
+     435,
+     392
+    ],
+    [
+     272,
+     395
+    ]
+   ],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    137,
+    662
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    331,
+    749
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.96,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6400,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "arrange_unknown.png": {
+  "arrange.dialog_open": true,
+  "arrange.status": [
+   1,
+   [
+    [
+     281,
+     394
+    ]
+   ],
+   [
+    [
+     439,
+     342
+    ]
+   ],
+   [
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    137,
+    662
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    331,
+    749
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6200,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "attendance.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    123,
+    757
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    343,
+    774
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.21,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "bk_notfull_1013_123911.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "fold",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    166,
+    775
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    316,
+    734
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.97,
+   0.21
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6200,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "bulk_zero.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    149,
+    722
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": true,
+  "main.result_popup": [
+   false,
+   [
+    310,
+    696
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.97,
+   0.09
+  ],
+  "preset.bulk_open": true,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5000,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "chest_after.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    103,
+    737
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    314,
+    736
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4500,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "chest_noboost_1.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.25,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.41
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    133,
+    593
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    316,
+    733
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.68,
+   0.2
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4500,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "cont_cd_1.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "fold",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    154,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    399,
+    798
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.99,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7700,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "daily_quest_after.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    124,
+    771
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    364,
+    828
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.64,
+   0.11
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4700,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "dg_ocr.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    109,
+    784
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    314,
+    768
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.0,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "fairy_buy.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    291
+   ],
+   [
+    679,
+    393
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": true,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    133,
+    626
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    382,
+    694
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.91,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5400,
+  "wavecall.auto_on": [
+   true,
+   304
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "fairy_fav.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    291
+   ],
+   [
+    679,
+    393
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": true,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    133,
+    626
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    312,
+    728
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.97,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5400,
+  "wavecall.auto_on": [
+   true,
+   325
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "fairy_icon.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   true,
+   [
+    576,
+    581
+   ],
+   0.62
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    144,
+    775
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    315,
+    783
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   1.0,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5600,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "fairy_main.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    291
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": true,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    91,
+    694
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    312,
+    697
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   1.0,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5400,
+  "wavecall.auto_on": [
+   true,
+   324
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "fairy_sweep.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    291
+   ],
+   [
+    679,
+    393
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": true,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    133,
+    626
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    312,
+    728
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.87,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5400,
+  "wavecall.auto_on": [
+   true,
+   280
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "fairy_tab.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    291
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": true,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.08
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    91,
+    615
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    353,
+    762
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.93,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5400,
+  "wavecall.auto_on": [
+   true,
+   287
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "friend_after.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    100,
+    654
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    378,
+    718
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.85,
+   0.1
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5000,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "goldmenu.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   true,
+   [
+    576,
+    592
+   ],
+   0.79
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    108,
+    739
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    312,
+    734
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.18
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6400,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "guild_raid_after.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    291
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": true,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    91,
+    669
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    407,
+    760
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.73,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4100,
+  "wavecall.auto_on": [
+   true,
+   279
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "hero_active.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   true,
+   [
+    576,
+    601
+   ],
+   0.96
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    161,
+    738
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    317,
+    734
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.85,
+   0.2
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "hero_auto_fail.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.25,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.03
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    154,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    399,
+    798
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.97,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "hero_inactive.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.47
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    313,
+    735
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.99,
+   0.2
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5400,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "herolist.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    214
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    94,
+    729
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    313,
+    834
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.97,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6200,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "high_fail_1.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    214
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    121,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    316,
+    754
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.98,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6200,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "home_screen.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    91,
+    655
+   ]
+  ],
+  "main.home_screen": true,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    310,
+    694
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.31,
+   0.04
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "hud_folded.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "fold",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.03
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    148,
+    572
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    399,
+    798
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.21
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5100,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "hud_open.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.1
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    314,
+    736
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.99,
+   0.17
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5100,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "inf_battle_fail.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    432
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": true,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    143,
+    781
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    323,
+    774
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.86,
+   0.21
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5300,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "inf_timeout.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    432
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": true,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    143,
+    781
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    323,
+    774
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.84,
+   0.22
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5300,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "inf_unreadable.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    432
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    157,
+    781
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    356,
+    774
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.97,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 3800,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "maint_hit_1792022393.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    766
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    374,
+    712
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.99,
+   0.1
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5500,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "notice_now.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    611,
+    188
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    100,
+    768
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    397,
+    732
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": [
+   611,
+   187
+  ],
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.58,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "now.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "fold",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    119,
+    597
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    317,
+    783
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.18
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7500,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "nowave.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.07
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    149,
+    602
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    363,
+    707
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.31,
+   0.92
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   true,
+   1502
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "ns_gold_after.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.03
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    106,
+    734
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    315,
+    731
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.88,
+   0.22
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6200,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "ns_left.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.02
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    106,
+    735
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": true,
+  "main.result_popup": [
+   false,
+   [
+    314,
+    736
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.68,
+   0.21
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": true,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6300,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "ns_medal_nomenu.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    214
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    153,
+    642
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    313,
+    748
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.97,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7100,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "ns_target.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.05
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    165,
+    738
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    312,
+    734
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.96,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6200,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "offline.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    147,
+    667
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    359,
+    740
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.63,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6600,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "pet_preset.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    123,
+    784
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": true,
+  "main.result_popup": [
+   false,
+   [
+    313,
+    738
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": "사르크",
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.1
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": true,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6500,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "preset_fail_1.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.86
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    154,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    399,
+    798
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.93,
+   0.18
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 3800,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "probe_adb.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    316,
+    732
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.97,
+   0.18
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7000,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "probe_fast.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "fold",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": true,
+  "main.result_popup": [
+   false,
+   [
+    399,
+    798
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.97,
+   0.16
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": true,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   3
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "probe_scrcpy.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    123,
+    669
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    395,
+    697
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.23,
+   0.9
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "quest_bottom.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "fold",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   true,
+   [
+    576,
+    623
+   ],
+   0.68
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    107,
+    738
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": true,
+  "main.result_popup": [
+   false,
+   [
+    363,
+    694
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   1.0,
+   0.18
+  ],
+  "preset.bulk_open": true,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": true,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 6600,
+  "wavecall.auto_on": [
+   false,
+   2
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "quest_lv_ocr.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    781
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    345,
+    713
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.0,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "quest_nofind.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    291
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": true,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    103,
+    681
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    339,
+    795
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   1.0,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4800,
+  "wavecall.auto_on": [
+   true,
+   283
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "recruit_after_refresh.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": true,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    674,
+    790
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.1
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    144,
+    775
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    314,
+    735
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.91,
+   0.2
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4100,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "recruit_screen.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": true,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    674,
+    790
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.18
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    144,
+    775
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    315,
+    734
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.69,
+   0.21
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4100,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "relic_active.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.02
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    106,
+    734
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    397,
+    798
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.99,
+   0.26
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5400,
+  "wavecall.auto_on": [
+   false,
+   1
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "relic_inactive.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.11
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    106,
+    734
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    320,
+    737
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.93,
+   0.27
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 5400,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "skill_auto_fail.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    91,
+    655
+   ]
+  ],
+  "main.home_screen": true,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    310,
+    694
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.31,
+   0.04
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "skill_dbg_0.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.02
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    110,
+    681
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    399,
+    798
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.97,
+   0.17
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7200,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "skill_dbg_1.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    107,
+    737
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    338,
+    783
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7200,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "skill_dbg_2.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.02
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    110,
+    681
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    310,
+    732
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.17
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7600,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "skill_dbg_3.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   true,
+   [
+    576,
+    601
+   ],
+   0.92
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    317,
+    732
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.87,
+   0.16
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "skill_dbg_4.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "fold",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.01
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    317,
+    735
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.15
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "skill_miss_1.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.03
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    107,
+    738
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    314,
+    783
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.81,
+   0.23
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "state_now.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "fold",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.02
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    399,
+    798
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.17
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4600,
+  "wavecall.auto_on": [
+   true,
+   297
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "unit_detail.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [
+   [
+    683,
+    214
+   ]
+  ],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    165,
+    637
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    401,
+    743
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.98,
+   0.0
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4000,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "wc_dlg.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    159,
+    699
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    331,
+    698
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.11
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4000,
+  "wavecall.auto_on": [
+   true,
+   143
+  ],
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": true
+ },
+ "wc_fail_1017_100327.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    159,
+    699
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    331,
+    698
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.95,
+   0.1
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4000,
+  "wavecall.auto_on": [
+   true,
+   143
+  ],
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": true
+ },
+ "wc_main.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": "open",
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    774
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    314,
+    736
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.18
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": true,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7500,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "wc_off.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    159,
+    699
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    331,
+    698
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.99,
+   0.11
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7400,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": true
+ },
+ "wc_on.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    94,
+    699
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    331,
+    698
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.88,
+   0.13
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7400,
+  "wavecall.auto_on": [
+   true,
+   143
+  ],
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": true
+ },
+ "wc_other.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     253,
+     368
+    ],
+    [
+     459,
+     372
+    ]
+   ],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    167,
+    586
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    323,
+    726
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.92,
+   0.11
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": true,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4000,
+  "wavecall.auto_on": [
+   true,
+   143
+  ],
+  "wavecall.dlg_open": true,
+  "wavecall.tab_selected": false
+ }
+}

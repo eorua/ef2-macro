@@ -337,6 +337,61 @@ def choose(b, rng, K=5, n_seen=None):
     return best[1], "%s, 표본 %d" % (tag, len(ws))
 
 
+LA_TOPK = 8          # patch108: 내다볼 후보 칸 수
+LA_GAMMA = 0.3       # patch108: 다음 수 점수 가중치 (0 이면 기존과 같음)
+
+
+def _score_all(g, p, hp, broken):
+    sc = np.full(g.N, -1.0)
+    for t in range(g.N):
+        if broken >> t & 1: continue
+        s = 0.0
+        for j, d in g.DMG[t]:
+            if broken >> j & 1: continue
+            h = hp[j]
+            s += p[j] * min(d, h) / h
+        sc[t] = s
+    return sc
+
+
+def choose_la(b, rng, K=5, n_seen=None):
+    """patch108: 기존 점수 + 2수 앞 내다보기. 표본이 없으면 기존 choose"""
+    g = b.geo
+    ws = []; tag = ""
+    for allow_s, k, ns in ((False, K, n_seen), (True, K, n_seen), (True, K, None), (True, K + 1, None)):
+        ws = sample_worlds(g, b.empty, b.R, k, ns, NSAMP, rng, allow_s)
+        if len(ws) >= 5:
+            tag = ("1x4만" if not allow_s else "2x2 포함") + (" K+1" if k != K else "")
+            break
+    if len(ws) < 5 or LA_GAMMA <= 0:
+        return choose(b, rng, K, n_seen)
+    W = np.array([[u >> i & 1 for i in range(g.N)] for u in ws], dtype=np.float32)
+    p = W.mean(0)
+    sc = _score_all(g, p, b.hp, b.broken)
+    best = None
+    for t in list(np.argsort(-sc)[:LA_TOPK]):
+        if sc[t] < 0: continue
+        hp2 = list(b.hp); brk = 0
+        for j, d in g.DMG[t]:
+            if b.broken >> j & 1: continue
+            hp2[j] = max(0, hp2[j] - d)
+            if hp2[j] == 0: brk |= 1 << j
+        broken2 = b.broken | brk
+        bcells = [j for j in range(g.N) if brk >> j & 1]
+        groups = {}
+        for wi, u in enumerate(ws):
+            groups.setdefault(tuple(u >> j & 1 for j in bcells), []).append(wi)
+        fut = 0.0
+        for idx in groups.values():
+            m = _score_all(g, W[idx].mean(0), hp2, broken2).max()
+            if m > 0: fut += len(idx) / len(ws) * m
+        v = sc[t] + LA_GAMMA * fut + rng.random() * 1e-6
+        if best is None or v > best[0]: best = (v, int(t))
+    if best is None:
+        return choose(b, rng, K, n_seen)
+    return best[1], "%s, 표본 %d, 내다보기" % (tag, len(ws))
+
+
 # ------------------------------------------------------------ 실행
 GEO = None
 
@@ -504,7 +559,7 @@ def _run(go, keep=0, max_boards=999):
         print(show(b))
         ham = read_hammers(img)
         n_seen, K = read_label(img)
-        t, why = choose(b, rng, K or 5, n_seen)
+        t, why = choose_la(b, rng, K or 5, n_seen)
         g = b.geo
         log("보드 %d행x%d열, 망치 %s개, 감지된 화석 %s/%s, 다음 수: %d행 %d열 (%s)" % (
             g.rows, g.cols, ham, n_seen, K, t // g.cols + 1, t % g.cols + 1, why))
@@ -538,7 +593,7 @@ def _run(go, keep=0, max_boards=999):
         if ham is not None and ham <= keep:
             log("망치 %d개 (남길 수 %d개) -> 종료. 총 %d번, %d판" % (ham, keep, taps_total, boards)); return
         n_seen, K = read_label(img)
-        t, why = choose(b, rng, K or 5, n_seen)
+        t, why = choose_la(b, rng, K or 5, n_seen)
         if t is None:
             log("두드릴 칸이 없음 -> 중단"); return
         g = b.geo
@@ -555,6 +610,254 @@ def _run(go, keep=0, max_boards=999):
                 save_shot(img, "fossil_stuck.png"); return
         else:
             stuck = 0
+
+
+# ============================================================ patch127: 화석 판별 개선 + 조각 모양 인식
+# 1) 빈 칸 = 회갈색 바닥(채도 ~44, 밝기 ~113). 그 색에서 벗어난 픽셀이 30% 넘으면 화석
+#    (전에는 초록/보라/흰색만 봐서 빨강·파랑 화석을 빈 칸으로 읽음 -> 화석 수가 안 맞아 엉뚱한 곳을 팜)
+# 2) 화석 그림은 색(등급)만 다르고 모양별로 같은 그림 -> 한 칸만 보여도 '어느 모양의 몇 번째 조각'인지 알아냄
+#    V0~V3 세로 1x4 위->아래, H0~H3 가로 1x4 왼->오, S0~S3 2x2 (왼위,오위,왼아래,오아래)
+#    처음 보는 조각(가로 1x4 등)은 추론으로 위치가 확실해지면 스스로 배워서 tpl\fossil_parts.npz 에 저장
+PART_SEED = "V0,V1,V2,V3,S0,S1,S3,S2#eNq1mB+c60oUxwcWCoXCQqAQCFQeBB4EAoULAwuFwMJC4cGDgWBhZaFwITDwoBBYLCwGLiwECg+igUCgUCgECoWFeWdmMskkM/3c1/v53PP57Hb3225y5vz7nWxVjSyn8EUI+pk5hPgmfaN7xnJKVwO6ya5MWh33dF1dWGfHDk+3TLfCexR4NsRgHy7nATPsw4OP703OIoQmuYUXWYYws9pDZOdzdh9/upPfuo5ztHNbHH6JzzI7h7zklY2D0auRAsH9coQPPJe+v6aXIU+mwOPcR+vRH7xwzooFehnyUHB2dB48Mgib5Iydhpx/flUzu/+r8bkySoX/eg1dT6J+5LlIf+AmxtjpilfLzk5rgP1Xzy+bngfnnu9l9RMM3w96cYo+m7OKLjdDN/Ml54yVp5H/TfZ4o35q5FfaPY8YupCbo+ImLcaa87F+ARLZOTvYOQ4MnnpgHe39aXw098JBfqXPGJd6vmLjVDJf/ucIk/YuyYir4fQ4KvXY5KHOx9f5RW7UYWyLJ9i7wOYAiu3zkO0cbR6etMOlTs8PHiGFeiNAj22pnQO93g9d/bwN+2COdn3f9Oe7OGhRKO5+dPyZpyWX3PsY97vgrp4Efp1MJPtRbwF+ndb/YewCNB6bm0q2bpYV47ngYjzj/lBzXiRC7/q4sBRa6134kUG7+mnX72Ui/Z7LfnW1+lf5S+RMbJvyEA31SuWt3HZJisc6lvniXLk/4tB7L+2riE9ZdnkX+Tr5SMTneu3qpNULfRg2a36/Z6N8pN+dDla00LmTKr4KSd1z5OxUn2bZ+txzvZ6PfP41fNDY+kLV05+nG/pi6EXL4Z3aztEEb60cJixMn8LCO5uJ+TTD2EWBNgflOafgfA3nX3dYxkVF56Kaf6yvhxv8Sgd8Pupz9bveDzuo48Sq4wn5ub7LmsHxOG5/ydcJGfGo7RNtDp22jfwd9FybQ2UYnAXPXDTtk1wscc37n/B5nOr1tu/i/64fgteBjG3+pfOkzZdnWVEmgWPd4F7r/o62/UXo686CS2i+7xb+z3AvQP/DFhgscI39WejV9ZDqezTdD/Vd2VDfF2qvaE+09bxIzkNev6ne59AjjeRKd1R/Qg0Fuk59Kj9W1EUUrBjp2diPMrzhX+QV1d7Ce/1/uHPtvZPHEysmE4s/l2pt9XMv9MJSLx96n/0Wi6xxu81B3+0XCu7kR+fO+Ic3eMPriURRY76VL4Z7sr7/6nuyxp3CcocNWlie5WD+Gnsgt3W7hxjzcFHY8Kd6zgrtcXhVP3ydq/MZd3mZK77/G29WyODpa9tnhIgunYu7pyTp+4w3cvwsdT259pzr1h+8hdMZ7fV9k+dify+9MPnmFZ/wvOxR3O/XhOU/am1tUnxuew4Cx5yLwVd1ujC0met7CnXUmNeZ8bli0eVVAn35YrkvHP4pNfkS5nU65XFK68F9dzl/deC56yAvl2H+sBXH/H8P4nSHOpQ6xfc79BqBeBYTOS9Bh7+l7xex5xPY604yuhlMxe22kfHZv8CxCjXd/CdIEuUfw9/f+ABIQge9uTRvdR0Ge/CvGOXZcnJtdZpcq3PhIVeeq+njH1zOlplSoJm/Mp7jso3YP2ZrSnOYx6l1n/Ep3fQ6qQkMxrT7v8tQpxzPYydKuY7+BzSlqt8="
+PART_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tpl", "fossil_parts.npz")
+PART_OK = 0.80        # 이 이상 닮으면 그 조각으로 인정
+PART_GAP = 0.20       # 다른 조각과의 점수 차이가 이만큼은 나야 인정
+PART_MAX = 80
+_parts = None         # [labels(list), masks(N,24,24 float32)]
+
+
+def _fossil(hsv, g, r, c):
+    h = _cell(hsv, g, r, c, 0.06)
+    if h.size == 0: return False
+    S = h[..., 1].astype(int); V = h[..., 2].astype(int)
+    return float(((np.abs(S - 44) > 28) | (np.abs(V - 113) > 40)).mean()) > 0.30
+
+
+def _pmask(img, g, r, c, m=0.08):
+    mx = int(g.cw * m); my = int(g.ch * m)
+    x1 = int(g.x0 + g.cw * c) + mx; x2 = int(g.x0 + g.cw * (c + 1)) - mx
+    y1 = int(g.y0 + g.ch * r) + my; y2 = int(g.y0 + g.ch * (r + 1)) - my
+    hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2HSV)
+    S = hsv[..., 1].astype(int); V = hsv[..., 2].astype(int)
+    mk = ((np.abs(S - 44) > 28) | (np.abs(V - 113) > 40)).astype(np.float32)
+    return cv2.resize(mk, (24, 24), interpolation=cv2.INTER_AREA)
+
+
+def _pvec(mk):
+    v = cv2.GaussianBlur(mk, (3, 3), 0)
+    v = v - v.mean()
+    return v / (np.linalg.norm(v) + 1e-6)
+
+
+def _load_parts():
+    global _parts
+    if _parts is not None: return _parts
+    labs, arr = [], []
+    try:
+        if os.path.exists(PART_FILE):
+            z = np.load(PART_FILE)
+            labs = [str(x) for x in z["labels"]]; arr = list(z["masks"].astype(np.float32))
+    except Exception as e:
+        log("조각 사전 읽기 실패 -> 기본값 사용:", e); labs, arr = [], []
+    if not labs:
+        names, data = PART_SEED.split("#")
+        a = np.frombuffer(zlib.decompress(base64.b64decode(data)), np.uint8).reshape(-1, 24, 24)
+        labs = names.split(","); arr = list(a.astype(np.float32) / 255)
+    _parts = [labs, arr, [_pvec(m) for m in arr]]
+    return _parts
+
+
+def _save_parts():
+    try:
+        labs, arr, _ = _parts
+        os.makedirs(os.path.dirname(PART_FILE), exist_ok=True)
+        np.savez_compressed(PART_FILE, labels=np.array(labs), masks=np.array(arr, np.float32))
+    except Exception as e:
+        log("조각 사전 저장 실패:", e)
+
+
+def _part_of(mk):
+    """-> (조각 이름, 점수) 또는 (None, 점수)"""
+    labs, _, vecs = _load_parts()
+    v = _pvec(mk)
+    best = {}
+    for lb, t in zip(labs, vecs):
+        s = float((v * t).sum())
+        if s > best.get(lb, -9): best[lb] = s
+    if not best: return None, 0.0
+    order = sorted(best.items(), key=lambda kv: -kv[1])
+    top, sc = order[0]
+    sec = order[1][1] if len(order) > 1 else -1.0
+    if sc >= PART_OK and sc - sec >= PART_GAP: return top, sc
+    return None, sc
+
+
+def _pl_index(g):
+    if not hasattr(g, "PLIDX"):
+        d = {}
+        for pi, (m, s) in enumerate(g.PL):
+            low = (m & -m).bit_length() - 1
+            d[(s, low)] = pi
+        g.PLIDX = d
+    return g.PLIDX
+
+
+def _pl_of(g, i, lab):
+    """i 번 칸이 lab 조각이면 그 화석의 배치 번호 (판 밖이면 None)"""
+    r, c = divmod(i, g.cols)
+    s, k = lab[0], int(lab[1])
+    if s == "V": r0, c0 = r - k, c
+    elif s == "H": r0, c0 = r, c - k
+    else: r0, c0 = r - k // 2, c - k % 2
+    if r0 < 0 or c0 < 0: return None
+    return _pl_index(g).get((s, r0 * g.cols + c0))
+
+
+def _part_label(g, pi, i):
+    m, s = g.PL[pi]
+    low = (m & -m).bit_length() - 1
+    r0, c0 = divmod(low, g.cols); r, c = divmod(i, g.cols)
+    if s == "V": k = r - r0
+    elif s == "H": k = c - c0
+    else: k = (r - r0) * 2 + (c - c0)
+    return "%s%d" % (s, k)
+
+
+_read_board_old = read_board
+
+
+def read_board(img, g):
+    b = _read_board_old(img, g)
+    b.part = {}; b.mk = {}
+    for i in range(g.N):
+        if b.R >> i & 1:
+            r, c = divmod(i, g.cols)
+            try:
+                mk = _pmask(img, g, r, c)
+            except Exception:
+                continue
+            b.mk[i] = mk
+            lab, sc = _part_of(mk)
+            if lab: b.part[i] = lab
+    return b
+
+
+def _forced(b):
+    """알아본 조각들로 확정된 배치. 서로 겹치거나 빈 칸에 걸치면 그 판은 조각 정보를 안 씀"""
+    g = b.geo
+    pls = set()
+    for i, lab in b.part.items():
+        pi = _pl_of(g, i, lab)
+        if pi is None: return set(), "조각 위치가 판 밖"
+        pls.add(pi)
+    used = 0
+    for pi in pls:
+        m = g.PL[pi][0]
+        if m & used or m & b.empty: return set(), "조각끼리 충돌"
+        used |= m
+    return pls, ""
+
+
+def _cover(g, unc, used, cnt, empty, K, n_seen, allow_s, rng, chosen=()):
+    if not unc:
+        return (used, cnt, chosen) if (n_seen is None or cnt == n_seen) else None
+    if cnt >= K or (n_seen is not None and cnt >= n_seen): return None
+    best = None
+    m = unc
+    while m:
+        low = (m & -m).bit_length() - 1
+        m &= m - 1
+        valid = [pi for pi in g.COVER[low] if (allow_s or g.PL[pi][1] != "S") and not (g.PL[pi][0] & (empty | used))]
+        if best is None or len(valid) < len(best[1]): best = (low, valid)
+        if len(valid) <= 1: break
+    if not best[1]: return None
+    cand = best[1][:]
+    rng.shuffle(cand)
+    for pi in cand:
+        r = _cover(g, unc & ~g.PL[pi][0], used | g.PL[pi][0], cnt + 1, empty, K, n_seen, allow_s, rng, chosen + (pi,))
+        if r is not None: return r
+    return None
+
+
+_FORCE = [set()]      # 지금 판에서 조각 모양으로 확정된 배치 (sample_worlds 가 씀)
+_LAST_PL = []         # 마지막 표본들의 '보이는 조각을 덮은 배치' 목록 (배우기용)
+_LAST_ARGS = [0, None]   # 마지막 표본의 (화석 수, 감지수)
+
+
+def sample_worlds(g, empty, R, K, n_seen, n, rng, allow_s):
+    out = []; pls_out = []
+    fset = _FORCE[0]
+    if not allow_s and any(g.PL[pi][1] == "S" for pi in fset):
+        return []                        # 2x2 가 확실히 있으면 '1x4만' 가정은 건너뜀
+    fused = 0
+    for pi in fset: fused |= g.PL[pi][0]
+    ok_pl = [pi for pi in range(len(g.PL)) if allow_s or g.PL[pi][1] != "S"]
+    for _ in range(n):
+        r = _cover(g, R & ~fused, fused, len(fset), empty, K, n_seen, allow_s, rng, tuple(fset))
+        if r is None: break
+        used, cnt, chosen = r
+        ok = True
+        for _ in range(K - cnt):
+            valid = [pi for pi in ok_pl if not (g.PL[pi][0] & (empty | used))]
+            if not valid: ok = False; break
+            used |= g.PL[rng.choice(valid)][0]
+        if ok:
+            out.append(used); pls_out.append(chosen)
+    _LAST_PL[:] = pls_out
+    _LAST_ARGS[:] = [K, n_seen]
+    return out
+
+
+def _learn(b, n_seen, K):
+    """표본 전부가 같은 배치로 덮는 조각은 위치가 확실 -> 아직 모르는 조각이면 사전에 추가"""
+    if n_seen is None or n_seen != K or len(_LAST_PL) < 30: return
+    if _LAST_ARGS != [K, n_seen]: return          # 가정을 넓힌 표본(감지수 무시, K+1)으로는 안 배움
+    g = b.geo
+    labs, arr, vecs = _load_parts()
+    added = []
+    for i, mk in b.mk.items():
+        if i in b.part: continue
+        who = set()
+        for ch in _LAST_PL:
+            hit = [pi for pi in ch if g.PL[pi][0] >> i & 1]
+            who.add(hit[0] if hit else -1)
+            if len(who) > 1: break
+        if len(who) != 1 or -1 in who: continue
+        lab = _part_label(g, who.pop(), i)
+        v = _pvec(mk)
+        sims = [(float((v * t).sum()), lb) for lb, t in zip(labs, vecs)]
+        if any(s >= PART_OK - 0.1 and lb != lab for s, lb in sims): continue   # 다른 조각과 헷갈림 -> 안 배움
+        if any(s >= 0.95 and lb == lab for s, lb in sims): continue            # 이미 아는 모양
+        if float(mk.mean()) < 0.15: continue
+        labs.append(lab); arr.append(mk); vecs.append(v); added.append(lab)
+    if added:
+        if len(labs) > PART_MAX:
+            del labs[8:8 + len(labs) - PART_MAX]; del arr[8:8 + len(arr) - PART_MAX]; del vecs[8:8 + len(vecs) - PART_MAX]
+        _save_parts()
+        log("새 조각 모양 배움: %s (사전 %d개)" % (",".join(added), len(labs)))
+
+
+_choose_la_old = choose_la
+
+
+def choose_la(b, rng, K=5, n_seen=None):
+    g = b.geo
+    fset, why = _forced(b) if getattr(b, "part", None) else (set(), "")
+    if len(fset) > K: fset, why = set(), "조각 수가 너무 많음"
+    _FORCE[0] = fset
+    t, tag = _choose_la_old(b, rng, K, n_seen)
+    if fset and ("추론 실패" in tag or _LAST_ARGS != [K, n_seen]):
+        _FORCE[0] = set()                # 조각 정보로는 맞는 배치가 없음 -> 조각 정보 없이 다시
+        t, tag = _choose_la_old(b, rng, K, n_seen)
+        tag += ", 조각정보 버림"
+        fset = set()
+    else:
+        try: _learn(b, n_seen, K)
+        except Exception as e: log("조각 배우기 오류:", e)
+    _FORCE[0] = set()
+    if fset: tag += ", 조각으로 확정 %d개" % len(fset)
+    if why: tag += ", " + why
+    return t, tag
 
 
 if __name__ == "__main__":

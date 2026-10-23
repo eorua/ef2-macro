@@ -1,14 +1,14 @@
 import subprocess, sys, time, os, cv2, numpy as np
 
 BASE = r"C:\macro"
-ADB = [r"C:\platform-tools\adb.exe", "-s", "127.0.0.1:5585"]
+ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 GO = "go" in sys.argv[1:]            # go 를 붙여야 실제 클릭
 
 # 화면 비율 ROI (x1, y1, x2, y2)
-FALL_TITLE  = (0.15, 0.18, 0.85, 0.32)   # '성 함락' 제목
-FALL_GREEN  = (0.05, 0.50, 0.31, 0.60)   # 왼쪽 초록 '환생' 버튼만 (빨간 버튼 제외)
-RES_TITLE   = (0.25, 0.35, 0.75, 0.48)   # '환생결과' 제목
-RES_CONFIRM = (0.30, 0.52, 0.70, 0.68)   # 초록 '확인' 버튼
+FALL_TITLE  = (0.15, 0.12, 0.85, 0.32)   # '성 함락' 제목 (patch208: 10-21 업데이트로 창이 커져 제목이 y 0.16 으로 올라감)
+FALL_GREEN  = (0.03, 0.42, 0.33, 0.64)   # 왼쪽 초록 '환생' 버튼만 (빨간 버튼 제외) - patch131: 10-15 업데이트로 위치 이동
+RES_TITLE   = (0.20, 0.25, 0.80, 0.48)   # '환생결과' 제목 (patch208: 넓힘)
+RES_CONFIRM = (0.25, 0.45, 0.75, 0.75)   # 초록 '확인' 버튼 (patch208: 넓힘)
 
 
 def capture():

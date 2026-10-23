@@ -4,7 +4,7 @@
   py barracks.py read                 현재 화면 상태 읽기 (병영/영웅 목록 어디서든)
   py barracks.py release go           영웅 목록에서 3번째 줄부터 전부 해제 (위 2명만 남김)
   py barracks.py deploy golem 8 go    병영에서 골렘을 최대 8명 배치 (슬롯이 차면 멈춤)
-  py barracks.py phase1 go            2명만 남기고 -> 골렘(부족하면 죽음의 손)으로 채움
+  py barracks.py phase1 go            2명만 남기고 -> 죽음의 손(부족하면 골렘)으로 채움
   py barracks.py phase2 go            3번째 줄부터 해제 -> 드루이드 6, 불의정령 1, 전장의북 1 로 채움
   py barracks.py races 인간 go        병영 종족 필터를 그 종족만 켜기 (여러 개면 띄어쓰기)
   py barracks.py scan 이름 go         병영 목록을 맨 위->맨 아래로 훑으며 각 화면의 점수 출력 + scan_N.png 저장 (진단용)
@@ -32,7 +32,7 @@ DETAIL_X = (683, 213)               # 병사 상세창의 빨간 X
 BTN_RELEASE = (408, 1220)           # 상세창의 '해제'
 TAB_DETAIL = (120, 415)                # 상세창의 '상세' 탭 (스킬 345 / 초월 571)
 LABEL_ROI = (50, 794, 102, 815)     # '10/10' 슬롯 표시
-KEEP = 3                            # 위에서 남길 영웅 수 (불의정령 3마리)
+KEEP = 2                            # 위에서 남길 영웅 수 (불의정령 2마리) - patch110
 
 # 유닛: 이름, 종족
 UNITS = {"golem": ("골렘", "인간"), "hand": ("죽음의 손", "언데드"), "drum": ("전장의북", "오크"),
@@ -103,8 +103,9 @@ def races_state(img):
     return {k: race_on(img, p) for k, p in RACES.items()}
 
 
-def label_mask(img):
+def label_mask(img, dx=0):
     x1, y1, x2, y2 = LABEL_ROI
+    x1, x2 = x1 + dx, x2 + dx
     hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2HSV)
     m = cv2.inRange(hsv, (0, 150, 120), (8, 255, 255)) | cv2.inRange(hsv, (172, 150, 120), (180, 255, 255))
     return m
@@ -126,13 +127,16 @@ def is_full(img):
     t = _full_tpl()
     if t is False or t is None:
         return False
-    m = label_mask(img)
-    if m.shape != t.shape:
-        return False
-    a, b = m > 0, t > 0
-    inter = (a & b).sum()
-    union = (a | b).sum()
-    return union > 0 and inter / union > 0.75
+    b = t > 0
+    for dx in (0, 4, 2, 6, -2, 8, -4, 10):               # patch212: 10-21 업데이트로 '10/10' 글자가 오른쪽으로 4px 이동
+        m = label_mask(img, dx)
+        if m.shape != t.shape:
+            continue
+        a = m > 0
+        union = (a | b).sum()
+        if union > 0 and (a & b).sum() / union > 0.75:
+            return True
+    return False
 
 
 def row_centers(img):
@@ -282,7 +286,8 @@ def _scroll_once(direction):
     if direction == "up":
         swipe(360, TOP_A, TOP_B, SW_MS)
     else:
-        swipe(360, STEP_A, STEP_B, SW_MS)
+        swipe_hold(360, 1100, 870)                     # patch124: 관성 없이 230px
+        return snap(0.3)
     return snap(0.55)
 
 
@@ -318,6 +323,13 @@ def _scroll_search(key, steps):
 
 
 def locate(key, tries=30):
+    try:                                                 # patch124: 찾기가 끝나면 fastcam 정리
+        return _locate_impl(key, tries)
+    finally:
+        fc_stop()
+
+
+def _locate_impl(key, tries=30):
     """유닛 줄 찾기: 지금 화면 -> 맨 위까지 올리며 -> 맨 위부터 아래로 내리며. 줄 중심 y 반환"""
     img = snap(0.2)
     if img is None:
@@ -330,6 +342,13 @@ def locate(key, tries=30):
         y = find_unit(img, key) if img is not None else None
         if y is None:
             y, _ = _scroll_search(key, tries)
+        if y is None:                                      # patch109: 맨 위로 다시 올려 한 번 더
+            log("  끝까지 못 찾음 -> 맨 위로 다시 올려 한 번 더 찾기")
+            to_top(16)
+            img = snap(0.4)
+            y = find_unit(img, key) if img is not None else None
+            if y is None:
+                y, _ = _scroll_search(key, tries)
     if y is None:
         return None
     # 스크롤 관성이 멈춘 뒤 위치를 다시 확인
@@ -343,6 +362,116 @@ def locate(key, tries=30):
         if y2 is not None:
             y = y2
     return y
+
+
+# ---------------------------------------------------------------- patch124: fastcam 으로 빠르게 (안 되면 예전 adb 방식)
+class _FC:
+    cam = None
+
+
+def fc_start():
+    if _FC.cam is None:
+        try:
+            from fastcam import FastCam
+            _FC.cam = FastCam(max_fps=30, scid="0e2f0a02", port=27198).start()    # 스킬용(0e2f0a01)과 따로
+        except Exception as e:
+            log("fastcam 시작 실패 -> 예전 방식: %r" % (e,))
+            _FC.cam = None
+    return _FC.cam
+
+
+def fc_stop():
+    if _FC.cam is not None:
+        try:
+            _FC.cam.stop()
+        except Exception:
+            pass
+        _FC.cam = None
+
+
+def fc_wait(cond, timeout=2.5, after=0.0):
+    """after(perf_counter) 이후 화면 중 cond 를 만족하는 첫 화면 (없으면 None)"""
+    cam = _FC.cam
+    end = time.perf_counter() + timeout
+    img, t, n = cam.latest()
+    if img is not None and t >= after and cond(img):
+        return img
+    while time.perf_counter() < end:
+        g = cam.wait_new(n, 0.3)
+        if g is None:
+            img, t, n2 = cam.latest()                 # 화면이 안 바뀌는 중이면 마지막 화면으로 판단
+            if img is not None and time.perf_counter() - after > 0.4 and cond(img):
+                return img
+            continue
+        img, t, n = g
+        if t >= after and cond(img):
+            return img
+    return None
+
+
+def swipe_hold(x, y1, y2, ms=350, hold=0.25):
+    """손가락을 끝에서 잠깐 멈췄다 떼는 드래그 -> 관성 없이 딱 그만큼만 움직임"""
+    cam = fc_start()
+    if cam is None:
+        swipe(x, y1, y2, SW_MS)
+        return
+    log(("스와이프(멈춤) " if GO else "[시험] 스와이프(멈춤) ") + f"{x},{y1} -> {y2}")
+    if not GO:
+        return
+    steps = 8
+    cam.touch(0, x, y1)
+    for i in range(1, steps + 1):
+        time.sleep(ms / 1000.0 / steps)
+        cam.touch(2, x, int(y1 + (y2 - y1) * i / steps))
+    time.sleep(hold)
+    cam.touch(1, x, y2)
+
+
+def release_top_fast(keep=KEEP, total=10):
+    """release_top 과 같은 동작을 fastcam 으로 (확인 절차 동일). fastcam 이 없으면 'nofast'"""
+    cam = fc_start()
+    if cam is None or not GO:
+        return "nofast"
+    if not open_hero_tab():
+        return False
+    img = _list_to_top()
+    if img is None or barracks_open(img) or detail_open(img):
+        return None
+    rows = _name_rows(img)
+    if len(rows) <= keep:
+        return None
+    y = rows[keep]
+    done = 0
+    for _ in range(total - keep + 1):
+        time.sleep(0.15)
+        img = fc_wait(lambda im: not detail_open(im), 1.5)
+        if img is None:
+            log("상세창이 닫히지 않음 -> 중단"); return False
+        if not all(_name_filled(img, rows[j]) for j in range(keep)):
+            log("맨 위 %d줄이 안 보임 -> 예전 방식으로" % keep)
+            return None if done == 0 else False
+        if not _name_filled(img, y):
+            log(f"{keep + 1}번째 줄이 비었음 -> 해제 완료 ({done}명 해제, 빠른 방식)")
+            return True
+        t0 = cam.tap(HERO_ROW_X, y + 10)
+        img = fc_wait(detail_open, 2.5, after=t0 + 0.03)
+        if img is None:
+            log("상세창이 안 열림 -> 중단"); return False
+        if red(img, BTN_RELEASE) <= 0.5:
+            img = fc_wait(lambda im: red(im, BTN_RELEASE) > 0.5, 0.6, after=t0 + 0.03)   # 창이 펼쳐지는 중일 수 있음
+        if img is None or red(img, BTN_RELEASE) <= 0.5:
+            log("해제 버튼이 안 보임(다른 탭?) -> '상세' 탭으로 이동")
+            t1 = cam.tap(*TAB_DETAIL)
+            img = fc_wait(lambda im: red(im, BTN_RELEASE) > 0.5, 2.0, after=t1 + 0.03)
+            if img is None:
+                log("해제 버튼을 못 찾음 -> 중단"); return False
+        t2 = cam.tap(*BTN_RELEASE)
+        img = fc_wait(lambda im: not detail_open(im), 2.5, after=t2 + 0.03)
+        if img is None:
+            log("해제 후에도 상세창이 열려 있음 -> 중단"); return False
+        done += 1
+    log(f"해제 완료 ({done}명 해제, 빠른 방식)")
+    return True
 
 
 CHUNK = 4          # 한 번에 연타할 배치 수 (줄이 사라지는 것을 중간중간 확인)
@@ -370,6 +499,9 @@ def deploy(key, n):
             log("슬롯이 가득 참 -> 중지"); break
         if unit_score(img, key, y) < 0.6:       # 다 써서 줄이 사라졌거나 밀렸음
             y2 = find_unit(img, key)
+            if y2 is None and done == 0:                  # patch122: 하나도 안 눌렀는데 안 보이면 다시 찾기
+                log(f"{name} 줄이 밀려서 안 보임 -> 다시 찾기")
+                y2 = locate(key)
             if y2 is None:
                 log(f"{name} 줄이 사라짐(다 배치함?) -> 중지"); break
             y = y2
@@ -464,7 +596,112 @@ def _settle(tries=6):
     return prev
 
 
+def _more_than_visible():
+    """patch98: 목록을 맨 위로 올린 뒤 아래로 밀어 봄.
+    움직이면 보이는 3줄보다 많음(True), 안 움직이면 3명 이하(False), 캡처 실패 None.
+    (예전 방식은 해제 직후 목록 위치가 어중간해서 3명인데도 '움직임'으로 보고 불의정령까지 해제했음)"""
+    prev = _settle()
+    if prev is None:
+        return None
+    for _ in range(4):                                   # 맨 위로
+        swipe(360, 1000, 1150, 250)
+        cur = _settle()
+        if cur is None:
+            return None
+        if not _list_moved(prev, cur, 3.0):
+            break
+        prev = cur
+    swipe(360, 1150, 940, 250)                           # 아래로 밀어 봄
+    after = _settle()
+    if after is None:
+        return None
+    return _list_moved(prev, after)
+
+
+def _bar_open(img):
+    """patch111: 영웅 탭의 프리셋 줄(오른쪽 초록 '저장')이 펼쳐져 있으면 True"""
+    hsv = cv2.cvtColor(img[885:918, 580:700], cv2.COLOR_BGR2HSV)
+    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    return float(((h >= 35) & (h <= 85) & (s >= 120) & (v >= 100)).mean()) >= 0.5
+
+
+def _name_rows(img):
+    """patch111: 맨 위에서부터 영웅 이름 줄의 y 목록 (레이아웃에 따라)"""
+    return [960, 1050, 1140] if _bar_open(img) else [852, 942, 1032, 1122]
+
+
+def _name_filled(img, y):
+    v = cv2.cvtColor(img[y - 8:y + 8, 165:300], cv2.COLOR_BGR2HSV)[..., 2]
+    return int((v > 200).sum()) > 150
+
+
+def _list_to_top():
+    prev = _settle()
+    if prev is None:
+        return None
+    for _ in range(4):
+        swipe(360, 1000, 1150, 250)
+        cur = _settle()
+        if cur is None:
+            return None
+        if not _list_moved(prev, cur, 3.0):
+            return cur
+        prev = cur
+    return prev
+
+
+def release_top(keep=KEEP, total=10):
+    """patch111: 목록 맨 위에서 keep+1 번째 줄을 연달아 해제. 성공 True / 실패 False / 판단 불가 None"""
+    if not open_hero_tab():
+        return False
+    img = _list_to_top()
+    if img is None or barracks_open(img) or detail_open(img):
+        return None
+    rows = _name_rows(img)
+    if len(rows) <= keep:
+        return None
+    y = rows[keep]
+    done = 0
+    for _ in range(total - keep + 1):
+        img = _settle()
+        if img is None:
+            return False
+        if not all(_name_filled(img, rows[j]) for j in range(keep)):
+            log("맨 위 %d줄이 안 보임 -> 예전 방식으로" % keep)
+            return None if done == 0 else False
+        if not _name_filled(img, y):
+            log(f"{keep + 1}번째 줄이 비었음 -> 해제 완료 ({done}명 해제)")
+            return True
+        tap((HERO_ROW_X, y + 10), "%d번째 영웅" % (keep + 1))
+        img = preset.wait_for(detail_open, 3.0, first=0.12, step=0.1)
+        if img is None or not detail_open(img):
+            log("상세창이 안 열림 -> 중단"); return False
+        img = ensure_release_btn(img)                     # patch120: 상세 탭 확인
+        if img is None or red(img, BTN_RELEASE) <= 0.5:
+            log("해제 버튼을 못 찾음 -> 중단"); return False
+        tap(BTN_RELEASE, "해제")
+        img = preset.wait_for(lambda im: not detail_open(im), 3.0, first=0.12, step=0.1)
+        if img is None or detail_open(img):
+            log("해제 후에도 상세창이 열려 있음 -> 중단"); return False
+        done += 1
+    log(f"해제 완료 ({done}명 해제)")
+    return True
+
+
 def release_tail(keep=KEEP, total=10):
+    try:                                                 # patch124: 빠른 방식 먼저
+        r = release_top_fast(keep, total)
+    finally:
+        fc_stop()
+    if r == "nofast":
+        r = release_top(keep, total)                     # patch111: 위에서 연달아 해제가 기본
+    if r is not None:
+        return r
+    log("위에서 해제 판단 불가 -> 맨 아래부터 해제(예전 방식)")
+    return _release_tail_old(keep, total)
+
+
+def _release_tail_old(keep=KEEP, total=10):
     """맨 아래로 스크롤하면 마지막 영웅이 3번째 줄 자리에 옴 -> 그 줄을 해제 (목록이 아래로 채워짐). keep 명이 남으면 멈춤"""
     if not open_hero_tab():
         return False
@@ -477,30 +714,40 @@ def release_tail(keep=KEEP, total=10):
     done = 0
     for k in range(total - keep):
         if fixed is None:
-            before = _settle()
-            swipe(360, 1000, 1100, 250)                  # 살짝 내려 봄: 안 움직이면 목록이 3줄 이하
-            after = _settle()
-            if before is None or after is None:
+            more = _more_than_visible()                  # patch98: 맨 위에서 아래로 밀어 봄
+            if more is None:
                 return False
-            if not _list_moved(before, after):
-                log(f"목록이 더 안 움직임 -> 해제 완료 ({done}명 해제)")
-                return True
-            if not scroll_bottom():
+            row = 3
+            if not more:                                 # patch110: 3줄 이하 -> 보이는 줄 수로 판단
+                img = _settle()
+                filled = [i for i in (1, 2, 3) if img is not None and hero_row_filled(img, i)]
+                if len(filled) <= keep:
+                    log(f"남은 영웅이 {keep}명 이하 -> 해제 완료 ({done}명 해제)")
+                    return True
+                row = filled[-1]
+            elif not scroll_bottom():
                 return False
+        else:
+            row = 3
         img = snap(0.3) if (fixed is not None and done > 0) else _settle()
         if img is None:
             return False
-        if not hero_row_filled(img, 3):
+        if row != 3:
+            pass
+        elif not hero_row_filled(img, 3):
             log("3번째 줄이 비었음 -> 맨 아래로 다시 밀고 재확인")
             if not scroll_bottom():
                 return False
             img = _settle()
             if img is None or not hero_row_filled(img, 3):
                 log("3번째 줄이 여전히 비었음 -> 해제 중단"); return done > 0
-        tap((HERO_ROW_X, hero_row_y(3)), "맨 아래 영웅")
+        tap((HERO_ROW_X, hero_row_y(row)), "맨 아래 영웅")
         img = preset.wait_for(detail_open, 3.0, first=0.12, step=0.1)
         if img is None or not detail_open(img):
             log("상세창이 안 열림 -> 중단"); return False
+        img = ensure_release_btn(img)                     # patch120: 상세 탭 확인
+        if img is None or red(img, BTN_RELEASE) <= 0.5:
+            log("해제 버튼을 못 찾음 -> 중단"); return False
         tap(BTN_RELEASE, "해제")
         img = preset.wait_for(lambda im: not detail_open(im), 3.0, first=0.12, step=0.1)
         if img is None or detail_open(img):
@@ -523,35 +770,57 @@ def topup(key, tries=3):
     return img is not None and is_full(img)
 
 
-def phase1():
-    """3명만 남기고 골렘(부족하면 죽음의 손)으로 채움"""
+def phase1(after_release=None):
+    """불정 2명만 남기고 죽음의 손(부족하면 골렘)으로 채움 (patch190)"""
     if not release_tail():
         return False
+    if after_release is not None:                      # patch130: 불정 2마리만 남았을 때 먼저 자리 잡기
+        try:
+            after_release()
+        except Exception as e:
+            if type(e).__name__ == "Abort":
+                raise
+            log("먼저 자리 잡기 오류: %r" % (e,))
     need = 10 - KEEP
-    got = deploy("golem", need)
-    topup("golem", 2)
+    # patch190 (10-19 사용자): 죽음의 손이 20마리를 넘겨 펫(미라) 각성 효과 '병영에 있어도 최대 레벨업 +5' 가 적용됨
+    #   -> 골렘 대신 죽음의 손 8마리. 부족하면 골렘으로 채움
+    got = deploy("hand", need)
+    topup("hand", 2)
     img = capture()
     if img is not None and not is_full(img) and got < need:
-        got += deploy("hand", need - got)
+        got += deploy("golem", need - got)
     close_barracks()
     img = snap(0.3)
     ok = img is not None and not barracks_open(img)
+    if got == 0:                                          # patch102: 한 명도 못 넣었으면 실패
+        log("phase1: 골렘/죽음의 손을 한 명도 배치하지 못함 -> 실패")
+        return False
     log("phase1 끝 (배치 시도 %d명)" % got, "OK" if ok else "병영이 안 닫힘")
     return ok
 
 
 def phase2():
-    """3명(불의정령)만 남기고 해제한 뒤 드루이드 6, 전장의북 1 로 채움 (빈 슬롯은 드루이드로 보충)"""
+    """불의정령 2마리만 남기고 해제한 뒤 드루이드 6, 전장의북 2 로 채움 (빈 슬롯은 드루이드로 보충)"""
     if not release_tail():
         return False
     deploy("druid", 6)
-    deploy("drum", 1)
+    deploy("drum", 2)                                  # patch153: 다시 전장의북 2마리 (새 불정 2마리는 편성에서 뺌)
     full = topup("druid", 3)
     close_barracks()
     img = snap(0.3)
-    log("phase2 끝", "병영 닫힘" if img is not None and not barracks_open(img) else "병영이 안 닫힘",
-        "| 슬롯 가득" if full else "| 슬롯이 덜 참(확인 필요)")
-    return img is not None and not barracks_open(img)
+    closed = img is not None and not barracks_open(img)
+    if not full and img is not None and is_full(img):    # patch98: 닫은 뒤 한 번 더 확인
+        full = True
+    if not full and img is not None:
+        try:
+            p = os.path.join(BASE, "shots", time.strftime("bk_notfull_%m%d_%H%M%S.png"))
+            cv2.imwrite(p, img)
+            log("슬롯이 10/10 아님 -> 화면 저장", p)
+        except Exception:
+            pass
+    log("phase2 끝", "병영 닫힘" if closed else "병영이 안 닫힘",
+        "| 슬롯 가득" if full else "| 슬롯이 덜 참 -> 실패로 처리")
+    return closed and full
 
 
 def read_state():

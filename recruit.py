@@ -1,7 +1,7 @@
 import subprocess, sys, time, os, cv2, numpy as np
 
 BASE = r"C:\macro"
-ADB = [r"C:\platform-tools\adb.exe", "-s", "127.0.0.1:5585"]
+ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 GO = "go" in sys.argv[1:]
 
 # 클릭 좌표 (720x1280 기준)
@@ -68,6 +68,47 @@ def mark():
     print("저장:", path)
 
 
+GEM_ROW_Y0, GEM_ROW_DY = 868, 107      # patch204: 고용 목록 줄의 가격 버튼 가운데 y (첫 줄, 줄 간격)
+GEM_FILE = os.path.join(BASE, "recruit_left.json")
+
+
+def _gem_ratio(img, y):
+    """가격 버튼 왼쪽의 파란 보석 아이콘 비율 (훈장 가격은 노란 메달이라 0)"""
+    roi = cv2.cvtColor(img[y - 14:y + 14, 583:620], cv2.COLOR_BGR2HSV)
+    return float(((roi[..., 0] >= 95) & (roi[..., 0] <= 125) & (roi[..., 1] > 100) & (roi[..., 2] > 140)).mean())
+
+
+def gem_left():
+    """patch204: 훈장구매 뒤 남은 '보석으로 사야 하는' 영웅 이름/가격을 읽어 recruit_left.json 에 저장 (패널에 크게 표시)"""
+    import json, re
+    img = capture()
+    if img is None:
+        return None
+    cv2.imwrite(os.path.join(BASE, "shots", "recruit_after_buy.png"), img)
+    info = {"name": "", "price": None, "t": time.time()}
+    for i in range(4):
+        y = GEM_ROW_Y0 + GEM_ROW_DY * i
+        if y + 14 > img.shape[0] or _gem_ratio(img, y) < 0.08:
+            continue
+        name, price = "", None
+        try:
+            import ocrx
+            c = cv2.resize(img[y - 42:y - 4, 150:430], None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+            ws = ocrx.words(c) or []
+            name = "".join(w[0] for w in sorted(ws, key=lambda w: w[1]) if not re.search(r"\d", w[0])).strip()
+        except Exception as e:
+            print("보석 영웅 글자 읽기 오류:", e)
+        info.update(name=name or "?", price=price)
+        break
+    try:
+        with open(GEM_FILE, "w", encoding="utf-8") as f:
+            json.dump(info, f, ensure_ascii=False)
+    except OSError:
+        pass
+    print("보석으로 살 영웅: %s" % (info["name"] or "없음"))      # 보석 가격은 항상 2000 고정이라 안 읽음
+    return info
+
+
 def recruit(force=False):
     """결과: 'done'(새로고침+훈장구매 완료) / 'cooldown'(쿨타임 중) / 'fail'(캡처 실패 등)"""
     # 영웅 탭을 계속 띄워두면 점이 갱신되지 않으므로, 성 탭으로 갔다가 영웅 탭으로 돌아온다
@@ -119,6 +160,10 @@ def recruit(force=False):
         cv2.imwrite(os.path.join(BASE, "shots", "recruit_after_refresh.png"), img2)
     tap("훈장구매")
     time.sleep(1.5)
+    try:
+        gem_left()                                       # patch204
+    except Exception as e:
+        print("보석 영웅 확인 오류:", e)
     tap("닫기X")
     return "done"
 

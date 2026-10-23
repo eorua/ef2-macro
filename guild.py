@@ -12,13 +12,13 @@ import daily
 TPL = r"C:\macro\tpl"
 _sleep = getattr(sys.modules.get("speed"), "_real_sleep", time.sleep)   # speed.py 의 대기 단축을 받지 않게
 
-GUILD_ICON = (590, 268)                     # 우상단 길드 깃발
+GUILD_ICON = (597, 220)                     # 우상단 길드 깃발 (patch213: 10-21 업데이트, 예전 590, 268 -> 지금은 펫 아이콘 자리)
 GX = (683, 290)                             # 길드 창 X
 GX_ROI = (655, 265, 712, 315)
 TAB_Q = (271, 1247)                         # 퀘스트 탭
 TAB_B = (620, 1247)                         # 건물 탭
 ROW_ATTEND = (620, 477)                     # 퀘스트 탭 첫 줄: 출석 게시판 [출석]
-ROW_RAID = (620, 750)                       # 퀘스트 탭: 길드레이드 [입장]
+ROW_RAID = (620, 660)                       # 퀘스트 탭: 길드레이드 [입장] (patch163: 길드전 줄 추가로 750 -> 660, 실제로는 글자로 찾음)
 RAID_SHOP = (650, 393)                      # 길드레이드 화면 우상단 [상점]
 BLD_POST = (360, 475)                       # 건물 탭 첫 줄: 길드 우체국
 BLD_PLAY = (360, 653)                       # 건물 탭 세 번째 줄: 놀이터
@@ -106,15 +106,19 @@ def close_all_windows():
         import closer
         n = closer.close_all()
         log("열린 창 %s개 닫음" % n)
-        return
     except ImportError:
         pass
-    for _ in range(3):
+    # patch138: 길드 창은 X 를 눌러도 한 단계(레이드 상점 -> 레이드 -> 길드)씩만 닫혀서 X 가 같은 자리에 남음
+    #           closer 는 이걸 '안 닫힘'으로 보고 멈추므로, 길드 창이 사라질 때까지 X 를 더 누름
+    for i in range(6):
         img = daily.cap()
-        if img is not None and guild_open(img):
-            tap(GX, 1.0)
-        else:
-            break
+        if img is None or not guild_open(img):
+            if i:
+                log("길드 창 닫힘 (X %d번 더 누름)" % i)
+            return
+        tap(GX, 1.0)
+    shot("guild_close_fail")
+    log("길드 창이 안 닫힘")
 
 
 def open_guild():
@@ -213,12 +217,40 @@ def _pull(btn, roi, label, limit):
     return n
 
 
+def _raid_rows():
+    """patch163: 퀘스트 탭에서 '길드레이드' 줄 [입장] 위치 후보. 10-18 업데이트로 '길드전' 줄이 생겨 한 칸 위(660)로 이동
+    글자(OCR)로 찾은 줄이 먼저, 그다음 660(새 배치), 750(예전 배치)"""
+    ys = []
+    try:
+        import ocrx
+        for t, x, y, w, h in (ocrx.words(grab()) or []):
+            if "레이드" in t and x < 420 and 420 < y < 1150:
+                ys.append(int(y))
+                break
+    except Blocked:
+        raise
+    except Exception as e:
+        log("글자 인식 실패:", repr(e))
+    for y in (660, 750):
+        if all(abs(y - v) > 30 for v in ys):
+            ys.append(y)
+    return ys
+
+
 def do_raid():
     tap(TAB_Q, 1.0)
-    tap(ROW_RAID, 1.6)
-    tap(RAID_SHOP, 1.6)
-    img = grab()
-    if title_score(img, "g_shop_title.png") < 0.85:
+    img = None
+    for y in _raid_rows():
+        tap((ROW_RAID[0], y), 1.6)
+        tap(RAID_SHOP, 1.6)
+        img = grab()
+        if title_score(img, "g_shop_title.png") >= 0.85:
+            break
+        log("길드레이드 줄 y=%d 로 상점이 안 열림" % y)
+        if title_score(img, "g_shop_title.png") < 0.5:
+            tap(BACK, 1.0)                                  # 다른 화면이 열렸으면 한 단계 뒤로
+            tap(TAB_Q, 1.0)
+    if img is None or title_score(img, "g_shop_title.png") < 0.85:
         shot("guild_raid_nav")
         log("길드레이드 상점 화면이 아님")
         return False
@@ -238,7 +270,15 @@ def do_archery():
         shot("guild_arch_nav")
         log("양궁 게임 화면이 아님")
         return False
-    r = arch.run(say=log)
+    try:                                              # patch115: 새 방식 먼저
+        import arch2
+        r = arch2.run(say=log)
+    except Exception as e:
+        log("arch2 오류:", repr(e))
+        r = "nocam"
+    if r == "nocam":
+        log("새 방식 실패 -> 예전 방식(arch.py)으로")
+        r = arch.run(say=log)
     log("양궁 결과:", r)
     return r in ("done", "already")
 

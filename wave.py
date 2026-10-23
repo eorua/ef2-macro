@@ -2,7 +2,7 @@ import subprocess, os, time, cv2, numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 BASE = r"C:\macro"
-ADB = [r"C:\platform-tools\adb.exe", "-s", "127.0.0.1:5585"]
+ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 FONTS = [r"C:\Windows\Fonts\calibrib.ttf"]
 WAVE_ROI = (0.40, 0.030, 0.62, 0.060)     # 'Wave NNNN' 위치 (비율)
 _T = None

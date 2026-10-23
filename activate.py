@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 ADB_EXE = r"C:\platform-tools\adb.exe"
-DEV = "127.0.0.1:5585"
+DEV = __import__("adbport").DEV
 GO = "go" in sys.argv[1:]
 
 TAB_HERO = (185, 1240)

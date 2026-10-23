@@ -15,11 +15,12 @@ from tkinter import ttk, messagebox
 BASE = r"C:\macro"
 LOG = os.path.join(BASE, "macro.log")
 PAUSE = os.path.join(BASE, "PAUSE")
+PAUSED = os.path.join(BASE, "PAUSED")       # patch104: 메인이 실제로 멈췄다는 표시
 STATE = os.path.join(BASE, "state.json")
 PIDFILE = os.path.join(BASE, "main.pid")
 SETTINGS = os.path.join(BASE, "settings.json")
 SHOTS = os.path.join(BASE, "shots")
-DEFAULTS = {"fairy": False, "log_font": 10, "guild_post": True, "raid_shop": True, "archery": False, "soul": False, "soul_x2": True, "maint": True}     # fairy: 정령의 고원 자동 구매/소탕 (다이아 사용이라 기본 꺼짐)
+DEFAULTS = {"fairy": False, "log_font": 10, "guild_post": True, "raid_shop": True, "archery": False, "soul": False, "soul_x2": True, "maint": True, "cont_skip": True, "q30_open": False}     # fairy: 정령의 고원 자동 구매/소탕 (다이아 사용이라 기본 꺼짐)
 MAX_LINES = 400                                  # 로그창에 남기는 최대 줄 수
 FONT = "맑은 고딕"
 
@@ -45,6 +46,12 @@ def save_settings(d):
 
 
 PY = sys.executable
+# patch145: 패널이 pythonw(창 없는 파이썬)로 돌면 메인도 pythonw 로 떠서, adb 를 부를 때마다 검은 콘솔 창이
+#           순간적으로 생겼다 사라짐 -> 다른 창의 포커스를 뺏어 창이 떨리고 채팅이 이상하게 쳐짐.
+#           python.exe 를 CREATE_NO_WINDOW 로 띄우면 숨은 콘솔 하나를 자식(adb)들이 같이 써서 창이 안 생김
+_pyc = os.path.join(os.path.dirname(PY), "python.exe")
+if os.path.basename(PY).lower() == "pythonw.exe" and os.path.exists(_pyc):
+    PY = _pyc
 if PY.lower().endswith("pythonw.exe"):
     PY = PY[:-len("pythonw.exe")] + "python.exe"
 NOWIN = 0x08000000      # CREATE_NO_WINDOW
@@ -83,18 +90,21 @@ def classify(ln):
 
 
 class App:
-    WATCH = ("main.py", "daily.py", "fossil.py", "lvdigits.py", "activate.py")
+    WATCH = ("main.py", "daily.py", "fossil.py", "lvdigits.py", "activate.py",     # patch114
+             "dungeon.py", "barracks.py", "arrange.py", "wavecall.py", "preset.py", "recruit.py")
 
     # 바로 실행 목록: (제목, 설명, 명령, 마우스 올렸을 때 안내)
     DAILY = [
-        ("일일 퀘스트", "던전 · 랭킹전 · 퀘스트", ["daily.py", "go"],
-         "일일 던전, 랭킹전, 퀘스트 보상을 한 번 처리합니다."),
-        ("프리셋 활성화", "영웅/유물 프리셋 적용", ["activate.py", "go"],
-         "프리셋 활성화를 한 번 실행합니다."),
-        ("무한랭킹전", "티켓이 없어질 때까지", ["daily.py", "go", "infinite"],
-         "내 레벨 이하 상대만 싸웁니다. 다이아는 쓰지 않고, 끝나면 4.5시간 뒤로 자동 실행이 미뤄집니다."),
-        ("상점 광고", "코인 · 보석 · 배속", ["daily.py", "go", "ads"],
-         "상점의 무료 광고(코인/보석/배속)를 한 번 받습니다. 광고제거 패키지가 있어야 합니다."),
+        # patch178: '일일 퀘스트' / '무한랭킹전' 버튼 제거 (메인이 자동으로 다 처리)
+        ("양궁", "게임 시작 화면에서 한 판", ["arch2.py", "play", "go"],     # patch132
+         "놀이터 양궁 화면(게임 시작 버튼이 보이는 상태)을 열어 둔 뒤 누르세요. 메인은 자동으로 잠시 멈췄다가 끝나면 다시 돌아갑니다."),
+        # patch179: 왼쪽 줄 = 미니게임(양궁, 화석 발굴), 오른쪽 줄 = 레이드 (2열 격자라 순서가 왼-오-왼-오)
+        ("레이드 연습", "길드레이드 보스 연습 한 판", ["raid.py", "go", "practice"],     # patch168
+         "어느 화면에서든 길드레이드 보스까지 찾아가 [연습] 한 판. 스킬: 1번 안 씀, 2·3·4번 같이, 5번 될 때마다. 결과는 shots\\raid_log.txt"),
+        ("화석 발굴", "지금 화면에서 자동 진입 · 망치 소진", ["fossil.py", "go"],
+         "발굴 화면이면 바로, 기본 화면이면 이벤트 > 화석 발굴로 들어가서 시작합니다. 끝나면 창을 닫습니다."),
+        ("레이드 전투", "길드레이드 보스 실제 전투 한 판", ["raid.py", "go"],
+         "실제 [전투] 한 판 (입장 횟수 사용). 스킬 규칙은 연습과 같음."),
     ]
 
     def __init__(self, root):
@@ -196,6 +206,15 @@ class App:
         self.dot_id = self.dot.create_oval(2, 2, 14, 14, fill=C_BAD, outline="")
         self.status = tk.Label(pill, text="", font=(FONT, 13, "bold"), bg=C_SURF, fg=C_TEXT)
         self.status.pack(side="left")
+        # patch204: 영입 뒤 보석으로 사야 하는 영웅 (recruit_left.json)
+        gh = tk.Frame(head, bg=C_SURF)
+        gh.pack(side="right", padx=(0, 22))
+        tk.Label(gh, text="보석 영입 남은 영웅", font=(FONT, 9), bg=C_SURF, fg=C_MUTED).pack(anchor="e")
+        self.gem_name = tk.Label(gh, text="-", font=(FONT, 22, "bold"), bg=C_SURF, fg="#7fc8ff")
+        self.gem_name.pack(anchor="e")
+        self.gem_sub = tk.Label(gh, text="", font=(FONT, 9), bg=C_SURF, fg=C_DIM)
+        self.gem_sub.pack(anchor="e")
+        self.gem_mt = None
 
         # ---- 제어줄
         ctl = ttk.Frame(root)
@@ -276,33 +295,18 @@ class App:
         self.btn_cancel.pack(side="right")
         self.btn_cancel.state(["disabled"])
 
-        self.section(tab, "일일 작업", first=True)
+        self.section(tab, "바로 실행", first=True)
         grid = ttk.Frame(tab, style="Card.TFrame")
         grid.pack(fill="x", padx=14)
         self.cards = []
         for i, (title, sub, args, tip) in enumerate(self.DAILY):
-            b = self.mk(grid, "%s\n%s" % (title, sub), lambda a=args, l=title: self.oneshot(l, a),
+            b = self.mk(grid, title, lambda a=args, l=title: self.oneshot(l, a),      # patch180: 제목만 (설명은 마우스 올리면)
                         "Card.TButton", tip)
             b.grid(row=i // 2, column=i % 2, sticky="ew", padx=(0 if i % 2 == 0 else 5, 5 if i % 2 == 0 else 0), pady=4)
             self.cards.append(b)
         for c in range(2):
             grid.columnconfigure(c, weight=1, uniform="g")
 
-        self.section(tab, "미니게임")
-        fos = ttk.Frame(tab, style="Card.TFrame")
-        fos.pack(fill="x", padx=14, pady=(0, 14))
-        self.btn_fossil = self.mk(fos, "화석 발굴\n지금 화면에서 자동 진입 · 망치 소진", self.run_fossil, "Card.TButton",
-                                  "발굴 화면이면 바로, 기본 화면이면 이벤트 > 화석 발굴로 들어가서 시작합니다. 끝나면 창을 닫습니다.")
-        self.btn_fossil.pack(fill="x", pady=(0, 6))
-        self.cards.append(self.btn_fossil)
-        opt = ttk.Frame(fos, style="Card.TFrame")
-        opt.pack(fill="x")
-        ttk.Label(opt, text="남길 망치", style="Sub.TLabel").pack(side="left")
-        self.keep_var = tk.StringVar(value="0")
-        ttk.Spinbox(opt, from_=0, to=999, width=5, textvariable=self.keep_var).pack(side="left", padx=(6, 18))
-        ttk.Label(opt, text="판 수 제한 (0 = 무제한)", style="Sub.TLabel").pack(side="left")
-        self.boards_var = tk.StringVar(value="0")
-        ttk.Spinbox(opt, from_=0, to=99, width=4, textvariable=self.boards_var).pack(side="left", padx=6)
 
     # ---- 탭 2: 옵션
     def build_opt(self, tab):
@@ -311,15 +315,15 @@ class App:
         row = ttk.Frame(tab, style="Card.TFrame")
         row.pack(fill="x", padx=14, pady=(0, 14))
         for key, label, sub in (
-                ("fairy", "정령의 고원: 티켓 구매 + 소탕", "다이아를 사용합니다. 기본은 꺼짐."),
-                ("archery", "놀이터 양궁 게임 (실험)", "하루 한 번 양궁을 자동으로 플레이합니다. 먼저 py guild.py arch go 로 시험해 보세요. 기본은 꺼짐."),
+                ("fairy", "정령의 고원 (티켓 구매 + 소탕)", "다이아를 사용합니다. 기본은 꺼짐."),
                 ("soul", "신전 영혼의 휴식 (실험)", "다이아 5000 이상이고 일일 작업이 끝났을 때 최대 4시간 쉬며 훈장을 받습니다. 쉬는 동안 다른 동작은 멈춥니다. 먼저 py soul.py start go 로 시험해 보세요. 기본은 꺼짐."),
                 ("soul_x2", "영혼의 휴식 종료 시 훈장 2배 (다이아 1000)", "종료할 때 다이아 1000개를 써서 훈장을 2배로 받습니다. 끄면 1배로 받습니다. 기본은 켜짐."),
+                ("q30_open", "(시범) 퀘스트 30번 열기 전략", "환생 후 영웅 '골드' 프리셋 -> 29퀘 400c 뒤 유물 '골드 모으기'로 200ao 모으기 -> '오픈골드 감소' + 레오로 30퀘 오픈 -> 기본/시간 복귀. 모으는 중 중간 업글은 +1000 두 번만. 기본은 꺼짐."),
+                ("cont_skip", "이어하기 후 카운트다운 15회 연타", "성 함락 때 이어하기를 누른 뒤 준비 카운트다운(20초)을 화면 연타로 줄입니다. 끄면 연타 없이 기다립니다. 기본은 켜짐."),
                 ):
             v = tk.BooleanVar(value=bool(self.set.get(key, False)))
             self.opt_vars[key] = v
-            ttk.Checkbutton(row, text=label, variable=v, command=self.save_opts).pack(anchor="w", pady=(4, 0))
-            ttk.Label(row, text="      " + sub, style="Sub.TLabel").pack(anchor="w", pady=(0, 6))
+            ttk.Checkbutton(row, text=label, variable=v, command=self.save_opts).pack(anchor="w", pady=4)    # patch181: 설명 줄 제거
 
         crow = ttk.Frame(tab, style="Card.TFrame")
         crow.pack(fill="x", padx=14, pady=(0, 14))
@@ -332,7 +336,6 @@ class App:
         cb = ttk.Combobox(crow, values=("0", "1", "2", "3"), width=3, state="readonly", textvariable=self.cont_var)
         cb.pack(side="left", padx=8)
         cb.bind("<<ComboboxSelected>>", lambda e: self.save_cont())
-        ttk.Label(crow, text="0 = 바로 환생 / 하트가 없으면 횟수와 상관없이 환생", style="Sub.TLabel").pack(side="left")
 
     # ---- 탭 3: 도구
     def build_tool(self, tab):
@@ -376,6 +379,18 @@ class App:
                 subprocess.Popen([sys.executable, self.me], cwd=BASE, env=ENV, creationflags=NOWIN)
                 self.root.destroy()
                 return
+            # patch183: Claude 가 패치 후 메인 재시작을 요청하는 파일 (메인이 돌고 있을 때만 재시작)
+            req = os.path.join(BASE, "restart_main.req")
+            if os.path.exists(req):
+                try:
+                    os.remove(req)
+                except OSError:
+                    pass
+                if self.alive and not getattr(self, "_req_busy", False):
+                    self._req_busy = True
+                    self.note("요청 파일로 메인 재시작 (restart_main.req)", "warn")
+                    self.restart_main()
+                    self.root.after(8000, lambda: setattr(self, "_req_busy", False))
             stale = []
             if self.alive:
                 t0 = self.mtime(PIDFILE)
@@ -440,7 +455,25 @@ class App:
                 b.state(["disabled"] if busy else ["!disabled"])
             self.btn_cancel.state(["!disabled"] if busy else ["disabled"])
         self.show_rebirths()
+        self.show_gem()
         self.root.after(400, self.refresh)
+
+    def show_gem(self):
+        """patch204: recruit_left.json (영입 뒤 보석으로 사야 하는 영웅)을 크게 표시. 파일이 바뀔 때만 읽음"""
+        try:
+            p = os.path.join(BASE, "recruit_left.json")
+            mt = os.path.getmtime(p) if os.path.exists(p) else 0
+            if mt == self.gem_mt:
+                return
+            self.gem_mt = mt
+            if not mt:
+                return
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f)
+            self.gem_name.config(text=d.get("name") or "없음")
+            self.gem_sub.config(text=time.strftime("%m-%d %H:%M 영입", time.localtime(d.get("t", 0))))
+        except Exception:
+            pass
 
     def show_rebirths(self):
         """state.json 의 rebirths(최근 환생 층수)를 표시. 파일이 바뀔 때만 다시 읽음"""
@@ -513,18 +546,7 @@ class App:
 
     # ============================================================ 단발 실행
     def run_fossil(self):
-        args = ["fossil.py", "go"]
-        try:
-            keep = int(self.keep_var.get() or 0)
-            boards = int(self.boards_var.get() or 0)
-        except ValueError:
-            messagebox.showwarning("숫자 확인", "남길 망치와 판 수는 숫자로 입력해 주세요.")
-            return
-        if keep > 0:
-            args.append("keep=%d" % keep)
-        if boards > 0:
-            args.append("boards=%d" % boards)
-        self.oneshot("화석 발굴", args)
+        self.oneshot("화석 발굴", ["fossil.py", "go"])
 
     def oneshot(self, label, args):
         if self.busy:
@@ -546,7 +568,13 @@ class App:
             if self.alive and not was_paused:
                 open(PAUSE, "w").close()
                 made = True
-                time.sleep(2)               # 메인이 멈출 시간
+                self.note("메인이 하던 작업을 마치고 멈출 때까지 기다립니다…", "warn")
+                t0 = time.time()
+                while not os.path.exists(PAUSED) and self.alive and time.time() - t0 < 300:
+                    time.sleep(1)
+                if not os.path.exists(PAUSED) and self.alive:
+                    self.note("메인이 5분 안에 멈추지 않음 -> 그래도 실행합니다", "warn")
+                time.sleep(1)
             self.note("▶ %s 실행" % label, "cmd")
             p = subprocess.Popen([PY] + args, cwd=BASE, env=ENV, creationflags=NOWIN,
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

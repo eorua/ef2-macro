@@ -7,10 +7,10 @@ import sys, time
 import cv2, numpy as np
 import preset
 
-TOGGLE_FOLD = (691, 186)                 # 접힌 상태의 ◀
-TOGGLE_OPEN = (519, 186)                 # 펼친 상태의 ▶
-ROI_FOLD = (672, 166, 716, 208)          # x1,y1,x2,y2
-ROI_OPEN = (503, 166, 537, 208)
+TOGGLE_FOLD = (691, 149)                 # 접힌 상태의 ◀
+TOGGLE_OPEN = (543, 148)                 # 펼친 상태의 ▶
+ROI_FOLD = (672, 128, 716, 170)          # x1,y1,x2,y2
+ROI_OPEN = (526, 128, 560, 170)     # patch213: 10-21 업데이트로 메뉴가 위로 이동
 
 
 def _fill(img, roi):

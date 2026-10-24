@@ -359,15 +359,38 @@ def _resolve_end(st, img):
     return False, want_x2
 
 
+END_GRACE = 60                      # patch219: 4시간 + 이만큼 지나면 종료 처리
+END_GIVEUP = 1800                   # patch219: 종료 시각 뒤 이만큼 휴식 화면을 못 찾으면 추적 종료
+
+
+def end_time(d):
+    """시작 시각 + 4시간(+여유) = 종료 처리 시각"""
+    return d.get("start", time.time()) + SOUL_HOURS * 3600 + END_GRACE
+
+
+def idle_sleep(st):
+    """main 루프 대기 시간: 종료 시각 전에는 길게(15초), 지나면 3초"""
+    d = st.get("soul")
+    if d and time.time() < end_time(d) - 20:
+        return 15
+    return 3
+
+
 def tick(st, img):
-    """휴식 중일 때 main 루프에서 매번 호출. 종료 시점이 되면 종료까지 처리. 반환 True 면 휴식 중(다른 동작 금지)"""
+    """휴식 중일 때 main 루프에서 매번 호출. 반환 True 면 휴식 중(다른 동작 금지)
+    patch219: 휴식은 4시간 고정 -> 종료 시각 전에는 화면 확인/가림 처리를 전혀 하지 않고 기다리기만 함.
+    종료 시각(state.json 에 저장된 시작 시각 기준)이 되면 그때만 휴식 화면을 찾아 종료 + 2배 받기."""
     d = st.get("soul")
     if not d:
         return False
     now = time.time()
-    el = now - d.get("start", now)
+    end = end_time(d)
+    if now < end:
+        if now - d.get("note", 0) > 1800:
+            d["note"] = now
+            log("휴식 중 - 종료 예정 %s (%.0f분 남음)" % (time.strftime("%H:%M", time.localtime(end)), (end - now) / 60))
+        return True
     if end_dialog(img):
-        d["last_seen"] = now
         ok, x2 = _resolve_end(st, img)
         if ok:
             _finish(st, x2)
@@ -375,23 +398,27 @@ def tick(st, img):
             log("종료창을 닫지 못함 -> 다음 루프에서 재시도")
         return True
     if running_view(img):
-        d["last_seen"] = now
-        if el >= SOUL_HOURS * 3600 + 60:
-            log("%.1f시간 경과 -> 휴식 종료 버튼" % (el / 3600))
+        if now - d.get("end_tap", 0) > 5:
+            d["end_tap"] = now
+            log("%.1f시간 경과 -> 휴식 종료 버튼" % ((now - d.get("start", now)) / 3600))
             tap(BTN_REST_END, "휴식 종료", 1.2)
         return True
-    # 휴식 화면도 종료창도 안 보임 (다른 팝업이 가렸거나, 이미 끝났거나)
-    last = d.get("last_seen", 0) or d.get("start", now)
-    if now - last > 900:                                 # patch207: 시간이 지났어도 화면을 다시 볼 수 있으면 끝까지 처리 (점검 뒤 종료 놓침 방지)
-        log("휴식 화면을 15분 넘게 못 봄 -> 추적 종료 (상태 확인 필요)")
+    # 종료 시각이 지났는데 휴식 화면이 안 보임 -> 그때만 가린 팝업 정리 후 재확인
+    if now - end > END_GIVEUP:
+        log("종료 시각 뒤 %d분 동안 휴식 화면을 못 찾음 -> 추적 종료 (상태 확인 필요)" % (END_GIVEUP // 60))
         shot("soul_lost")
         st.pop("soul", None)
         st["soul_next"] = now + 1800
         return False
-    if now - d.get("warn", 0) > 300:
-        d["warn"] = now
-        log("휴식 화면이 안 보임 (%.0f초째). 팝업이 가렸는지 확인 중" % (now - last))
-        shot("soul_miss_%d" % int(now))
+    if now - d.get("clear_try", 0) > 60:
+        d["clear_try"] = now
+        log("종료 시각인데 휴식 화면이 안 보임 -> 팝업 정리 후 재확인")
+        shot("soul_miss_%d" % int(now), img)
+        try:
+            import closer
+            closer.close_all(3)
+        except Exception as e:
+            log("팝업 정리 오류:", repr(e))
     return True
 
 

@@ -93,7 +93,7 @@ def read_wave(img, exact=False):
     holes = cv2.medianBlur(holes, 7)
     n, lab, st, _ = cv2.connectedComponentsWithStats(holes)
     cs = [(s[0], s[1], s[2], s[3], i) for i, s in enumerate(st)
-          if i > 0 and s[4] > 300 and 85 <= s[3] <= 110]      # 글자 높이인 덩어리만
+          if i > 0 and s[4] > 300 and 85 <= s[3] <= 110 and s[2] <= 130]      # 글자 높이인 덩어리만 (patch251: 폭 130 초과 = 어두운 배경 덩어리 제외)
     cs.sort()
     if len(cs) < 5:
         return None

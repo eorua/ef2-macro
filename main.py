@@ -157,6 +157,12 @@ def exact_wave(st, img):
 def record_rebirth(st, why=""):
     """환생 직전의 최고 웨이브(peak_wave)를 최근 환생 목록에 기록 (패널에서 표시)"""
     st["probe_fell"] = False                   # patch156
+    st["reborn_tribe_checked"] = False         # patch244: 환생 완료 후 종족 보너스 다시 판별
+    try:                                        # patch253: 환생 직후 웨이브 호출 AUTO 켜짐 확인 예약
+        import wavecall
+        wavecall.request_check(st, "환생")
+    except Exception as e:
+        log("웨이브 호출 확인 예약 오류: %r" % (e,))
     bonus_reset()                               # patch235: 환생하면 배지 값을 다시 읽음
     _rp = st.get("rprobe")                      # patch161: 한 판 다 모았으면 끝
     if _rp and _rp.get("shots") and not _rp.get("done"):
@@ -661,8 +667,33 @@ def adb_out(args):
         return ""
 
 
+_MUMU_ICON = {"t": None}
+
+
+def mumu_home_icon(img, thr=0.75):
+    """patch256: 뮤뮤 바탕화면의 '오늘도 환생 2' 아이콘 중심 (없으면 None). 사용자 10-25: 오른쪽 위 첫 줄(약 617,447)"""
+    try:
+        import numpy as np
+        if _MUMU_ICON["t"] is None:
+            p = os.path.join(BASE, "tpl", "mumu_ef2_icon.png")
+            _MUMU_ICON["t"] = cv2.imread(p) if os.path.exists(p) else False
+        t = _MUMU_ICON["t"]
+        if t is False or img is None or img.shape[:2] != (1280, 720):
+            return None
+        y0, x0 = 250, 300
+        r = cv2.matchTemplate(img[y0:900, x0:720], t, cv2.TM_CCOEFF_NORMED)
+        _, mx, _, loc = cv2.minMaxLoc(r)
+        if mx < thr:
+            return None
+        return (x0 + loc[0] + t.shape[1] // 2, y0 + loc[1] + t.shape[0] // 2)
+    except Exception:
+        return None
+
+
 def home_screen(img):
     """patch149: BlueStacks 바탕화면(남색 배경 + 위쪽 흰 '게임과 앱 검색' 줄)이면 True = 게임이 강제 종료됨"""
+    if mumu_home_icon(img) is not None:                  # patch256: 뮤뮤 바탕화면
+        return True
     try:
         import numpy as np
         h, w = img.shape[:2]
@@ -701,6 +732,12 @@ def wave_visible(img):
 def launch_game():
     log("게임 실행")
     adb_out(["shell", "monkey", "-p", PKG, "-c", "android.intent.category.LAUNCHER", "1"])
+    if bsrestart.EMU == "mumu":                          # patch256: 그래도 뮤뮤 바탕화면이면 아이콘을 직접 누름
+        time.sleep(4)
+        pt = mumu_home_icon(cap())
+        if pt is not None:
+            log("뮤뮤 바탕화면 -> '오늘도 환생 2' 아이콘 누름 %s" % (pt,))
+            adb_out(["shell", "input", "tap", str(pt[0]), str(pt[1])])
 
 
 def adb_alive(tries=1):
@@ -723,8 +760,22 @@ def adb_alive(tries=1):
     return False
 
 
+# patch256 (사용자 10-25): 뮤뮤에서는 에뮬레이터를 끄거나 재시작하지 않음 (정기 재시작도 안 함)
+#   -> 에뮬레이터 재시작이 필요한 자리에서는 게임만 강제 종료 후 다시 실행
+NO_EMU_RESTART = bsrestart.EMU == "mumu"
+
+
 def restart_bluestacks_full():
     """오환2 BlueStacks 자체를 껐다 켜고 게임까지 실행"""
+    if NO_EMU_RESTART:                                   # patch256
+        if not adb_alive(tries=3):
+            log("뮤뮤: ADB 응답 없음 -> 에뮬레이터 재시작은 안 함 (뮤뮤를 직접 켜 주세요)")
+            return False
+        log("뮤뮤: 에뮬레이터는 그대로 두고 게임만 강제 종료 후 다시 실행")
+        adb_out(["shell", "am", "force-stop", PKG])
+        time.sleep(3)
+        launch_game()
+        return True
     log("BlueStacks(오환2) 재시작")
     if not bsrestart.restart_bluestacks():
         log("BlueStacks 재시작 실패")
@@ -768,6 +819,11 @@ def after_restart_setup(st):
     log(f"프리셋 선택({hero}/{relic}): " + ("성공" if ok2 else "실패"))
     if not st.get("high_done"):
         st["need_low"] = False if ok2 else True
+    try:                                                   # patch253: 재시작 뒤엔 AUTO 가 꺼져 있을 수 있음 -> 확인 예약
+        import wavecall
+        wavecall.request_check(st, "재시작")
+    except Exception as e:
+        log("웨이브 호출 확인 예약 오류: %r" % (e,))
     save_state(st)
 
 
@@ -1185,6 +1241,16 @@ def maint_check(img):
 
 
 def _kill_bluestacks():
+    if NO_EMU_RESTART:                                   # patch256: 뮤뮤는 끄지 않고 게임만 종료
+        log("뮤뮤: 에뮬레이터는 끄지 않고 게임만 종료")
+        adb_out(["shell", "am", "force-stop", PKG])
+        return True
+    if bsrestart.EMU == "mumu":                          # patch250: 뮤뮤는 MuMuManager 로 해당 인스턴스만 종료
+        try:
+            return bsrestart.kill_target()
+        except Exception as e:
+            log("뮤뮤 종료 오류: %r" % (e,))
+            return False
     try:
         pids = bsrestart.find_pids()
     except Exception as e:
@@ -1292,13 +1358,22 @@ def do_recruit(st):
     return res
 
 
+def hexa_on():
+    """patch255: 유물 공방 자동 확인을 할지 (꽉 차면 자동 / 환생마다 둘 중 하나라도 켜져 있으면)"""
+    return daily.setting("hexa_auto", True) or daily.setting("hexa_every", False)
+
+
 def hexa_auto_run(st, resume=False):
     """patch238~240: 유물 공방 티켓 확인 -> 5/5 면 1판, 다음 차례에 1장 이상이면 1판 더 (hexa.py auto). 시간 제한 없음"""
     # patch239: 환생당 1판. 5/5 로 꽉 차서 1판 돌렸으면 다음 환생에 1판 더(티켓 1장 이상이면)
     _need = 1 if st.get("hexa_extra") else 5
+    _every = daily.setting("hexa_every", False)
+    if _every:
+        _need = 1            # patch255: 환생마다 - 티켓 1장 이상이면 1판
     if resume:
         _need = 99           # patch243: 끊긴 판 이어 하기만 (로비가 '시작'이면 새 판 안 함)
     log("유물 공방 티켓 확인 (%s)" % ("끊긴 판 이어 하기" if resume else
+                                   "환생마다 -> 1장 이상이면 1판" if _every else
                                    "지난번 꽉 참 -> 1장 이상이면 1판 더" if _need == 1 else "5/5 면 1판"))
     _hx = subprocess.Popen([sys.executable, os.path.join(BASE, "hexa.py"), "auto", str(_need), "1"], cwd=BASE,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, creationflags=0x08000000)
@@ -1314,7 +1389,7 @@ def hexa_auto_run(st, resume=False):
     _hx.wait()
     log("[공방] 끝 (%.0f분)" % ((time.time() - _t0) / 60))
     if _res == "played":
-        st["hexa_extra"] = 0 if _need == 1 else 1
+        st["hexa_extra"] = 0 if (_need == 1 or _every) else 1
     elif _res == "closed" and not resume:
         st["hexa_extra"] = 0
     # patch243: 판이 중간에 끊김(앱 꺼짐·튕김) -> 2분 뒤(복구 뒤) '이어 하기'로 마저. 3번까지
@@ -1438,6 +1513,23 @@ def main():
             save_state(st)
     except Exception as e:
         log("펫/스킬 준비 오류: %r" % (e,))
+    try:                                          # patch244: 시작 시 현재 판 종족 보너스 확인 (인간 판 30퀘 분기용)
+        import q30 as _q30_init
+        _prev_tr = st.get("reborn_tribe")
+        _prev_sc = st.get("reborn_tribe_score", 0.0)
+        if not st.get("soul"):
+            _tr0 = _q30_init.check_reborn_tribe(st, retries=3, say=log)
+            if _tr0 == "UNKNOWN" and _prev_tr and _prev_tr != "UNKNOWN":
+                st["reborn_tribe"] = _prev_tr
+                st["reborn_tribe_score"] = _prev_sc
+                _q30_init._LAST_TRIBE.update(tribe=_prev_tr, score=_prev_sc)
+                log("[종족] 화면 가림 등으로 미인식 -> 이전 저장된 종족 유지: %s (%.2f)" % (_prev_tr, _prev_sc))
+            save_state(st)
+        elif _prev_tr:
+            _q30_init._LAST_TRIBE.update(tribe=_prev_tr, score=_prev_sc)
+            log("[종족] 저장된 종족 유지 (휴식 중): %s (%.2f)" % (_prev_tr, _prev_sc))
+    except Exception as e:
+        log("시작 시 종족 판별 오류: %r" % (e,))
     while True:
         try:
             import skillctl
@@ -1707,7 +1799,7 @@ def main():
                             st["hexa_soul_next"] = 0
                             log("hexa_now.req -> 유물 공방 티켓 바로 확인")
                         if (time.time() < _sm.end_time(_sd) - 600 and time.time() >= st.get("hexa_soul_next", 0)
-                                and daily.setting("hexa_auto", True)):
+                                and hexa_on()):
                             st["hexa_soul_next"] = time.time() + 3600
                             save_state(st)
                             log("영혼의 휴식 중 유물 공방 티켓 확인 (1시간마다)")
@@ -1768,12 +1860,16 @@ def main():
 
             # 환생 직후: 기본 + 시간
             if st["need_low"]:
-                try:                                   # patch154: 30퀘 전략이면 영웅 골드
+                try:                                   # patch154/244: 환생 후 종족 판별 -> 인간 판이면 30퀘(영웅 골드)
                     import q30 as _q30
-                    _lh, _lr = _q30.low_presets()
-                except Exception:
+                    if not st.get("reborn_tribe_checked"):
+                        _q30.check_reborn_tribe(st, img=img, say=log)
+                        save_state(st)
+                    _lh, _lr = _q30.low_presets(st)
+                except Exception as _e:
+                    log("종족/30퀘 확인 오류: %r" % (_e,))
                     _q30, _lh, _lr = None, "기본", "시간"
-                log("환생 후 프리셋 설정: 영웅 %s / 유물 %s" % (_lh, _lr))
+                log("환생 후 프리셋 설정: 영웅 %s / 유물 %s (종족=%s)" % (_lh, _lr, st.get("reborn_tribe") or "UNKNOWN"))
                 try:                                   # patch119: 환생 -> 스킬 AUTO 다시 켬
                     import skillctl
                     if GO and (skillctl.active() or st.get("skill_manual")):
@@ -1785,7 +1881,7 @@ def main():
                         st["need_low"] = False
                         st["pet_q"] = "팅키"
                         if _q30 is not None:
-                            _q30.start(st)
+                            _q30.start(st, say=log)
                         try:                                   # patch134: 지난 판 기록으로 첫 확인 시점
                             import pet as _pet
                             st["pq_next"] = time.time() + _pet.first_delay(st)
@@ -2046,7 +2142,7 @@ def main():
                     and len(hist) >= 3 and wx is not None and wx < daily.MAX_WAVE - 100):
                 st["hexa_resume_at"] = 0
                 save_state(st)
-                if daily.setting("hexa_auto", True):
+                if hexa_on():
                     try:
                         log("끊긴 유물 공방 판 이어 하기")
                         hexa_auto_run(st, resume=True)
@@ -2064,7 +2160,7 @@ def main():
                 _late = time.time() - st["hexa_at"]
                 st["hexa_at"] = 0
                 save_state(st)
-                if _late < 1200 and daily.setting("hexa_auto", True):
+                if _late < 1200 and hexa_on():
                     try:
                         log("환생 3분 경과 -> 일괄 레벨업 1번 (유물 공방 전)")
                         preset.bulk_levelup(max_rounds=1)
@@ -2151,6 +2247,10 @@ def main():
                     continue
 
             # 정기 재시작 (처리할 일이 없을 때만)
+            if NO_EMU_RESTART and time.time() - st["last_restart"] >= RESTART_HOURS * 3600:     # patch256
+                log(f"{RESTART_HOURS}시간 경과 -> 뮤뮤라 정기 재시작은 건너뜀")
+                st["last_restart"] = time.time()
+                save_state(st)
             if time.time() - st["last_restart"] >= RESTART_HOURS * 3600 and len(hist) >= 3:
                 log(f"{RESTART_HOURS}시간 경과 → 게임 정기 재시작")
                 if GO:

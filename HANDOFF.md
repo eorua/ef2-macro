@@ -106,6 +106,8 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 - **patch255 (유물 공방 환생마다 옵션)**: 패널 옵션 `hexa_every` "유물 공방 환생마다 (티켓 1장 이상이면 1판)" 추가(기본 꺼짐). 켜면 `hexa_auto_run`의 기준 장수가 항상 1 → 환생 3분 뒤(일괄 레벨업 1번 후) 매 환생 1판, 영휴 중엔 1시간마다. `hexa_on()` = `hexa_auto` 또는 `hexa_every` 가 켜져 있으면 확인. 백업 `main.py.bak255`, `panel.py.bak255`.
 
+- **유물 공방 0단계 진단(`patch251`, `diag9.py`/`bench_calib.py`) 및 계획 B(`patch253`, `nt3.c`/`train_b.py`) 설계**: 1수 학습 두뇌(`V`)는 1수 정책(`101.5수`)에선 편향이 거의 없으나(`|bias|<=3.9`), 3수 탐색(`176.8수`) 시 `u`별 음의 편향(`u3 -88.3` → `u9 -22.4`)이 발생함을 확인하고, 2수 탐색 정책(`POL=2`, 전 구간 `all` / `u>=7` `late`)으로 이어서 학습·선별하는 1~5단계 파이프라인(`train_b.py`) 구성 완료.
+
 ## 다음 할 일
 
 0. **뮤뮤 전환 시험 (patch250)**: `emu.json`을 `mumu`로 바꾼 뒤 `py adbport.py scan` → `py emucheck.py fast` → `py emucheck.py touch X Y go`로 확인, 이후 `restart_main.req`로 메인 재시작. MuMuManager `control` 명령(재시작/종료)은 실제 뮤뮤 버전에서 아직 미검증 → `py bsrestart.py`(시험 모드) 출력 확인 필요.

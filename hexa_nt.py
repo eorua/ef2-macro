@@ -306,6 +306,12 @@ def _exe_path():
         # patch244: 낮은 등급 벌점(c_deadp)을 아는 새 수 읽기가 있으면 그것 (벌점 0 이면 예전과 같음)
         v2 = os.path.join(HERE, "hexa_search_v2.exe")
         v3 = os.path.join(HERE, "hexa_search_v3.exe")   # patch246: v2 + 3수째 조각 전부 가중평균(c_exact). 끄면 v2 와 같음
+        v5 = os.path.join(HERE, "hexa_search_v5.exe")   # patch250: v4 + ★10 만들기 보너스(c_tenb). 0 이면 v4 와 같음
+        if os.path.exists(v5):
+            return v5
+        v4 = os.path.join(HERE, "hexa_search_v4.exe")   # patch249: v3 + 5개 이상 합치기 보너스(c_fiveb). 0 이면 v3 와 같음
+        if os.path.exists(v4):
+            return v4
         if os.path.exists(v3):
             return v3
         return v2 if os.path.exists(v2) else os.path.join(HERE, "hexa_search.exe")
@@ -364,6 +370,12 @@ def _cproc():
     # patch246: 3수째(첫 무작위 단계) 조각을 표본 K개 대신 모든 경우 가중평균 (hexa_cfg.json c_exact, bench_exact 가 정함)
     if _cfg.get("c_exact"):
         env["EXACT"] = "1"
+    # patch249: 5개 이상 합치기(+2등급) 한 번마다 보너스 (hexa_cfg.json c_fiveb, bench_five 가 정함)
+    if _cfg.get("c_fiveb"):
+        env["FIVEB"] = str(float(_cfg["c_fiveb"]))
+    # patch250: ★10 을 만들 때마다 보너스 (hexa_cfg.json c_tenb, bench_ten 결과 보고 사용자가 정함)
+    if _cfg.get("c_tenb"):
+        env["TENB"] = str(float(_cfg["c_tenb"]))
     kw = {}
     if os.name == "nt":
         # 창 없이, 낮은 우선순위로 (다른 프로그램·블루스택 방해 최소화)

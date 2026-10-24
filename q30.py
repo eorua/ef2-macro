@@ -31,17 +31,142 @@ TAB_HERO = (185, 1240)
 BTN_DX, BTN_DY = 630, 18             # 30번 제목 줄 y 기준 오픈 버튼 위치 (x 는 고정)
 SAT_ACTIVE = 60                      # 버튼 채도(중앙값)가 이보다 높으면 활성(갈색), 낮으면 회색
 
+# ---- patch244: 좌측 상단 종족 보너스 아이콘 판별 (720x1280) ----
+# 외곽 호박·꽃 이벤트 테두리(상단 y<=55, 좌우 x<=37 / x>=95) 및 하단 레벨("Lv.80": y>=118) 제외
+TRIBE_TPL_BOX = (43, 64, 89, 106)    # 순수 얼굴 중심부 크롭 좌표 (46x42)
+TRIBE_ROI = (37, 58, 95, 112)        # 탐색 영역 (58x54, 상하좌우 ±6px 여유)
+TRIBE_SCORE_TH = 0.75                # 최고 점수 최소 임계값 (settings.json 'tribe_score_th' 오버라이드 지원)
+TRIBE_MARGIN_TH = 0.15               # 1위 - 2위 점수 차 최소 마진 (settings.json 'tribe_margin_th' 오버라이드 지원)
+TRIBE_RETRIES = 5                    # 환생 직후 아이콘 지연 대비 재시도 횟수
+TRIBE_RETRY_SEC = 1.5                # 재시도 간격(초)
+TRIBE_KO = {"HUMAN": "인간", "ELF": "엘프", "UNDEAD": "언데드", "ORC": "오크", "UNKNOWN": "미인식"}
+_TRIBE_TPLS = None
+_LAST_TRIBE = {"tribe": None, "score": 0.0}
+
 
 def log(*a):
     print(*a, flush=True)
 
 
-def on():
+def _float_setting(key, default):
+    try:
+        import json
+        with open(os.path.join(BASE, "settings.json"), encoding="utf-8") as f:
+            v = json.load(f).get(key)
+        return float(v) if v is not None else float(default)
+    except Exception:
+        return float(default)
+
+
+def human_only_on():
+    """패널 옵션 '인간 판에서만 30퀘' (기본 켜짐)"""
     try:
         import daily
-        return daily.setting("q30_open", False)
+        return daily.setting("q30_human_only", True)
+    except Exception:
+        return True
+
+
+def on(st=None):
+    """30퀘 전략 활성 여부:
+    - q30_open 이 켜져 있어야 함
+    - q30_human_only(기본 켜짐)가 켜져 있으면 현재 판 종족(reborn_tribe)이 HUMAN 일 때만 True"""
+    try:
+        import daily
+        if not daily.setting("q30_open", False):
+            return False
+        if human_only_on():
+            tr = (st.get("reborn_tribe") if isinstance(st, dict) else None) or _LAST_TRIBE.get("tribe")
+            return tr == "HUMAN"
+        return True
     except Exception:
         return False
+
+
+def _load_tribe_templates():
+    """templates/tribe_*.png 또는 tpl/tribe_*.png 로드 -> {종족대문자: BGR이미지}"""
+    global _TRIBE_TPLS
+    if _TRIBE_TPLS is not None:
+        return _TRIBE_TPLS
+    tpls = {}
+    rx1, ry1, rx2, ry2 = TRIBE_ROI
+    rw, rh = rx2 - rx1, ry2 - ry1
+    for d in (os.path.join(BASE, "templates"), os.path.join(BASE, "tpl")):
+        if not os.path.isdir(d):
+            continue
+        for fn in sorted(os.listdir(d)):
+            low = fn.lower()
+            if not (low.startswith("tribe_") and low.endswith(".png")):
+                continue
+            code = low[6:-4].upper()
+            if code in ("GRID", "LOOK", "UNKNOWN") or code in tpls:
+                continue
+            im = cv2.imread(os.path.join(d, fn), cv2.IMREAD_COLOR)
+            if im is None or im.shape[0] > rh or im.shape[1] > rw:
+                continue
+            tpls[code] = im
+    _TRIBE_TPLS = tpls
+    return tpls
+
+
+def score_tribe(img):
+    """단일 화면에서 좌상단 종족 아이콘 매칭 점수 계산.
+    반환: (판정종족, 1위점수, 1위종족, 2위종족, 2위점수, 전체점수dict)"""
+    if img is None or img.shape[:2] != (1280, 720):
+        return "UNKNOWN", 0.0, "NONE", "NONE", 0.0, {}
+    tpls = _load_tribe_templates()
+    if not tpls:
+        return "UNKNOWN", 0.0, "NONE", "NONE", 0.0, {}
+    x1, y1, x2, y2 = TRIBE_ROI
+    sub = img[y1:y2, x1:x2]
+    scores = {}
+    for code, tpl in tpls.items():
+        res = cv2.matchTemplate(sub, tpl, cv2.TM_CCOEFF_NORMED)
+        _, sc, _, _ = cv2.minMaxLoc(res)
+        scores[code] = float(sc)
+    ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    b_code, b_sc = ranked[0]
+    s_code, s_sc = ranked[1] if len(ranked) > 1 else ("NONE", -1.0)
+    sth = _float_setting("tribe_score_th", TRIBE_SCORE_TH)
+    mth = _float_setting("tribe_margin_th", TRIBE_MARGIN_TH)
+    if b_sc >= sth and (b_sc - s_sc) >= mth:
+        return b_code, b_sc, b_code, s_code, s_sc, scores
+    return "UNKNOWN", b_sc, b_code, s_code, s_sc, scores
+
+
+def check_reborn_tribe(st=None, img=None, retries=TRIBE_RETRIES, delay=TRIBE_RETRY_SEC, say=log):
+    """좌상단 종족 아이콘을 판별해 st['reborn_tribe'] 에 저장하고 반환.
+    환생 직후 아이콘이 늦게 뜰 수 있으므로 retries 회 재시도 후 실패 시 UNKNOWN."""
+    last_img = img
+    tribe, b_sc, b_code, s_code, s_sc, scores = "UNKNOWN", 0.0, "NONE", "NONE", 0.0, {}
+    tries = max(1, int(retries))
+    for i in range(tries):
+        cur = img if (i == 0 and img is not None) else preset.capture()
+        if cur is not None:
+            last_img = cur
+            tribe, b_sc, b_code, s_code, s_sc, scores = score_tribe(cur)
+            if tribe != "UNKNOWN":
+                break
+        if i < tries - 1:
+            time.sleep(delay)
+    _LAST_TRIBE.update(tribe=tribe, score=round(float(b_sc), 3))
+    if isinstance(st, dict):
+        st["reborn_tribe"] = tribe
+        st["reborn_tribe_score"] = round(float(b_sc), 3)
+        st["reborn_tribe_2nd"] = "%s:%.2f" % (s_code, s_sc)
+        st["reborn_tribe_ts"] = int(time.time())
+        st["reborn_tribe_checked"] = True
+    ko = TRIBE_KO.get(tribe, tribe)
+    if tribe != "UNKNOWN":
+        mode_msg = "30퀘 실행" if on(st) else "일반 모드(30퀘 생략)"
+        say("[종족] 판별: %s(%s) (점수 %.2f, 2위 %s %.2f, 마진 +%.2f) -> %s" % (
+            ko, tribe, b_sc, s_code, s_sc, b_sc - s_sc, mode_msg))
+    else:
+        if last_img is not None:
+            _save("tribe_unknown.png", last_img)
+        say("[종족] 판별 실패 -> UNKNOWN (최고 %s %.2f, 2위 %s %.2f) -> 일반 모드(30퀘 생략)" % (
+            b_code, b_sc, s_code, s_sc))
+    return tribe
 
 
 def _save(name, img):
@@ -253,15 +378,30 @@ def open_quest30(say=log):
 
 
 # ---------------------------------------------------------------- 메인 루프 연결
-def low_presets():
+def low_presets(st=None):
     """환생 직후 (영웅, 유물)"""
-    return ("골드", "시간") if on() else ("기본", "시간")
+    return ("골드", "시간") if on(st) else ("기본", "시간")
 
 
-def start(st):
+def start(st, say=log):
     """환생 직후 프리셋을 맞춘 뒤 main 이 부름"""
-    st["q30"] = "pre" if on() else None
+    active = on(st)
+    st["q30"] = "pre" if active else None
     st.update(q30_gold=None, q30_hits=0, q30_tries=0, q30_next=0)
+    tr = st.get("reborn_tribe") or _LAST_TRIBE.get("tribe") or "UNKNOWN"
+    ko = TRIBE_KO.get(tr, tr)
+    if active:
+        say("[30퀘] 시작 (종족=%s/%s -> pre 단계 진입)" % (ko, tr))
+    elif human_only_on() and daily_q30_open():
+        say("[30퀘] 종족=%s(%s) -> 인간 판이 아니므로 이번 판은 30퀘 생략 (일반 모드)" % (ko, tr))
+
+
+def daily_q30_open():
+    try:
+        import daily
+        return daily.setting("q30_open", False)
+    except Exception:
+        return False
 
 
 def restart_presets(st):
@@ -269,7 +409,7 @@ def restart_presets(st):
     ph = st.get("q30")
     if ph in ("restore", "restore_skip"):
         return "기본", "시간", "팅키"
-    if not on() or ph not in ("pre", "collect", "open"):
+    if not on(st) or ph not in ("pre", "collect", "open"):
         return None
     if ph == "pre":
         return "골드", "시간", st.get("pet_q", "팅키")
@@ -277,7 +417,7 @@ def restart_presets(st):
 
 
 def collecting(st):
-    return on() and st.get("q30") in ("collect", "open")
+    return on(st) and st.get("q30") in ("collect", "open")
 
 
 def restore(st, say=log):
@@ -302,7 +442,7 @@ def abandon(st, why, say=log, restore_now=True):
 def tick(st, say=log):
     """메인 루프(환생 후 ~ 고레벨 전)에서 pet.quest_tick 보다 먼저 부름. 할 일을 했으면 True"""
     ph = st.get("q30")
-    if ph == "done" and on() and not st.get("q30_fix188"):    # patch187/188: 10-18 18:20 '이미 열림' 오판 -> 한 번만 다시 확인
+    if ph == "done" and on(st) and not st.get("q30_fix188"):    # patch187/188: 10-18 18:20 '이미 열림' 오판 -> 한 번만 다시 확인
         st["q30_fix188"] = 1
         say("[30퀘] patch188: 30번이 정말 열렸는지 다시 확인 (골드 모으기 단계부터)")
         st.update(q30="collect", q30_hits=0, q30_next=0, q30_tries=0)
@@ -311,10 +451,11 @@ def tick(st, say=log):
         if time.time() >= st.get("q30_next", 0):
             return restore(st, say)
         return False
-    if not on() and ph in ("pre", "collect", "open"):          # patch191: 도중에 옵션을 끄면 바로 기본/시간/팅키로 되돌림
-        abandon(st, "패널에서 30퀘 옵션을 끔", say)
+    if not on(st) and ph in ("pre", "collect", "open"):       # patch191/244: 도중에 옵션을 끄거나 인간 판 조건 불일치 시 복구
+        why = "인간 판이 아님(%s)" % st.get("reborn_tribe") if (daily_q30_open() and human_only_on()) else "패널에서 30퀘 옵션을 끔"
+        abandon(st, why, say)
         return True
-    if not on() or ph not in ("pre", "collect", "open"):
+    if not on(st) or ph not in ("pre", "collect", "open"):
         return False
     now = time.time()
     if ph == "pre":
@@ -360,7 +501,12 @@ def tick(st, say=log):
 
 if __name__ == "__main__":
     a = sys.argv[1:]
-    if "gold" in a:
+    if "tribe" in a:
+        p = next((x for x in a if x != "tribe" and os.path.exists(x)), None)
+        im = cv2.imread(p) if p else preset.capture()
+        tr, b_sc, b_code, s_code, s_sc, scs = score_tribe(im)
+        print("판정:", tr, "| 1위:", b_code, round(b_sc, 3), "| 2위:", s_code, round(s_sc, 3), "| 전체:", {k: round(v, 3) for k, v in scs.items()})
+    elif "gold" in a:
         print("골드:", read_gold(preset.capture()))
     elif "look" in a:
         preset.GO = True

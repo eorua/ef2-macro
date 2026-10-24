@@ -103,9 +103,10 @@ def races_state(img):
     return {k: race_on(img, p) for k, p in RACES.items()}
 
 
-def label_mask(img, dx=0):
+def label_mask(img, dx=0, dy=0):
     x1, y1, x2, y2 = LABEL_ROI
     x1, x2 = x1 + dx, x2 + dx
+    y1, y2 = y1 + dy, y2 + dy
     hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2HSV)
     m = cv2.inRange(hsv, (0, 150, 120), (8, 255, 255)) | cv2.inRange(hsv, (172, 150, 120), (180, 255, 255))
     return m
@@ -128,14 +129,18 @@ def is_full(img):
     if t is False or t is None:
         return False
     b = t > 0
-    for dx in (0, 4, 2, 6, -2, 8, -4, 10):               # patch212: 10-21 업데이트로 '10/10' 글자가 오른쪽으로 4px 이동
-        m = label_mask(img, dx)
-        if m.shape != t.shape:
-            continue
-        a = m > 0
-        union = (a | b).sum()
-        if union > 0 and (a & b).sum() / union > 0.75:
-            return True
+    # patch212: 10-21 업데이트로 '10/10' 글자가 오른쪽으로 4px 이동
+    # patch254: 뮤뮤에서는 글자가 x+3, y+1 에 그려져 짝수 dx 만 보던 예전 방식이 '10/10' 을 못 알아봄
+    #           -> 1px 단위로 x -6~+12, y -2~+2 전부 확인
+    for dy in (0, 1, -1, 2, -2):
+        for dx in range(-6, 13):
+            m = label_mask(img, dx, dy)
+            if m.shape != t.shape:
+                continue
+            a = m > 0
+            union = (a | b).sum()
+            if union > 0 and (a & b).sum() / union > 0.75:
+                return True
     return False
 
 
@@ -310,6 +315,9 @@ def _scroll_search(key, steps):
         img = _scroll_once("down")
         if img is None:
             return None, True
+        if is_full(img):                          # patch254: 슬롯이 이미 10/10 -> 더 찾을 필요 없음
+            log("  슬롯 10/10 -> 스크롤 중단")
+            return None, True
         y = find_unit(img, key)
         log("  아래 %d: 최고점 %.2f%s" % (n + 1, _best(img, key), " -> 찾음" if y else ""))
         if y is not None:
@@ -333,6 +341,9 @@ def _locate_impl(key, tries=30):
     """유닛 줄 찾기: 지금 화면 -> 맨 위까지 올리며 -> 맨 위부터 아래로 내리며. 줄 중심 y 반환"""
     img = snap(0.2)
     if img is None:
+        return None
+    if is_full(img):                                     # patch254
+        log("  슬롯 10/10 -> 찾기 생략")
         return None
     y = find_unit(img, key)
     log("  지금 화면: 최고점 %.2f" % _best(img, key))
@@ -486,6 +497,9 @@ def deploy(key, n):
         return 0
     if not set_races_for(race):
         return 0
+    img = capture()
+    if img is not None and is_full(img):                 # patch254: 이미 가득이면 스크롤 없이 끝
+        log(f"슬롯이 이미 10/10 -> {name} 배치 생략"); return 0
     y = locate(key)
     if y is None:
         log(f"{name} 줄을 못 찾음"); return 0

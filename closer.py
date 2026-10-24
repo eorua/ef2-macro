@@ -8,7 +8,7 @@ import sys, time
 import cv2, numpy as np
 import preset
 
-X_MIN, Y_MIN, Y_MAX = 600, 150, 830       # 닫기 X 가 있는 영역 (오른쪽, 창 제목줄 높이대)
+X_MIN, Y_MIN, Y_MAX = 600, 30, 830        # 닫기 X 영역 (patch254: '환생팀 편성' 창 X 는 y=59 라 위 한도 150->30)
 
 
 def find_red_x(img, min_s=40, max_s=78):
@@ -42,7 +42,12 @@ def find_red_x(img, min_s=40, max_s=78):
 
 
 def close_buttons(img):
-    return [p for p in find_red_x(img) if p[0] >= X_MIN and Y_MIN <= p[1] <= Y_MAX]
+    pts = [p for p in find_red_x(img) if p[0] >= X_MIN and Y_MIN <= p[1] <= Y_MAX]
+    # patch254: '환생팀 편성' X(686,59)는 위가 상태바에 잘려 높이 39px -> 화면 맨 위(y<90)만 최소 크기 34 로 한 번 더
+    for p in find_red_x(img, min_s=34):
+        if p[0] >= 660 and p[1] < 90 and p not in pts:
+            pts.append(p)
+    return pts
 
 
 def close_all(max_n=4):

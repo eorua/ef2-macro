@@ -13,6 +13,9 @@ _archive/
 tests/img/
 hexa_nt_w.bin
 hexa_train/big.bin
+hexa_train/*.bin
+*.exe
 vidparts/Recording-2026-10-24-013013.part0
 vidparts/Recording-2026-10-24-013013.part1
 vidparts/
+emu.json

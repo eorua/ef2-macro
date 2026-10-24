@@ -1,7 +1,9 @@
 import subprocess, sys, time
+import adbport
 
 ADB_EXE = r"C:\platform-tools\adb.exe"
-DEV = __import__("adbport").DEV
+DEV = adbport.DEV
+EMU = adbport.EMU                 # patch250: "bluestacks" 또는 "mumu" (emu.json)
 PLAYER = r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"
 INSTANCE = "Pie64_3"              # 오환2 인스턴스 이름 (bluestacks.conf 에서 확인)
 TITLE = "오환2"                   # BlueStacks 창 제목에 들어 있는 글자
@@ -14,7 +16,10 @@ def ps(cmd):
 
 
 def find_pids():
-    """창 제목에 TITLE 이 들어간 HD-Player 프로세스 번호들 (다른 인스턴스는 건드리지 않음)"""
+    """창 제목에 TITLE 이 들어간 HD-Player 프로세스 번호들 (다른 인스턴스는 건드리지 않음)
+    patch250: 뮤뮤면 MuMuManager info 로 해당 인스턴스(mumu_index)의 프로세스 번호만"""
+    if adbport.IS_MUMU:
+        return _mumu_pids()
     out = ps("Get-Process HD-Player -ErrorAction SilentlyContinue | "
              f"Where-Object {{ $_.MainWindowTitle -like '*{TITLE}*' }} | ForEach-Object {{ $_.Id }}")
     return [int(x) for x in out.split() if x.strip().isdigit()]
@@ -42,8 +47,72 @@ def wait_boot(timeout=240):
     return False
 
 
+# ---------------------------------------------------------------- 뮤뮤 (patch250)
+def _mumu_started(info):
+    if not info:
+        return False
+    v = info.get("is_process_started")
+    if isinstance(v, bool):
+        return v
+    return bool(info.get("pid") or info.get("headless_pid"))
+
+
+def _mumu_pids():
+    """뮤뮤 해당 인스턴스가 켜져 있으면 [프로세스 번호] (번호를 모르면 [0]), 꺼져 있거나 확인 불가면 []"""
+    info = adbport.mumu_info()
+    if not _mumu_started(info):
+        return []
+    for k in ("pid", "headless_pid"):
+        try:
+            if int(info.get(k) or 0) > 0:
+                return [int(info[k])]
+        except (TypeError, ValueError):
+            pass
+    return [0]
+
+
+def kill_target():
+    """patch250: 뮤뮤 해당 인스턴스만 종료 (MuMuManager control shutdown). 성공/불필요하면 True"""
+    if not adbport.IS_MUMU:
+        return False
+    if not adbport.mumu_manager():
+        print("MuMuManager 를 못 찾아 뮤뮤를 끄지 않음 (emu.json 의 mumu_manager 확인)")
+        return False
+    if not _mumu_started(adbport.mumu_info()):
+        return True
+    print("뮤뮤(오환2, 인스턴스 %d) 종료" % adbport.MUMU_INDEX)
+    adbport.mumu_cmd("control", "-v", adbport.MUMU_INDEX, "shutdown", timeout=60)
+    time.sleep(8)
+    return True
+
+
+def restart_mumu():
+    """뮤뮤 해당 인스턴스만 종료 후 다시 실행하고 ADB 가 살아날 때까지 기다림. 성공하면 True"""
+    mgr = adbport.mumu_manager()
+    if not mgr:
+        print("MuMuManager 를 못 찾음 -> 재시작 불가 (emu.json 에 mumu_manager 경로 지정)")
+        return False
+    info = adbport.mumu_info()
+    print("대상 뮤뮤 인스턴스:", adbport.MUMU_INDEX, "/ 켜짐:", _mumu_started(info),
+          "/ ADB 포트:", (info or {}).get("adb_port"))
+    if not GO:
+        print("[시험] 실제로는 MuMuManager control -v %d shutdown -> launch 를 실행합니다" % adbport.MUMU_INDEX)
+        return True
+    if _mumu_started(info):
+        kill_target()
+    else:
+        print("뮤뮤(오환2) 가 꺼져 있어 바로 실행합니다")
+    print("뮤뮤(오환2) 다시 실행")
+    adbport.mumu_cmd("control", "-v", adbport.MUMU_INDEX, "launch", timeout=60)
+    time.sleep(20)
+    return wait_boot()
+
+
 def restart_bluestacks():
-    """'오환2' BlueStacks 만 종료 후 다시 실행하고 ADB 가 살아날 때까지 기다림. 성공하면 True"""
+    """'오환2' BlueStacks 만 종료 후 다시 실행하고 ADB 가 살아날 때까지 기다림. 성공하면 True
+    patch250: emu.json 이 뮤뮤면 뮤뮤 해당 인스턴스만 재시작 (함수 이름은 호출부 호환 위해 유지)"""
+    if adbport.IS_MUMU:
+        return restart_mumu()
     pids = find_pids()
     print("대상 HD-Player 프로세스:", pids)
     if len(pids) > 1:

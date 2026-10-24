@@ -20,7 +20,7 @@ STATE = os.path.join(BASE, "state.json")
 PIDFILE = os.path.join(BASE, "main.pid")
 SETTINGS = os.path.join(BASE, "settings.json")
 SHOTS = os.path.join(BASE, "shots")
-DEFAULTS = {"fairy": False, "log_font": 10, "guild_post": True, "raid_shop": True, "archery": False, "soul": False, "maint": True, "cont_skip": True, "q30_open": False}     # fairy: 정령의 고원 자동 구매/소탕 (다이아 사용이라 기본 꺼짐)
+DEFAULTS = {"fairy": False, "log_font": 10, "guild_post": True, "raid_shop": True, "archery": False, "soul": False, "maint": True, "cont_skip": True, "q30_open": False, "q30_human_only": True}     # fairy: 정령의 고원 자동 구매/소탕 (다이아 사용이라 기본 꺼짐)
 MAX_LINES = 400                                  # 로그창에 남기는 최대 줄 수
 FONT = "맑은 고딕"
 
@@ -234,8 +234,10 @@ class App:
         self.rb_last.pack(side="left")
         self.rb_time = tk.Label(rb, text="", font=(FONT, 9), bg=C_CARD, fg=C_DIM)
         self.rb_time.pack(side="left", padx=(6, 12))
+        self.rb_tribe = tk.Label(rb, text="종족: -", font=(FONT, 9, "bold"), bg=C_CARD, fg=C_MUTED)
+        self.rb_tribe.pack(side="right", padx=(8, 14))
         self.rb_rest = tk.Label(rb, text="", font=(FONT, 10), bg=C_CARD, fg=C_MUTED, anchor="w")
-        self.rb_rest.pack(side="left", fill="x", expand=True, padx=(0, 14))
+        self.rb_rest.pack(side="left", fill="x", expand=True, padx=(0, 8))
         self.rb_mt = None
 
         # ---- 코드 변경 안내 (평소엔 숨김)
@@ -317,11 +319,13 @@ class App:
                 ("fairy", "정령의 고원 (티켓 구매 + 소탕)", "다이아를 사용합니다. 기본은 꺼짐."),
                 ("soul", "신전 영혼의 휴식 (실험)", "다이아 5000 이상이고 일일 작업이 끝났을 때 최대 4시간 쉬며 훈장을 받습니다. 쉬는 동안 다른 동작은 멈춥니다. 먼저 py soul.py start go 로 시험해 보세요. 기본은 꺼짐."),
                 ("q30_open", "(시범) 퀘스트 30번 열기 전략", "환생 후 영웅 '골드' 프리셋 -> 29퀘 400c 뒤 유물 '골드 모으기'로 200ao 모으기 -> '오픈골드 감소' + 레오로 30퀘 오픈 -> 기본/시간 복귀. 모으는 중 중간 업글은 +1000 두 번만. 기본은 꺼짐."),
+                ("q30_human_only", "인간 판에서만 30퀘", "patch244: 좌상단 종족 보너스가 인간(불의 정령)일 때만 30퀘 전략을 실행하고, 그 외/미인식은 일반 모드로 진행합니다. 기본은 켜짐."),
                 ("wk_x2", "주말 훈장 +50% 때 다이아 500 환생 (하루 5회)", "patch235: 토·일(오전 9시 기준) 천사 아이콘 아래 배지가 N/5 (N>0) 이고 함락 창에 +보너스가 보일 때만 빨간 '환생 (훈장 x2)'. 성 함락 때만, 정체 환생에는 안 씀. 기본은 꺼짐."),
                 ("hexa_auto", "유물 공방 티켓 꽉 차면(5/5) 자동 (환생당 1판, 2번)", "patch239/240: 환생 3분 뒤 일괄 레벨업 1번 -> 전투 화면일 때만 공방 창을 열어 티켓 5/5 면 1판, 다음 환생에 1판 더. 아니면 바로 닫음. 영혼의 휴식 중엔 1시간마다 확인. 기본은 켜짐."),
+                ("hexa_every", "유물 공방 환생마다 (티켓 1장 이상이면 1판)", "patch255: 환생 3분 뒤 일괄 레벨업 1번 -> 공방 티켓이 1장 이상이면 매 환생 1판. 켜면 위 '꽉 차면' 옵션 대신 이 방식으로 돔. 영혼의 휴식 중엔 1시간마다. 기본은 꺼짐."),
                 ("cont_skip", "이어하기 후 카운트다운 15회 연타", "성 함락 때 이어하기를 누른 뒤 준비 카운트다운(20초)을 화면 연타로 줄입니다. 끄면 연타 없이 기다립니다. 기본은 켜짐."),
                 ):
-            v = tk.BooleanVar(value=bool(self.set.get(key, key == "hexa_auto")))     # patch238: hexa_auto 는 기본 켜짐
+            v = tk.BooleanVar(value=bool(self.set.get(key, key in ("hexa_auto", "q30_human_only"))))     # patch238/244: hexa_auto, q30_human_only 기본 켜짐
             self.opt_vars[key] = v
             ttk.Checkbutton(row, text=label, variable=v, command=self.save_opts).pack(anchor="w", pady=4)    # patch181: 설명 줄 제거
 
@@ -476,16 +480,27 @@ class App:
             pass
 
     def show_rebirths(self):
-        """state.json 의 rebirths(최근 환생 층수)를 표시. 파일이 바뀔 때만 다시 읽음"""
+        """state.json 의 rebirths(최근 환생 층수) 및 reborn_tribe(현재 판 종족) 표시. 파일이 바뀔 때만 다시 읽음"""
         try:
             mt = os.path.getmtime(STATE) if os.path.exists(STATE) else 0
             if mt == self.rb_mt:
                 return
             self.rb_mt = mt
             lst = []
+            st_data = {}
             if mt:
                 with open(STATE, encoding="utf-8") as f:
-                    lst = json.load(f).get("rebirths") or []
+                    st_data = json.load(f)
+                    lst = st_data.get("rebirths") or []
+            tr = st_data.get("reborn_tribe")
+            sc = st_data.get("reborn_tribe_score")
+            if tr:
+                ko = {"HUMAN": "인간", "ELF": "엘프", "UNDEAD": "언데드", "ORC": "오크", "UNKNOWN": "미인식"}.get(tr, tr)
+                txt = "종족: %s(%s%s)" % (ko, tr, (" %.2f" % float(sc)) if sc is not None else "")
+                fg = C_GOOD if tr == "HUMAN" else (C_WARN if tr == "UNKNOWN" else C_MUTED)
+                self.rb_tribe.config(text=txt, fg=fg)
+            else:
+                self.rb_tribe.config(text="종족: -", fg=C_MUTED)
             if not lst:
                 self.rb_last.config(text="-")
                 self.rb_time.config(text="")

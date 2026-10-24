@@ -1,12 +1,15 @@
 // 유물 공방(헥사 머지) n-tuple TD(0) afterstate 학습기
-// nt3 (계획 B: 탐색 정책으로 학습) = nt2 + 환경변수
-//   POL   : 0 = 1수 탐욕(nt2와 같음), 2 = 2수 가지치기(1수 평가 상위 PB1개만 다음 조각까지 읽음)
-//   PB1   : 2수로 읽을 후보 수 (기본 4)
-//   PU    : 이 u(해금 최고등급) 이상에서만 2수, 미만은 1수 (기본 3 = 처음부터)
-//   SCALE : train 시작 때 불러온 가중치 전체에 곱하는 배율 (기본 1). 한 번만 적용되므로 이어서 학습할 땐 1로
+// nt3 (계획 B: 탐색 정책으로 학습 + patch259: ★10 확정 달성 올인 보상 체계 지원) = nt2 + 환경변수
+//   POL    : 0 = 1수 탐욕(nt2와 같음), 2 = 2수 가지치기(1수 평가 상위 PB1개만 다음 조각까지 읽음)
+//   PB1    : 2수로 읽을 후보 수 (기본 4)
+//   PU     : 이 u(해금 최고등급) 이상에서만 2수, 미만은 1수 (기본 3 = 처음부터)
+//   SCALE  : train 시작 때 불러온 가중치 전체에 곱하는 배율 (기본 1). 한 번만 적용되므로 이어서 학습할 땐 1로
+//   TENB   : ★10 합성에 성공할 때마다 더하는 보상 (기본 0, ★10 올인 시 150~200 권장)
+//   STAR9B : ★9 합성에 성공할 때마다 더하는 징검다리 보상 (기본 0, ★10 올인 시 15 권장)
+//   STAR8B : ★8 합성에 성공할 때마다 더하는 징검다리 보상 (기본 0, ★10 올인 시 3 권장)
+//   CLUST  : 수 선택 시 ★8·★9 인접 결합 가중치 배율 (기본 0, ★10 올인 시 1.0 권장)
 // 추가 명령: nt3 scale 입력.bin 출력.bin 배율   (가중치에 배율만 곱해 저장, .tup 함께)
-// POL=0 SCALE=1 이면 수 선택·난수 사용이 nt2와 완전히 같음 (eval 출력 동일).
-// hexa_engine.py 규칙 그대로 옮김. 상태 인코딩: 0 빈칸, 1 죽은 칸(lo 미만), 2.. = 등급-lo+2 (최대 8)
+// POL=0 SCALE=1 TENB=0 STAR9B=0 STAR8B=0 CLUST=0 이면 수 선택·난수 사용이 nt2와 완전히 같음 (eval 출력 동일).
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,18 +19,88 @@
 #include <time.h>
 #include "board2.h"
 
-#include "core2.inc"
-static inline double rw(double raw);
+static _Thread_local int G3 = 0, G5 = 0, G10A = 0, G10B = 0;
+#include "core4.inc"
+
+static int RMODE = 0; static double BONUS = 0.002;
+static double TENB = 0.0, STAR9B = 0.0, STAR8B = 0.0, CLUST = 0.0;
+
+static inline double rw_step(double raw, int d10, int mm) {
+    double r = RMODE ? 1.0 + BONUS * raw : raw;
+    if (TENB > 0 && d10 > 0) r += TENB * d10;
+    if (STAR9B > 0 && mm == 9) r += STAR9B;
+    else if (STAR8B > 0 && mm == 8) r += STAR8B;
+    return r;
+}
+
+// patch259: 필드에 ★8·★9 가 떠 있을 때 공간 확보보다 이들을 인접시켜 ★10 합각을 만드는 결합 가중치
+static inline double cluster_eval(const int8_t *b) {
+    int n8 = 0, n9 = 0;
+    for (int i = 0; i < NC; i++) {
+        if (b[i] == 8) n8++;
+        else if (b[i] == 9) n9++;
+    }
+    if (!n8 && !n9) return 0.0;
+    int adj99 = 0, adj98 = 0, adj88 = 0, adj87 = 0;
+    int bridge99 = 0, bridge98 = 0;
+    int iso8 = 0, trap9 = 0;
+    for (int i = 0; i < NC; i++) {
+        int ti = b[i];
+        if (ti == 9) {
+            int open9 = 0;
+            for (int k = 0; k < NBN[i]; k++) {
+                int j = NBL[i][k], tj = b[j];
+                if (tj == 9 && j > i) adj99++;
+                else if (tj == 8) { adj98++; open9++; }
+                else if (tj == 0 || tj == 7) open9++;
+            }
+            if (open9 == 0) trap9 += 2;
+            else if (open9 == 1) trap9 += 1;
+        } else if (ti == 8) {
+            int conn = 0;
+            for (int k = 0; k < NBN[i]; k++) {
+                int j = NBL[i][k], tj = b[j];
+                if (tj == 8) { conn = 1; if (j > i) adj88++; }
+                else if (tj == 9) conn = 1;
+                else if (tj == 7) adj87++;
+            }
+            if (!conn && (n8 + n9) >= 2) iso8++;
+        }
+        if (n9 >= 2 && ti != 9) {
+            int c9 = 0;
+            for (int k = 0; k < NBN[i]; k++) if (b[NBL[i][k]] == 9) c9++;
+            if (c9 >= 2) {
+                if (ti == 8) bridge98++;
+                else if (ti == 0 || ti == 7) bridge99++;
+            }
+        }
+    }
+    double sc = 18.0 * n9 + 2.5 * n8;
+    sc += 28.0 * adj99 + 9.0 * adj98 + 5.0 * adj88 + 2.0 * adj87;
+    sc += 18.0 * bridge98 + 10.0 * bridge99;
+    sc -= 4.0 * trap9 + 2.5 * iso8;
+    if (n9 >= 2 && adj99 == 0 && bridge99 == 0 && bridge98 == 0)
+        sc -= 16.0 * (n9 - 1);
+    return sc;
+}
+
+static inline double evalv_pol(const int8_t *b, int u) {
+    double v = value(b, u);
+    if (CLUST > 0) v += CLUST * cluster_eval(b);
+    return v;
+}
+
 // 수 평가: 갈림 평균(r + V)
 static double eval_move(const int8_t *b, int u, const piece_t *p, const mv_t *m) {
     double tot = 0; int nbr = 1;
     for (int ch = 0; ch < nbr; ch++) {
         int8_t nb[NC]; memcpy(nb, b, NC);
         for (int j = 0; j < m->n; j++) nb[m->c[j]] = p->t[j];
-        int u2 = u, mm = 0, br;
-        double r = rw(resolve(nb, m->c, m->n, ch, &br, &u2, &mm));
+        int u2 = u, mm = 0, br, g10 = G10A + G10B;
+        double raw = resolve(nb, m->c, m->n, ch, &br, &u2, &mm);
+        double r = rw_step(raw, (G10A + G10B) - g10, mm);
         nbr = br;
-        tot += r + value(nb, u2);
+        tot += r + evalv_pol(nb, u2);
     }
     return tot / nbr;
 }
@@ -39,8 +112,9 @@ static double eval_move2(const int8_t *b, int u, const piece_t *p, const mv_t *m
     for (int ch = 0; ch < nbr; ch++) {
         int8_t nb[NC]; memcpy(nb, b, NC);
         for (int j = 0; j < m->n; j++) nb[m->c[j]] = p->t[j];
-        int u2 = u, mm = 0, br;
-        double r = rw(resolve(nb, m->c, m->n, ch, &br, &u2, &mm));
+        int u2 = u, mm = 0, br, g10 = G10A + G10B;
+        double raw = resolve(nb, m->c, m->n, ch, &br, &u2, &mm);
+        double r = rw_step(raw, (G10A + G10B) - g10, mm);
         nbr = br;
         int n2 = gen_moves(nb, nx, ms);
         double best = n2 ? -1e18 : 0;
@@ -65,8 +139,9 @@ static double eval_move3(const int8_t *b, int u, const piece_t *p, const mv_t *m
     for (int ch = 0; ch < nbr; ch++) {
         int8_t nb[NC]; memcpy(nb, b, NC);
         for (int j = 0; j < m->n; j++) nb[m->c[j]] = p->t[j];
-        int u2 = u, mm = 0, br;
-        double r = rw(resolve(nb, m->c, m->n, ch, &br, &u2, &mm));
+        int u2 = u, mm = 0, br, g10 = G10A + G10B;
+        double raw = resolve(nb, m->c, m->n, ch, &br, &u2, &mm);
+        double r = rw_step(raw, (G10A + G10B) - g10, mm);
         nbr = br;
         int n2 = gen_moves(nb, nx, ms);
         if (!n2) { tot += r; continue; }
@@ -82,8 +157,9 @@ static double eval_move3(const int8_t *b, int u, const piece_t *p, const mv_t *m
             for (int ch2 = 0; ch2 < nbr2; ch2++) {
                 int8_t nb2[NC]; memcpy(nb2, nb, NC);
                 for (int j = 0; j < m2->n; j++) nb2[m2->c[j]] = nx->t[j];
-                int u3 = u2, mm2 = 0, br2;
-                double r2 = rw(resolve(nb2, m2->c, m2->n, ch2, &br2, &u3, &mm2));
+                int u3 = u2, mm2 = 0, br2, g10_2 = G10A + G10B;
+                double raw2 = resolve(nb2, m2->c, m2->n, ch2, &br2, &u3, &mm2);
+                double r2 = rw_step(raw2, (G10A + G10B) - g10_2, mm2);
                 nbr2 = br2;
                 double acc = 0;
                 rng_t R2 = *R;
@@ -98,7 +174,7 @@ static double eval_move3(const int8_t *b, int u, const piece_t *p, const mv_t *m
     return tot / nbr;
 }
 
-typedef struct { int moves, best; double score; } res_t;
+typedef struct { int moves, best, s10; double score; } res_t;
 
 static int POL = 0, PB1 = 4, PU = 3; static double SCALE = 1.0;
 // 2수 가지치기: 1수 평가로 상위 PB1개를 고른 뒤 그 후보만 다음 조각(nx)까지 읽어 최선 선택
@@ -118,9 +194,6 @@ static int pick2(const int8_t *b, int u, const piece_t *cur, const piece_t *nx, 
 
 static int MAXMV = 20000;
 static double ALPHA = 0.1;
-// 보상 모드: 0 = 등급 점수(2^등급), 1 = 오래 버티기(한 수마다 1 + BONUS*등급점수)
-static int RMODE = 0; static double BONUS = 0.002;
-static inline double rw(double raw) { return RMODE ? 1.0 + BONUS * raw : raw; }
 // 긴 판 상태에서 다시 시작(late restart)
 static double P_RESTART = 0.0; static int RESTART_MIN = 100;
 #define BUFN 4096
@@ -135,7 +208,7 @@ static res_t play_game(rng_t *R, int learn, int look2) {
     }
     piece_t cur, nx; gen_piece(u, R, &cur); gen_piece(u, R, &nx);
     int8_t prev[NC]; int prevu = 0, has_prev = 0;
-    res_t res = {0, 0, 0};
+    res_t res = {0, 0, 0, 0};
     mv_t ms[256];
     float a = (float)(ALPHA / NINST);
     for (;;) {
@@ -153,9 +226,11 @@ static res_t play_game(rng_t *R, int learn, int look2) {
         else
         for (int k = 0; k < n; k++) { double v = look2 ? eval_move2(b, u, &cur, &ms[k], &nx) : eval_move(b, u, &cur, &ms[k]); if (v > bv) { bv = v; bi = k; } }
         for (int j = 0; j < ms[bi].n; j++) b[ms[bi].c[j]] = cur.t[j];
-        int br, mm = 0;
+        int br, mm = 0, g10 = G10A + G10B;
         double raw = resolve(b, ms[bi].c, ms[bi].n, rint_(R, 6), &br, &u, &mm);
-        double r = rw(raw);
+        int d10 = (G10A + G10B) - g10;
+        double r = rw_step(raw, d10, mm);
+        res.s10 += d10;
         if (mm > res.best) res.best = mm;
         res.score += raw; res.moves++;
         if (learn && P_RESTART > 0 && res.moves >= RESTART_MIN && (rnext(R) & 15) == 0) {
@@ -173,7 +248,7 @@ static res_t play_game(rng_t *R, int learn, int look2) {
 
 static long G_GAMES; static int G_THREADS = 2; static volatile long G_DONE = 0;
 static pthread_mutex_t MU = PTHREAD_MUTEX_INITIALIZER;
-static double ACC_S = 0, ACC_M = 0; static long ACC_N = 0, ACC_B[11];
+static double ACC_S = 0, ACC_M = 0; static long ACC_N = 0, ACC_B[11], ACC_10 = 0;
 
 static void *worker(void *arg) {
     rng_t R = {(uint64_t)(uintptr_t)arg * 0x9E3779B97F4A7C15ULL + (uint64_t)time(NULL)};
@@ -182,7 +257,7 @@ static void *worker(void *arg) {
         if (g >= G_GAMES) break;
         res_t r = play_game(&R, 1, 0);
         pthread_mutex_lock(&MU);
-        ACC_S += r.score; ACC_M += r.moves; ACC_N++; ACC_B[r.best]++;
+        ACC_S += r.score; ACC_M += r.moves; ACC_N++; ACC_B[r.best]++; ACC_10 += r.s10;
         pthread_mutex_unlock(&MU);
     }
     return NULL;
@@ -230,8 +305,13 @@ int main(int argc, char **argv) {
     if (getenv("PB1")) PB1 = atoi(getenv("PB1"));
     if (getenv("PU")) PU = atoi(getenv("PU"));
     if (getenv("SCALE")) SCALE = atof(getenv("SCALE"));
+    if (getenv("TENB")) TENB = atof(getenv("TENB"));
+    if (getenv("STAR9B")) STAR9B = atof(getenv("STAR9B"));
+    if (getenv("STAR8B")) STAR8B = atof(getenv("STAR8B"));
+    if (getenv("CLUST")) CLUST = atof(getenv("CLUST"));
     if (PB1 < 1) PB1 = 1; if (PB1 > 256) PB1 = 256;
-    printf("POL %d PB1 %d PU %d SCALE %.4f\n", POL, PB1, PU, SCALE); fflush(stdout);
+    printf("POL %d PB1 %d PU %d SCALE %.4f TENB %.1f STAR9B %.1f STAR8B %.1f CLUST %.2f\n",
+           POL, PB1, PU, SCALE, TENB, STAR9B, STAR8B, CLUST); fflush(stdout);
     const char *mode = argc > 1 ? argv[1] : "train";
     if (!strcmp(mode, "rtest")) {
         int bb[NC], np, c[3], t[3], ch;
@@ -257,7 +337,6 @@ int main(int argc, char **argv) {
             piece_t p; scanf("%d", &n); p.n = n; for (int j = 0; j < n; j++) scanf("%d %d %d", &p.off[j][0], &p.off[j][1], &p.t[j]);
             int8_t b[NC]; for (int i = 0; i < NC; i++) b[i] = bb[i];
             mv_t ms[256]; int k = gen_moves(b, &p, ms);
-            // 칸 집합+등급 정렬 문자열 대신 개수와 해시
             long h = 0; for (int m = 0; m < k; m++) { long x = 1; for (int j = 0; j < n; j++) x *= (ms[m].c[j] * 11 + p.t[j] + 7); h += x; }
             printf("%d %ld\n", k, h);
         }
@@ -284,11 +363,12 @@ int main(int argc, char **argv) {
     time_t t0 = time(NULL);
     for (long done = 0; done < total; done += chunk) {
         time_t tc = time(NULL);
-        G_GAMES = chunk; G_DONE = 0; ACC_S = ACC_M = 0; ACC_N = 0; memset(ACC_B, 0, sizeof ACC_B);
+        G_GAMES = chunk; G_DONE = 0; ACC_S = ACC_M = 0; ACC_N = 0; ACC_10 = 0; memset(ACC_B, 0, sizeof ACC_B);
         pthread_t th[64]; if (G_THREADS > 64) G_THREADS = 64;
         for (int i = 0; i < G_THREADS; i++) pthread_create(&th[i], NULL, worker, (void *)(uintptr_t)(i + 1 + done));
         for (int i = 0; i < G_THREADS; i++) pthread_join(th[i], NULL);
-        printf("[%lds] games %ld  alpha %.4f  score %.0f moves %.1f  best:", (long)(time(NULL) - t0), done + chunk, ALPHA, ACC_S / ACC_N, ACC_M / ACC_N);
+        printf("[%lds] games %ld  alpha %.4f  score %.0f moves %.1f s10/g %.3f  best:",
+               (long)(time(NULL) - t0), done + chunk, ALPHA, ACC_S / ACC_N, ACC_M / ACC_N, (double)ACC_10 / ACC_N);
         for (int k = 6; k <= 10; k++) printf(" %d:%.1f%%", k, 100.0 * ACC_B[k] / ACC_N);
         { long dt = (long)(time(NULL) - tc); if (dt < 1) dt = 1; printf("  %.0f moves/s", ACC_M / dt); }
         printf("\n"); fflush(stdout);

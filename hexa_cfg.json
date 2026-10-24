@@ -10,5 +10,7 @@
  "depth": 3,
  "drop_fail": 1,
  "c_exact": 1,
- "c_depth": 3
+ "c_depth": 3,
+ "c_tenb": 180,
+ "c_clust": 1.0
 }

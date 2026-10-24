@@ -5,6 +5,7 @@ patch231: 유물 공방 n-tuple 학습 평가로 수 고르기.
 가중치 hexa_nt_w.npz (Claude 쪽에서 가상 대전 수백만 판으로 TD 학습, 규칙은 hexa_engine 과 같음)
 탐색: best_move3 = 지금 조각 x 다음 조각(미리보기) x 그다음 무작위 8개 평균(3수), 합쳐질 칸 갈림은 평균. 다음 조각 모르면 1수."""
 import os
+import time
 import json
 import numpy as np
 import hexa_engine as E
@@ -89,6 +90,8 @@ def values(boards, us):
     if not boards:
         return np.zeros(0)
     tabs, inst = _load()
+    if _RMODE is None:
+        _load_cfg_ten()
     e = _enc(boards, us)
     v = np.zeros(len(boards))
     for ti, cells in inst:
@@ -96,18 +99,96 @@ def values(boards, us):
         for c in cells:
             idx = idx * NV + e[:, c]
         v += tabs[ti][idx]
+    if _CLUST > 0:
+        for bi, b in enumerate(boards):
+            if 8 in b or 9 in b:
+                v[bi] += _CLUST * cluster_eval(b)
     return v
 
 
 _RMODE = None
 _BONUS = 0.002
+_TENB = 180.0
+_CLUST = 1.0
+
+
+def _load_cfg_ten():
+    global _TENB, _CLUST
+    try:
+        cfg = json.load(open(os.path.join(HERE, "hexa_cfg.json"), encoding="utf-8"))
+        _TENB = float(cfg.get("c_tenb", 180.0))
+        _CLUST = float(cfg.get("c_clust", 1.0))
+    except Exception:
+        pass
+
+
+def cluster_eval(b):
+    """patch259: 필드에 ★8·★9 가 떠 있을 때 공간 확보보다 이들을 인접시켜 ★10 합각을 만드는 결합 가중치"""
+    n8 = sum(1 for x in b if x == 8)
+    n9 = sum(1 for x in b if x == 9)
+    if not n8 and not n9:
+        return 0.0
+    adj99 = adj98 = adj88 = adj87 = 0
+    bridge99 = bridge98 = 0
+    iso8 = trap9 = 0
+    for i, ti in enumerate(b):
+        nb = E.NB[i]
+        if ti == 9:
+            open9 = 0
+            for j in nb:
+                tj = b[j]
+                if tj == 9 and j > i:
+                    adj99 += 1
+                elif tj == 8:
+                    adj98 += 1
+                    open9 += 1
+                elif tj == 0 or tj == 7:
+                    open9 += 1
+            if open9 == 0:
+                trap9 += 2
+            elif open9 == 1:
+                trap9 += 1
+        elif ti == 8:
+            conn = False
+            for j in nb:
+                tj = b[j]
+                if tj == 8:
+                    conn = True
+                    if j > i:
+                        adj88 += 1
+                elif tj == 9:
+                    conn = True
+                elif tj == 7:
+                    adj87 += 1
+            if not conn and (n8 + n9) >= 2:
+                iso8 += 1
+        if n9 >= 2 and ti != 9:
+            c9 = sum(1 for j in nb if b[j] == 9)
+            if c9 >= 2:
+                if ti == 8:
+                    bridge98 += 1
+                elif ti == 0 or ti == 7:
+                    bridge99 += 1
+    sc = 18.0 * n9 + 2.5 * n8
+    sc += 28.0 * adj99 + 9.0 * adj98 + 5.0 * adj88 + 2.0 * adj87
+    sc += 18.0 * bridge98 + 10.0 * bridge99
+    sc -= 4.0 * trap9 + 2.5 * iso8
+    if n9 >= 2 and adj99 == 0 and bridge99 == 0 and bridge98 == 0:
+        sc -= 16.0 * (n9 - 1)
+    return sc
 
 
 def reward(made):
     if _RMODE is None:
         _reward_meta()
+        _load_cfg_ten()
     raw = float(sum(2 ** nt for t, n, nt in made))
-    return 1.0 + _BONUS * raw if _RMODE else raw
+    r = 1.0 + _BONUS * raw if _RMODE else raw
+    if _TENB > 0:
+        n10 = sum(1 for t, n, nt in made if nt >= 10 and t < 10)
+        if n10:
+            r += _TENB * n10
+    return r
 
 
 def _outs(b, u, cells, ts):
@@ -299,6 +380,7 @@ def best_move_scores(b, unlocked, piece, nxt, only_k0=False):
 # ---------------- patch232: C 수 읽기 (hexa_search.exe + hexa_nt_w.bin) ----------------
 import subprocess as _sp
 _CP = None
+C_INFO = {}
 
 
 def _exe_path():
@@ -306,6 +388,9 @@ def _exe_path():
         # patch244: 낮은 등급 벌점(c_deadp)을 아는 새 수 읽기가 있으면 그것 (벌점 0 이면 예전과 같음)
         v2 = os.path.join(HERE, "hexa_search_v2.exe")
         v3 = os.path.join(HERE, "hexa_search_v3.exe")   # patch246: v2 + 3수째 조각 전부 가중평균(c_exact). 끄면 v2 와 같음
+        v6 = os.path.join(HERE, "hexa_search_v6.exe")   # patch259: v5 + ★8·★9 인접 결합 가중치(c_clust)
+        if os.path.exists(v6):
+            return v6
         v5 = os.path.join(HERE, "hexa_search_v5.exe")   # patch250: v4 + ★10 만들기 보너스(c_tenb). 0 이면 v4 와 같음
         if os.path.exists(v5):
             return v5
@@ -347,6 +432,25 @@ def _write_tup(meta, bn):
         open(tf, "w").write(txt)
 
 
+def _readline_to(p, sec, what):
+    """patch258: C 수 읽기 응답을 sec 초까지만 기다림. 넘으면 C 를 끄고 예외 (예전엔 응답이 없으면 영원히 기다림)"""
+    import threading
+    out = [None]
+
+    def rd():
+        try:
+            out[0] = p.stdout.readline()
+        except Exception:
+            out[0] = ""
+    th = threading.Thread(target=rd, daemon=True)
+    th.start()
+    th.join(sec)
+    if th.is_alive():
+        c_close()
+        raise RuntimeError("hexa_search %s 응답이 %.0f초 넘게 없음 -> 끔" % (what, sec))
+    return out[0] or ""
+
+
 def _cproc():
     global _CP
     if _CP is not None and _CP.poll() is None:
@@ -373,16 +477,20 @@ def _cproc():
     # patch249: 5개 이상 합치기(+2등급) 한 번마다 보너스 (hexa_cfg.json c_fiveb, bench_five 가 정함)
     if _cfg.get("c_fiveb"):
         env["FIVEB"] = str(float(_cfg["c_fiveb"]))
-    # patch250: ★10 을 만들 때마다 보너스 (hexa_cfg.json c_tenb, bench_ten 결과 보고 사용자가 정함)
-    if _cfg.get("c_tenb"):
+    # patch250/259: ★10 을 만들 때마다 보너스 (hexa_cfg.json c_tenb, 기본 180) + ★8·★9 결합 가중치 (c_clust, 기본 1.0)
+    if "c_tenb" in _cfg:
         env["TENB"] = str(float(_cfg["c_tenb"]))
+    if "c_clust" in _cfg:
+        env["CLUST"] = str(float(_cfg["c_clust"]))
     kw = {}
     if os.name == "nt":
         # 창 없이, 낮은 우선순위로 (다른 프로그램·블루스택 방해 최소화)
         kw["creationflags"] = 0x08000000 | 0x00004000
     _CP = _sp.Popen([_exe_path(), bn], stdin=_sp.PIPE, stdout=_sp.PIPE,
                     text=True, env=env, cwd=HERE, **kw)
-    first = _CP.stdout.readline().strip()
+    _t0 = time.time()
+    first = _readline_to(_CP, 120, "시작(READY)").strip()
+    C_INFO["ready_sec"] = time.time() - _t0
     if first != "READY":
         _CP.kill()
         _CP = None
@@ -392,13 +500,20 @@ def _cproc():
 
 def best_move_c(b, unlocked, piece, nxt, only_k0=False, D=3, B=8, K=8, budget_ms=4000, threads=6, seed=0):
     """반환 (k, cells, ts, 점수, 정보) / None(둘 곳 없음). 실패하면 예외 -> 호출 쪽에서 Python 탐색으로"""
+    _load_cfg_ten()
+    # patch259: v6(C 내부 CLUST 내장) 빌드 전이라도 필드에 ★8·★9 가 떠 있으면 결합 가중치 반영 3수 탐색으로 합각 최우선 선택
+    if _CLUST > 0 and not os.path.exists(os.path.join(HERE, "hexa_search_v6.exe")) and any(x >= 8 for x in b) and nxt:
+        r3 = best_move3(b, unlocked, piece, nxt, only_k0=only_k0, B1=max(12, B), B2=B, K=K, seed=seed, budget=budget_ms / 1000.0)
+        if r3 is not None:
+            k, c2, t2, sc = r3
+            return k, c2, t2, float(sc), "PY-CLUST D3(★8/9결합)"
     p = _cproc()
     enc = lambda pc: [str(len(pc))] + ["%d %d %d" % (o[0], o[1], t) for o, t in pc]
     line = " ".join([str(unlocked)] + [str(int(x)) for x in b] + enc(piece) + enc(nxt or []) +
                     [str(D), str(B), str(K), "1" if only_k0 else "0", str(int(budget_ms)), str(threads), str(seed)])
     p.stdin.write(line + "\n")
     p.stdin.flush()
-    r = p.stdout.readline().split()
+    r = _readline_to(p, budget_ms / 1000.0 + 30, "수 계산").split()
     if not r:
         raise RuntimeError("hexa_search 응답 없음")
     if r[0] == "NONE":

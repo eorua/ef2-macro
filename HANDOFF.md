@@ -105,8 +105,17 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
   - 백업 `barracks.py.bak254`, `closer.py.bak254`.
 
 - **patch255 (유물 공방 환생마다 옵션)**: 패널 옵션 `hexa_every` "유물 공방 환생마다 (티켓 1장 이상이면 1판)" 추가(기본 꺼짐). 켜면 `hexa_auto_run`의 기준 장수가 항상 1 → 환생 3분 뒤(일괄 레벨업 1번 후) 매 환생 1판, 영휴 중엔 1시간마다. `hexa_on()` = `hexa_auto` 또는 `hexa_every` 가 켜져 있으면 확인. 백업 `main.py.bak255`, `panel.py.bak255`.
+- **patch256 (뮤뮤에서는 에뮬레이터 재시작 안 함)**: `main.NO_EMU_RESTART`(emu=mumu). 정기 6시간 재시작 건너뜀, `restart_bluestacks_full`은 뮤뮤를 끄지 않고 게임만 force-stop 후 재실행(ADB 죽었으면 실패 반환), 점검 대기 `_kill_bluestacks`도 게임만 종료. 뮤뮤 바탕화면 감지: `tpl/mumu_ef2_icon.png`('오늘도 환생 2' 아이콘, 약 617,447) 매칭 0.75 → `home_screen` True, `launch_game` 후에도 바탕화면이면 아이콘 직접 터치. 게임 화면 98장 오탐 최고 0.31. 백업 `main.py.bak256`.
 
 - **유물 공방 0단계 진단(`patch251`, `diag9.py`/`bench_calib.py`) 및 계획 B(`patch253`, `nt3.c`/`train_b.py`) 설계**: 1수 학습 두뇌(`V`)는 1수 정책(`101.5수`)에선 편향이 거의 없으나(`|bias|<=3.9`), 3수 탐색(`176.8수`) 시 `u`별 음의 편향(`u3 -88.3` → `u9 -22.4`)이 발생함을 확인하고, 2수 탐색 정책(`POL=2`, 전 구간 `all` / `u>=7` `late`)으로 이어서 학습·선별하는 1~5단계 파이프라인(`train_b.py`) 구성 완료.
+- **2026-10-25 (Antigravity CLI, patch259) 블루스택 롤백 및 유물 공방 ★10 확정 달성 올인 전환**:
+  - **블루스택 즉시 롤백**: `emu.json`을 `"bluestacks"`로 원복(`py adbport.py scan` → `127.0.0.1:5585` 연결 확인), `wavecall.py`(`patch253` AUTO 방어) 및 `barracks.py`(`patch254` `10/10` 조기 종료) 정상 작동 확인.
+  - **탐색기 ★10 올인 설정 (`hexa_cfg.json`, `hexa_train/search9.c`, `hexa_nt.py`)**:
+    - `TEN_BONUS`(`TENB` / `c_tenb`)를 **`180.0`**으로 상향.
+    - 필드에 ★8·★9가 등장했을 때 빈칸 확보보다 고등급 인접·합각(★9-★9 인접 `+28`, ★9-★9 공통이웃 징검다리 `+10~+18`, ★9-★8 인접 `+9`, ★8-★8 인접 `+5`, 떨어져 고립된 복수 ★9 패널티 `-16`)을 우선하는 결합 가중치 **`cluster_eval` (`CLUST = 1.0`)** 반영 (`3×★8 → ★9 → ★10` 단조 이득 보장).
+  - **계획 B 학습/선별(`hexa_train/nt3.c`, `hexa_train/train_b.py`) ★10 최우선 보상 반영**:
+    - `nt3.c`를 `core4.inc`(`G10A/G10B` 추적) 기반으로 전환하고, TD(0) 학습 보상에 `TENB=180, STAR9B=15, STAR8B=3` 및 탐색 정책 내 `cluster_eval`(`CLUST=1.0`)을 반영(기본값 `0`일 때 `nt2` 회귀 100% 호환 유지).
+    - `train_b.py` 5단계 후보 선별 기준을 평균 생존 수가 아닌 **★10 달성률(`res10`) 최우선**으로 변경.
 
 ## 다음 할 일
 

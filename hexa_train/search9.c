@@ -1,3 +1,4 @@
+// patch259(★10 확정 달성 올인): TENB 기본 180 상향 + CLUST(필드에 ★8·★9 출현 시 인접 결합 가중치 기본 1.0) 반영.
 // patch251(0단계 진단): CALIB=1 환경변수 = sim 에서 매 수 afterstate 평가값 V 와 실제 이후 보상합 G(=남은 수 + 0.002x합성점수) 비교, u별·진행 수별 오차 표 출력. 수 선택은 바뀌지 않음(평가 호출만 추가) -> SIM 줄은 search8.c 와 같음.
 // patch250: TENB 환경변수 = ★10 을 만들 때마다 보상에 더하는 보너스(단위 ≈ 수). 0 이면 search7.c 와 같음. sim 에 TEN 통계(★10 경로: 8성 5개 / 9성 3개). core4.inc = core3.inc + ★10 경로 세기.
 // patch249: FIVEB 환경변수 = 5개 이상 합치기(+2등급) 한 번마다 보상에 더하는 보너스(단위 = 대략 '수'). 0 이면 search6.c 와 같음. sim 에 FIVE 통계 줄. core3.inc = core2.inc + 합치기 횟수 세기.
@@ -37,12 +38,67 @@ typedef struct { int B, K; uint64_t seed; int Kd; } prm_t;
 static int CRN = 0, K2 = 0, B2 = 0;
 static double DEADP = 0; static int DEADG = 3;
 // patch244: 학습 평가 - 낮은 등급 칸 벌점 (이미 죽은 칸은 모든 수에서 같아 판단에 영향 없음)
-static double GATEP = 0; static double FIVEB = 0; static double TENB = 0;
+// patch259: ★10 확정 달성 올인 모드 - TENB 기본 180 상향 + CLUST(필드에 ★8·★9 출현 시 인접 결합 가중치)
+static double GATEP = 0; static double FIVEB = 0; static double TENB = 180.0; static double CLUST = 1.0;
 static inline int dead_cnt(const int8_t *b, int u) { int lo = lo_of(u), c = 0; for (int i = 0; i < NC; i++) if (b[i] > 0 && b[i] < lo) c++; return c; }
+
+// patch259: 필드에 ★8·★9 가 떠 있을 때 공간 확보보다 이들을 인접시켜 ★10 합각을 만드는 결합 가중치
+static inline double cluster_eval(const int8_t *b) {
+    int n8 = 0, n9 = 0;
+    for (int i = 0; i < NC; i++) {
+        if (b[i] == 8) n8++;
+        else if (b[i] == 9) n9++;
+    }
+    if (!n8 && !n9) return 0.0;
+    int adj99 = 0, adj98 = 0, adj88 = 0, adj87 = 0;
+    int bridge99 = 0, bridge98 = 0;
+    int iso8 = 0, trap9 = 0;
+    for (int i = 0; i < NC; i++) {
+        int ti = b[i];
+        if (ti == 9) {
+            int open9 = 0;
+            for (int k = 0; k < NBN[i]; k++) {
+                int j = NBL[i][k], tj = b[j];
+                if (tj == 9 && j > i) adj99++;
+                else if (tj == 8) { adj98++; open9++; }
+                else if (tj == 0 || tj == 7) open9++;
+            }
+            if (open9 == 0) trap9 += 2;
+            else if (open9 == 1) trap9 += 1;
+        } else if (ti == 8) {
+            int conn = 0;
+            for (int k = 0; k < NBN[i]; k++) {
+                int j = NBL[i][k], tj = b[j];
+                if (tj == 8) { conn = 1; if (j > i) adj88++; }
+                else if (tj == 9) conn = 1;
+                else if (tj == 7) adj87++;
+            }
+            if (!conn && (n8 + n9) >= 2) iso8++;
+        }
+        // 두 ★9 를 동시에 이웃으로 두는 브릿지(합각) 칸 점검
+        if (n9 >= 2 && ti != 9) {
+            int c9 = 0;
+            for (int k = 0; k < NBN[i]; k++) if (b[NBL[i][k]] == 9) c9++;
+            if (c9 >= 2) {
+                if (ti == 8) bridge98++;
+                else if (ti == 0 || ti == 7) bridge99++;
+            }
+        }
+    }
+    double sc = 18.0 * n9 + 2.5 * n8;
+    sc += 28.0 * adj99 + 9.0 * adj98 + 5.0 * adj88 + 2.0 * adj87;
+    sc += 18.0 * bridge98 + 10.0 * bridge99;
+    sc -= 4.0 * trap9 + 2.5 * iso8;
+    if (n9 >= 2 && adj99 == 0 && bridge99 == 0 && bridge98 == 0)
+        sc -= 16.0 * (n9 - 1);   // ★9 가 서로 멀리 고립되는 배치 강력 억제
+    return sc;
+}
+
 static inline double evalv(const int8_t *b, int u) {
     double v = value(b, u);
     if (GATEP > 0) v -= GATEP * dead_cnt(b, u);
     if (DEADP > 0) { int c = 0; for (int i = 0; i < NC; i++) if (b[i] >= 1 && b[i] <= DEADG) c++; v -= DEADP * c; }
+    if (CLUST > 0) v += CLUST * cluster_eval(b);
     return v;
 }
 
@@ -299,6 +355,7 @@ int main(int argc, char **argv) {
     if (getenv("GATEP")) GATEP = atof(getenv("GATEP"));
     if (getenv("FIVEB")) FIVEB = atof(getenv("FIVEB"));
     if (getenv("TENB")) TENB = atof(getenv("TENB"));
+    if (getenv("CLUST")) CLUST = atof(getenv("CLUST"));
     if (getenv("CALIB")) CALIB = atoi(getenv("CALIB"));
     init_classes();
     if (getenv("EXACT_DBG")) { fprintf(stderr, "classes %d:", NCL); for (int k = 0; k < NCL; k++) fprintf(stderr, " rep%d w%.3f", CLREP[k], CLW[k]); fprintf(stderr, "\n"); }

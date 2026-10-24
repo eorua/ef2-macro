@@ -193,12 +193,8 @@ def tick(st, w):
     if w is None:
         return False
     off = bool(st.get("wc_off", False))
-    if w >= OFF_WAVE and not off:
-        want_on = False
-    elif w < ON_WAVE and off:
-        t_low = st.setdefault("wc_low_since", time.time())    # patch109: 60초 뒤에 켜기
-        if time.time() - t_low < 60:
-            return False
+    # patch224: 사용자 요청 - AUTO 를 끄지 않음 (항상 켜 둠). 예전에 꺼 둔 상태면 다시 켜기만 함
+    if off:
         want_on = True
     else:
         st.pop("wc_low_since", None)

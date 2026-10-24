@@ -330,7 +330,7 @@ def activate(st):
         return True
     try:
         from fastcam import FastCam
-        cam = FastCam(max_fps=30).start()      # patch201: 120 시험 결과 1분 약 2675장(초당 약 45장, 처리 속도 한계) -> 30 으로 복귀
+        cam = FastCam(max_fps=15).start()      # patch220: 30 -> 15 (신성한 기도는 1.5초 간격이라 충분, 녹화도 15fps) / patch201: 120 시험 결과 1분 약 2675장(초당 약 45장, 처리 속도 한계) -> 30 으로 복귀
     except Exception as e:
         log("fastcam 시작 실패 -> 스킬 직접 굴리기 안 함: %r" % (e,))
         st["skill_off_until"] = time.time() + 1800
@@ -427,13 +427,18 @@ def _worker(cam):
                 continue
             img, t, _n = g
             _dbg["frames"] += 1
-            if t - _dbg["t"] > 60:                       # 1분마다 한 줄
+            if t - _dbg["t"] > 600:                      # patch220: 1분 -> 10분마다 한 줄
                 _dbg["t"] = t
-                log("스킬 상태: 1분간 화면 %d장 / 원 보임 %d장 / 준비 %s / 사용 %d회" % (
+                log("스킬 상태: 10분간 화면 %d장 / 원 보임 %d장 / 준비 %s / 사용 %d회" % (
                     _dbg["frames"], _dbg["ring"], _dbg["ready"], _stats["fire"]))
                 _dbg.update(frames=0, ring=0, ready=[0, 0, 0])
             dt = 0.0 if _prev_t is None else min(0.5, max(0.0, t - _prev_t))
             _prev_t = t
+            wait = _last_fire + GAP - time.perf_counter()   # patch220: 간격이 안 찼으면 화면 분석 없이 그때까지 쉼
+            if wait > 0:
+                _vis += dt
+                time.sleep(min(wait, 0.5))
+                continue
             if not ring_ok(img):
                 continue
             _dbg["ring"] += 1

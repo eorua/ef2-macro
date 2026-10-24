@@ -157,6 +157,7 @@ def exact_wave(st, img):
 def record_rebirth(st, why=""):
     """환생 직전의 최고 웨이브(peak_wave)를 최근 환생 목록에 기록 (패널에서 표시)"""
     st["probe_fell"] = False                   # patch156
+    bonus_reset()                               # patch235: 환생하면 배지 값을 다시 읽음
     _rp = st.get("rprobe")                      # patch161: 한 판 다 모았으면 끝
     if _rp and _rp.get("shots") and not _rp.get("done"):
         _rp["done"] = True
@@ -202,6 +203,150 @@ def opt_on(name):
             return bool(json.load(f).get(name, False))
     except Exception:
         return False
+
+
+# ---- patch235: 주말 '환생 훈장 +50%' 이벤트(하루 5회) 동안만 💎500 빨간 '환생 (훈장 x2)' ----
+# 조건(모두 맞아야 빨간 버튼, 하나라도 아니면 초록 환생):
+#   ① 패널 옵션 wk_x2 켬  ② 게임 기준일(오전 9시 갱신)이 토·일
+#   ③ 전투 화면 배지 'N/5' 의 N>0 (20초 간격 두 번 같은 값, 이번 환생 뒤에 읽은 것)
+#   + 이중 안전장치: 성 함락 창에 파란 '+보너스' 글자 / 오늘 환생 기록 5회 미만 / 오늘 다이아 환생 5회 미만
+# 정체 환생(천사 아이콘)에서는 쓰지 않음 (사용자 결정)
+WKX2_OPT = "wk_x2"
+WKX2_MAX = 5
+BONUS_EVERY = 20                 # 배지 읽기 간격(초)
+_BONUS = {}                      # 확정된 배지 값 {"n", "t", "gd"}
+_bonus_prev = [None]             # 직전 판독 (두 번 일치 확인용)
+_bonus_note = [0.0]
+
+
+def game_day(t=None):
+    """게임 기준일 (오전 9시에 바뀜)"""
+    return datetime.datetime.fromtimestamp((t or time.time()) - 9 * 3600).date()
+
+
+def gd_start():
+    d = game_day()
+    return datetime.datetime(d.year, d.month, d.day, 9).timestamp()
+
+
+def weekend_gd():
+    return game_day().weekday() >= 5          # 5 토, 6 일
+
+
+def rebirths_today(st):
+    s0 = gd_start()
+    return sum(1 for r in (st.get("rebirths") or []) if r.get("t", 0) >= s0)
+
+
+def wkx2_day(st):
+    d = st.get("wkx2") or {}
+    if d.get("gd") != str(game_day()):
+        d = {"gd": str(game_day()), "n": 0, "off": False}
+        st["wkx2"] = d
+    return d
+
+
+def bonus_reset():
+    _BONUS.clear()
+    _bonus_prev[0] = None
+
+
+def bonus_track(st, img):
+    """전투 화면에서 배지 'N/5' 를 20초마다 읽어 두 번 같으면 확정 (옵션 켜짐 + 주말일 때만)"""
+    if img is None or not opt_on(WKX2_OPT) or not weekend_gd():
+        return
+    now = time.time()
+    if now - _BONUS.get("try", 0) < BONUS_EVERY:
+        return
+    _BONUS["try"] = now
+    try:
+        import bonus
+        n, info = bonus.read_badge(img)
+    except Exception as e:
+        log("[주말 x2] 배지 읽기 오류: %r" % (e,))
+        return
+    if n is not None and info.get("guess3"):
+        exp = WKX2_MAX - rebirths_today(st)
+        if exp != 3:
+            if now - _bonus_note[0] > 600:
+                _bonus_note[0] = now
+                log("[주말 x2] 배지 숫자가 3 같지만 오늘 환생 기록으로는 남은 %d회 -> 판독 실패로 처리" % exp)
+            n = None
+        else:
+            try:
+                if bonus.learn_digit(info["glyph"], 3):
+                    log("[주말 x2] 배지 숫자 3 그림 저장 (tpl\\bonus\\d3.png, 환생 기록과 일치)")
+            except Exception:
+                pass
+    if n is None:
+        _bonus_prev[0] = None
+        if (info.get("badge") or info.get("nonzero_unknown")) and now - _bonus_note[0] > 600:
+            _bonus_note[0] = now
+            log("[주말 x2] 배지는 보이는데 숫자를 확실히 못 읽음 (%s, %s)" % (info.get("why"), info.get("sims")))
+        return
+    key = (n, str(game_day()))
+    if _bonus_prev[0] == key:
+        if _BONUS.get("n") != n or _BONUS.get("gd") != key[1]:
+            log("[주말 x2] 배지 남은 횟수 %d/5 확정 (두 번 일치, 오늘 환생 기록 %d회)" % (n, rebirths_today(st)))
+        _BONUS.update(n=n, t=now, gd=key[1])
+    _bonus_prev[0] = key
+
+
+def wkx2_try(st, img, green):
+    """성 함락 창에서 조건이 모두 맞으면 빨간 💎500 버튼을 누름.
+    -> "done"(눌렀고 창이 넘어감) / "green"(초록 환생으로 진행) / "wait"(알 수 없는 화면: 이번 루프는 아무것도 안 누름)"""
+    if not opt_on(WKX2_OPT) or not weekend_gd():
+        return "green"
+    import bonus
+    d = wkx2_day(st)
+    n = _BONUS.get("n") if _BONUS.get("gd") == str(game_day()) else None
+    rt = rebirths_today(st)
+    plus, plus_n = bonus.plus_text(img)
+    red = bonus.red_button(img)
+    why = []
+    if d.get("off"):
+        why.append("오늘은 다이아 환생 중지됨(이전 실패)")
+    if n is None:
+        why.append("배지 숫자 확정값 없음")
+    elif n <= 0:
+        why.append("배지 남은 횟수 0")
+    if d.get("n", 0) >= WKX2_MAX:
+        why.append("오늘 다이아 환생 %d회 다 씀" % d.get("n", 0))
+    if rt >= WKX2_MAX:
+        why.append("오늘 환생 기록 %d회" % rt)
+    if not plus:
+        why.append("함락 창에 +보너스 글자 없음(%d)" % plus_n)
+    if red is None:
+        why.append("빨간 버튼 못 찾음")
+    elif green and red[0] <= green[0]:
+        why.append("버튼 위치 이상(빨강 %s, 초록 %s)" % (red, green))
+    if why:
+        log("[주말 x2] 초록 환생: " + " / ".join(why))
+        return "green"
+    d["n"] = d.get("n", 0) + 1                 # 누르기 전에 먼저 기록 (이중 안전장치)
+    save_state(st)
+    log("[주말 x2] 조건 충족 (배지 %d/5, 오늘 환생 %d회, 다이아 환생 %d번째) -> 💎500 빨간 환생 %s" % (n, rt, d["n"], red))
+    rebirth.tap(*red)
+    time.sleep(2.5)
+    for _k in range(3):
+        chk = cap()
+        if chk is not None and result_popup(chk)[0]:
+            return "done"
+        if chk is not None and not fall_popup(chk)[0]:
+            time.sleep(1.5)
+            continue
+        break
+    chk = cap()
+    if chk is not None and result_popup(chk)[0]:
+        return "done"
+    d["off"] = True
+    save_state(st)
+    snap_fail("wkx2_after")
+    if chk is not None and fall_popup(chk)[0]:
+        log("[주말 x2] 빨간 버튼을 눌러도 성 함락 창 그대로 (다이아 부족/확인창?) -> 오늘은 다이아 환생 중지, 초록 환생 (shots\\wkx2_after.png)")
+        return "green"
+    log("[주말 x2] 빨간 버튼 뒤 예상 못 한 화면 -> 오늘은 다이아 환생 중지, 이번엔 아무것도 안 누름 (shots\\wkx2_after.png)")
+    return "wait"
 
 
 _cont_hist = []          # 이어하기를 누른 시각들
@@ -1119,6 +1264,93 @@ def handle_maintenance(st, info):
     save_state(st)
 
 
+def do_recruit(st):
+    """영입 한 번 (patch236: 영혼의 휴식 중에도 쓰려고 함수로 뺌)"""
+    _base = max(st.get("last_recruit", 0), st.get("last_force", 0))   # patch136
+    _force = (time.time() - _base) > 4800
+    res = recruit.recruit(force=_force)
+    now = time.time()
+    if res == "done":
+        st.update(last_recruit=now, next_recruit=now + RECRUIT_OK_SEC)
+    elif res == "cooldown":
+        _w = getattr(recruit, "last_wait", None)          # patch222: 고용 화면 쿨타임 숫자
+        if _w is not None:
+            _w = min(_w, RECRUIT_OK_SEC)
+            st["next_recruit"] = now + _w + RECRUIT_TIMER_PAD
+            log("영입 쿨타임 %d분 %02d초 남음 (%s) -> %s 에 다시 확인" % (
+                _w // 60, _w % 60, getattr(recruit, "last_note", ""),
+                time.strftime("%H:%M:%S", time.localtime(st["next_recruit"]))))
+        else:
+            st["next_recruit"] = now + RECRUIT_RETRY_SEC
+            log("영입 쿨타임 숫자를 못 읽음 (%s) -> 10분 뒤 다시" % getattr(recruit, "last_note", ""))
+        if _force:                                  # 강제로 열었는데도 쿨타임 -> 강제 확인은 80분 뒤에 다시
+            st["last_force"] = now
+    else:
+        st["next_recruit"] = now + 120
+    log(f"영입 결과: {res}")
+    save_state(st)
+    return res
+
+
+def hexa_auto_run(st, resume=False):
+    """patch238~240: 유물 공방 티켓 확인 -> 5/5 면 1판, 다음 차례에 1장 이상이면 1판 더 (hexa.py auto). 시간 제한 없음"""
+    # patch239: 환생당 1판. 5/5 로 꽉 차서 1판 돌렸으면 다음 환생에 1판 더(티켓 1장 이상이면)
+    _need = 1 if st.get("hexa_extra") else 5
+    if resume:
+        _need = 99           # patch243: 끊긴 판 이어 하기만 (로비가 '시작'이면 새 판 안 함)
+    log("유물 공방 티켓 확인 (%s)" % ("끊긴 판 이어 하기" if resume else
+                                   "지난번 꽉 참 -> 1장 이상이면 1판 더" if _need == 1 else "5/5 면 1판"))
+    _hx = subprocess.Popen([sys.executable, os.path.join(BASE, "hexa.py"), "auto", str(_need), "1"], cwd=BASE,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, creationflags=0x08000000)
+    _t0 = time.time()
+    _res = None
+    for _raw in iter(_hx.stdout.readline, b""):
+        _s = _raw.decode("utf-8", "replace").rstrip()
+        if _s.startswith("AUTO 결과"):
+            _res = _s.split()[-1]
+        if any(k in _s for k in ("AUTO", "판 시작", "다시 하기", "게임 끝", "끝.", "멈춤", "오류")):
+            log("[공방] " + _s[15:] if len(_s) > 15 and _s[2] == "-" else "[공방] " + _s)
+        # patch239: 시간 제한 없음 - 긴 판은 끝까지 (사용자 결정 A)
+    _hx.wait()
+    log("[공방] 끝 (%.0f분)" % ((time.time() - _t0) / 60))
+    if _res == "played":
+        st["hexa_extra"] = 0 if _need == 1 else 1
+    elif _res == "closed" and not resume:
+        st["hexa_extra"] = 0
+    # patch243: 판이 중간에 끊김(앱 꺼짐·튕김) -> 2분 뒤(복구 뒤) '이어 하기'로 마저. 3번까지
+    if _res in ("interrupted", None):
+        _n = st.get("hexa_resume_n", 0) + 1
+        st["hexa_resume_n"] = _n
+        if _n <= 3:
+            st["hexa_resume_at"] = time.time() + 120
+            log("[공방] 판이 중간에 끊김 -> 2분 뒤 이어 하기 시도 (%d/3)" % _n)
+        else:
+            st["hexa_resume_at"] = 0
+            log("[공방] 이어 하기 3번 실패 -> 다음 정기 확인 때 이어 함")
+    else:
+        st["hexa_resume_n"] = 0
+        st["hexa_resume_at"] = 0
+
+    save_state(st)
+
+
+def _soul_back(_sm, _sd):
+    """patch236: 휴식 중 작업 뒤 전투(휴식) 화면으로 복귀 확인"""
+    daily.go_battle()
+    time.sleep(1.5)
+    for _k in range(3):
+        _c = cap()
+        if _c is not None and _sm.running_view(_c):
+            log("작업 후 휴식 상태 유지 확인")
+            return True
+        __import__("closer").close_all(3)
+        daily.tap(daily.TAB_BATTLE, 1.0)
+    _sd["no_tasks"] = True
+    _sm.shot("soul_after_task_%d" % int(time.time()))
+    log("작업 후 휴식 화면이 안 보임 -> 이번 휴식 동안은 작업 중단 (shots 확인)")
+    return False
+
+
 def main():
     log("매크로 시작 (" + ("실제 클릭 모드" if GO else "시험 모드: 클릭 안 함") + ") - 중지: Ctrl + C")
     st = load_state()
@@ -1377,7 +1609,12 @@ def main():
                 log("성 함락 감지 → 환생 클릭")
                 snap_reward(img, "fall", st)            # patch160
                 if GO:
-                    rebirth.tap(gx, gy)
+                    _wk = wkx2_try(st, img, (gx, gy))   # patch235: 주말 +50% 이벤트면 💎500 빨간 환생
+                    if _wk == "wait":
+                        time.sleep(2)
+                        continue
+                    if _wk != "done":
+                        rebirth.tap(gx, gy)
                     time.sleep(2.5)
                     for _try in range(2):
                         _chk = cap()
@@ -1396,7 +1633,7 @@ def main():
                     if _chk is not None and fall_popup(_chk)[0] and not result_popup(_chk)[0]:
                         log("성 함락 팝업이 그대로 남아 있음 → 환생 기록 없이 다음 루프에서 재시도")
                         continue
-                    record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0, cont_used=0)
+                    record_rebirth(st, "환생(💎x2)" if _wk == "done" else "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0, cont_used=0)
                     save_state(st)
                     hist.clear()
                 else:
@@ -1437,6 +1674,7 @@ def main():
                     log("무한랭킹전 화면 확인 오류: %r" % (e,))
             if popup_open(img):
                 continue                     # 프리셋/일괄 레벨업 창이 열려 있으면 건드리지 않음
+            bonus_track(st, img)             # patch235: 주말 환생 +50% 배지 'N/5' 읽기
 
             # 영혼의 휴식 중: 정체 감시/환생/일일 작업/재시작 등 모든 동작을 멈추고 종료만 기다림
             if st.get("soul"):
@@ -1446,6 +1684,44 @@ def main():
                     try:                                 # patch233: 휴식 중에도 던전 소탕 / 정령의 고원 / 무한랭킹전
                         import soul as _sm
                         _sd = st["soul"]
+                        if (not _sd.get("no_tasks") and time.time() < _sm.end_time(_sd) - 600
+                                and time.time() >= st["next_recruit"]):           # patch236: 휴식 중에도 영입
+                            log("영혼의 휴식 중 영입 시도")
+                            try:
+                                do_recruit(st)
+                            except Abort:
+                                raise
+                            except Exception as e:
+                                log("휴식 중 영입 오류: %r" % (e,))
+                                st["next_recruit"] = time.time() + 300
+                            _soul_back(_sm, _sd)
+                            save_state(st)
+                            continue
+                        # patch240: 휴식 중엔 1시간마다 유물 공방 티켓 확인 (휴식은 시작 시각+4시간 내부 시계, 휴식 화면 복귀 확인 불필요)
+                        _hreq = os.path.join(BASE, "hexa_now.req")       # patch240: Claude/사용자가 바로 확인 요청
+                        if os.path.exists(_hreq):
+                            try:
+                                os.remove(_hreq)
+                            except OSError:
+                                pass
+                            st["hexa_soul_next"] = 0
+                            log("hexa_now.req -> 유물 공방 티켓 바로 확인")
+                        if (time.time() < _sm.end_time(_sd) - 600 and time.time() >= st.get("hexa_soul_next", 0)
+                                and daily.setting("hexa_auto", True)):
+                            st["hexa_soul_next"] = time.time() + 3600
+                            save_state(st)
+                            log("영혼의 휴식 중 유물 공방 티켓 확인 (1시간마다)")
+                            try:
+                                hexa_auto_run(st)
+                            except Abort:
+                                raise
+                            except Exception as e:
+                                log("휴식 중 유물 공방 오류: %r" % (e,))
+                            try:
+                                daily.go_battle()
+                            except Exception:
+                                pass
+                            continue
                         if (not _sd.get("no_tasks") and time.time() < _sm.end_time(_sd) - 600
                                 and daily.soul_due(st)):
                             log("영혼의 휴식 중 작업 확인")
@@ -1516,6 +1792,7 @@ def main():
                         except Exception:
                             st["pq_next"] = time.time() + 420     # patch121: 첫 퀘스트 확인은 7분 뒤
                         st["pq_done"] = False
+                        st["hexa_at"] = time.time() + 180     # patch238: 3분 뒤 일괄 레벨업 + 유물 공방 티켓 확인
                         save_state(st)
                         low_fails = 0
                     else:
@@ -1764,6 +2041,43 @@ def main():
                     stuck.cool = time.time() + 60
                 continue
 
+            # patch243: 유물 공방 판이 중간에 끊겼으면(앱 튕김·재시작) 복구 뒤 '이어 하기'로 마저 (티켓 안 씀)
+            if (GO and st.get("hexa_resume_at") and time.time() >= st["hexa_resume_at"] and not st["need_low"]
+                    and len(hist) >= 3 and wx is not None and wx < daily.MAX_WAVE - 100):
+                st["hexa_resume_at"] = 0
+                save_state(st)
+                if daily.setting("hexa_auto", True):
+                    try:
+                        log("끊긴 유물 공방 판 이어 하기")
+                        hexa_auto_run(st, resume=True)
+                    except Abort:
+                        raise
+                    except Exception as e:
+                        log("유물 공방 이어 하기 오류: %r" % (e,))
+                hist.clear()
+                stuck.reset()
+                continue
+
+            # patch238/239: 환생 3분 뒤 일괄 레벨업 1번 -> 유물 공방 티켓이 5/5 면 1판, 그다음 환생에 1판 더 (전투 화면일 때만, hexa.py auto)
+            if (GO and st.get("hexa_at") and time.time() >= st["hexa_at"] and not st["need_low"]
+                    and len(hist) >= 3 and wx is not None and wx < daily.MAX_WAVE - 100):
+                _late = time.time() - st["hexa_at"]
+                st["hexa_at"] = 0
+                save_state(st)
+                if _late < 1200 and daily.setting("hexa_auto", True):
+                    try:
+                        log("환생 3분 경과 -> 일괄 레벨업 1번 (유물 공방 전)")
+                        preset.bulk_levelup(max_rounds=1)
+                        hexa_auto_run(st)
+                        save_state(st)
+                    except Abort:
+                        raise
+                    except Exception as e:
+                        log("유물 공방 자동 오류: %r" % (e,))
+                hist.clear()
+                stuck.reset()
+                continue
+
             # 일일 작업 (던전 소탕 / 일일 랭킹전 / 퀘스트 보상): 웨이브가 낮을 때만
             if (GO and daily.due(st) and not st["need_low"] and len(hist) >= 3
                     and wx is not None and wx < daily.MAX_WAVE - 100):
@@ -1856,29 +2170,7 @@ def main():
             if time.time() >= st["next_recruit"] and not pending_high and len(hist) >= 3:
                 log("영입 시도")
                 if GO:
-                    _base = max(st.get("last_recruit", 0), st.get("last_force", 0))   # patch136
-                    _force = (time.time() - _base) > 4800
-                    res = recruit.recruit(force=_force)
-                    now = time.time()
-                    if res == "done":
-                        st.update(last_recruit=now, next_recruit=now + RECRUIT_OK_SEC)
-                    elif res == "cooldown":
-                        _w = getattr(recruit, "last_wait", None)          # patch222: 고용 화면 쿨타임 숫자
-                        if _w is not None:
-                            _w = min(_w, RECRUIT_OK_SEC)
-                            st["next_recruit"] = now + _w + RECRUIT_TIMER_PAD
-                            log("영입 쿨타임 %d분 %02d초 남음 (%s) -> %s 에 다시 확인" % (
-                                _w // 60, _w % 60, getattr(recruit, "last_note", ""),
-                                time.strftime("%H:%M:%S", time.localtime(st["next_recruit"]))))
-                        else:
-                            st["next_recruit"] = now + RECRUIT_RETRY_SEC
-                            log("영입 쿨타임 숫자를 못 읽음 (%s) -> 10분 뒤 다시" % getattr(recruit, "last_note", ""))
-                        if _force:                                  # 강제로 열었는데도 쿨타임 -> 강제 확인은 80분 뒤에 다시
-                            st["last_force"] = now
-                    else:
-                        st["next_recruit"] = now + 120
-                    log(f"영입 결과: {res}")
-                    save_state(st)
+                    do_recruit(st)
                 else:
                     st["next_recruit"] = time.time() + 60
         except Abort as e:

@@ -11,3 +11,8 @@ fossil_trace.jsonl
 *.zip
 _archive/
 tests/img/
+hexa_nt_w.bin
+hexa_train/big.bin
+vidparts/Recording-2026-10-24-013013.part0
+vidparts/Recording-2026-10-24-013013.part1
+vidparts/

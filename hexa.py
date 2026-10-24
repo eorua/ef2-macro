@@ -1,0 +1,1052 @@
+# -*- coding: utf-8 -*-
+"""유물 공방(헥사 머지) 자동 플레이 봇  — 오늘도 환생2
+
+사용법 (PowerShell, C:\\macro 에서)
+  py hexa.py look              지금 화면을 읽고 추천 수만 보여줌 (터치 안 함) -> shots\\hexa_look.png
+  py hexa.py look 파일.png     저장된 캡처로 같은 확인
+  py hexa.py play go           한 판 플레이 (공방 로비 / 게임 화면 어디서든 시작)
+  py hexa.py play go 3         세 판 연속 (티켓 3장 사용)
+  (patch243) 로비 버튼이 '이어 하기'면 지난 판을 이어서 함 (앱이 꺼져도 판은 저장됨, 티켓 안 씀)
+  py hexa.py sim 20            PC에서 가상 대전 20판 (전략 성능 확인용, 게임과 무관)
+
+파일
+  hexa_engine.py   규칙 엔진 + 탐색 AI
+  hexa_vision.py   화면 읽기
+  hexa_cfg.json    자동 보정값 (드래그 높이, 회전 방향, 9·10등급 색)
+  shots\\hexa_log.txt, shots\\hexa_learn.jsonl, shots\\hexa_err_*.png
+"""
+import os, sys, time, json, subprocess, re, datetime
+import numpy as np
+import cv2
+
+import hexa_engine as E
+import hexa_vision as V
+try:
+    import hexa_nt as NT      # patch231
+except Exception:
+    NT = None
+
+BASE = os.path.dirname(os.path.abspath(__file__))
+SHOTS = os.path.join(BASE, "shots")
+os.makedirs(SHOTS, exist_ok=True)
+ADB_EXE = r"C:\platform-tools\adb.exe"
+CFG_PATH = os.path.join(BASE, "hexa_cfg.json")
+LOG_PATH = os.path.join(SHOTS, "hexa_log.txt")
+LEARN_PATH = os.path.join(SHOTS, "hexa_learn.jsonl")
+SPAWN_PATH = os.path.join(SHOTS, "hexa_spawn.jsonl")   # patch246: 매 수 조각 기록(출현 규칙 분석용)
+SPAWN = {"gid": None, "last": None}
+
+CFG = dict(lift=[0.0, 130.0], rot_dir=1, colors={}, swipe_ms=650, settle=0.9, depth=3)
+
+
+def load_cfg():
+    if os.path.exists(CFG_PATH):
+        try:
+            CFG.update(json.load(open(CFG_PATH, encoding="utf-8")))
+        except Exception:
+            pass
+    cols = {k: v for k, v in (CFG.get("colors") or {}).items() if int(k) < 9}   # 9·10은 무지개 배경 -> 색 안 씀
+    CFG["colors"] = cols
+    V.set_colors(cols)
+
+
+def save_cfg():
+    json.dump(CFG, open(CFG_PATH, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+
+
+def log(*a):
+    s = datetime.datetime.now().strftime("%m-%d %H:%M:%S ") + " ".join(str(x) for x in a)
+    print(s, flush=True)
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(s + "\n")
+
+
+def learn(rec):
+    rec["t"] = time.time()
+    with open(LEARN_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
+def spawn_new_game(kind):
+    """patch246: 새 판(또는 이어 하기) 시작 표시"""
+    SPAWN["gid"] = datetime.datetime.now().strftime("%m%d_%H%M%S")
+    SPAWN["last"] = None
+    try:
+        with open(SPAWN_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"kind": "start", "gid": SPAWN["gid"], "how": kind, "t": time.time()}) + "\n")
+    except Exception:
+        pass
+
+
+def spawn_log(r):
+    """patch246: 이 수의 대기 조각(모양·칸별 등급)·오른쪽 미리보기·놓기 전 판·해금 수. 같은 수를 다시 계획할 땐 안 씀"""
+    try:
+        if SPAWN["gid"] is None:
+            spawn_new_game("unknown")
+        cur = [[list(o), t] for o, t in r["tray"]]
+        prev = [[list(o), t] for o, t in r["prev"]] if r.get("prev") else None
+        key = json.dumps([r["board"], cur, prev])
+        if key == SPAWN["last"]:
+            return
+        SPAWN["last"] = key
+        rec = {"kind": "move", "gid": SPAWN["gid"], "mv": STATS.get("moves", 0), "u": r.get("unlocked"),
+               "tray": cur, "prev": prev, "board": list(r["board"]), "t": time.time()}
+        with open(SPAWN_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except Exception:
+        pass
+
+
+# ---------------- ADB ----------------
+SERIAL = None
+
+
+def _run(args, timeout=10):
+    return subprocess.run(args, capture_output=True, timeout=timeout,
+                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
+def _conf_port():
+    for p in [r"C:\ProgramData\BlueStacks_nxt\bluestacks.conf"]:
+        try:
+            txt = open(p, encoding="utf-8", errors="ignore").read()
+            m = re.findall(r'bst\.instance\.[^.]+\.status\.adb_port="(\d+)"', txt)
+            if m:
+                return m[0]
+        except Exception:
+            pass
+    return None
+
+
+def find_serial():
+    global SERIAL
+    try:                                  # 매크로 공통 ADB 주소 (patch202 adbport)
+        import adbport
+        dev = adbport.sync(say=lambda m: log(m))
+        if dev:
+            r = _run([ADB_EXE, "-s", dev, "get-state"])
+            if b"device" in r.stdout:
+                SERIAL = dev
+                return SERIAL
+    except Exception:
+        pass
+    out = _run([ADB_EXE, "devices"]).stdout.decode(errors="ignore")
+    devs = [l.split()[0] for l in out.splitlines()[1:] if l.strip().endswith("device")]
+    if not devs:
+        port = _conf_port() or "5585"
+        _run([ADB_EXE, "connect", "127.0.0.1:" + port])
+        out = _run([ADB_EXE, "devices"]).stdout.decode(errors="ignore")
+        devs = [l.split()[0] for l in out.splitlines()[1:] if l.strip().endswith("device")]
+    if not devs:
+        raise SystemExit("ADB 기기를 못 찾음 (블루스택 켜져 있는지 확인)")
+    SERIAL = devs[0]
+    return SERIAL
+
+
+def adb(*args, timeout=10):
+    if SERIAL is None:
+        find_serial()
+    return _run([ADB_EXE, "-s", SERIAL] + list(args), timeout=timeout)
+
+
+# ---------------- patch245: 빠른 화면(fastcam = 창 없는 scrcpy 영상) ----------------
+# ADB 스크린샷(PNG)은 한 장에 0.4~0.7초(추정)라 한 수에 5~7장 찍으면 몇 초가 감 -> 영상으로 받아 둔 최신 화면을 씀.
+# 시작할 때 ADB 캡처와 비교해서 판이 똑같이 읽힐 때만 사용, 끊기면 ADB 로 돌아감. hexa_cfg.json "fastcam": false 면 안 씀
+FAST_SCID, FAST_PORT = "0e2f0a03", 27203      # 스킬 직접 굴리기(fastcam 기본 0e2f0a01/27199)와 겹치지 않게
+_CAM = [None]          # None = 아직 안 켬, False = 못 씀, FastCam = 사용 중
+_FV = [False]          # 게임 화면에서 판 비교까지 끝났는지
+
+
+def _fast_img(c, fresh=0.12):
+    """가장 최근 화면(RGB). fresh 초 안에 새 화면이 오면 그것"""
+    _, _, n = c.latest()
+    got = c.wait_new(n, fresh)
+    img = got[0] if got else c.latest()[0]
+    if img is None or c.err:
+        return None
+    if img.shape[1] != 720:
+        img = cv2.resize(img, (720, 1280))
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+
+def _fast_check(c):
+    """ADB 캡처와 빠른 화면이 같은 화면·같은 판으로 읽히는지 (ok, 설명, 판까지 비교했는지)"""
+    why = "비교 못함"
+    for k in range(4):
+        a = _adb_capture()
+        f = _fast_img(c, 0.3)
+        if f is None:
+            why = "빠른 화면 없음 %s" % (c.err,)
+            time.sleep(0.3)
+            continue
+        sa, sf = V.state(a), V.state(f)
+        if sa != sf:
+            why = "화면 판정 다름 adb %s / fast %s" % (sa, sf)
+            time.sleep(0.4)
+            continue
+        if sa != "game":
+            return True, "화면 %s (판 비교는 게임 화면에서)" % sa, False
+        ba, bf = V.read_board(a)[0], V.read_board(f)[0]
+        idx = [i for i in range(E.N) if 0 <= ba[i] < 9 and 0 <= bf[i] < 9]
+        diff = [i for i in idx if ba[i] != bf[i]]
+        ta, tf = V.tray(a), V.tray(f)
+        same_tray = (norm_piece(ta) if ta else None) == (norm_piece(tf) if tf else None)
+        if not diff and same_tray and len(idx) >= E.N - 4:
+            d = float(np.abs(a[300:1100].astype(np.int16) - f[300:1100].astype(np.int16)).mean())
+            return True, "판 %d칸 일치, 조각 일치, 색 차이 %.1f" % (len(idx), d), True
+        why = "판 다른 칸 %s / 조각 %s vs %s" % (diff, ta, tf)
+        time.sleep(0.4)
+    return False, why, False
+
+
+def _fast_off(why):
+    c = _CAM[0]
+    _CAM[0] = False
+    log("빠른 화면 끔 -> ADB 캡처 (%s)" % why)
+    try:
+        if c:
+            c.stop()
+    except Exception:
+        pass
+
+
+def _cam():
+    if _CAM[0] is None:
+        _CAM[0] = False
+        if CFG.get("fastcam", True):
+            try:
+                import fastcam
+                c = fastcam.FastCam(max_fps=30, scid=FAST_SCID, port=FAST_PORT).start()
+                ok, why, full = _fast_check(c)
+                if ok:
+                    _CAM[0] = c
+                    _FV[0] = full
+                    import atexit
+                    atexit.register(c.stop)
+                    log("빠른 화면(fastcam) 사용: %s" % why)
+                else:
+                    c.stop()
+                    log("빠른 화면 안 씀 (%s) -> ADB 캡처" % why)
+            except Exception as ex:
+                log("빠른 화면 시작 실패 -> ADB 캡처: %r" % (ex,))
+    return _CAM[0] or None
+
+
+def fast_on():
+    return bool(_CAM[0])
+
+
+def fast_verify_game():
+    """처음 게임 화면에서 한 번: 판이 ADB 와 똑같이 읽히는지. 아니면 빠른 화면 끔"""
+    if not fast_on() or _FV[0]:
+        return
+    ok, why, full = _fast_check(_CAM[0])
+    if ok and full:
+        _FV[0] = True
+        log("빠른 화면 게임 판 확인: %s" % why)
+    elif not ok:
+        _fast_off(why)
+
+
+def capture():
+    c = _cam()
+    if c is not None:
+        if c.err:
+            _fast_off("끊김 %s" % c.err)
+        else:
+            im = _fast_img(c)
+            if im is not None:
+                return im
+    return _adb_capture()
+
+
+def _adb_capture():
+    for _ in range(3):
+        png = adb("exec-out", "screencap", "-p").stdout
+        img = cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR)
+        if img is not None:
+            if img.shape[1] != 720:
+                img = cv2.resize(img, (720, 1280))
+            return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        time.sleep(0.5)
+    raise RuntimeError("캡처 실패")
+
+
+def tap(x, y):
+    c = _CAM[0]
+    if c:                     # patch245: 빠른 화면 연결로 바로 터치 (ADB input 은 한 번에 0.3~0.5초)
+        try:
+            c.tap(int(x), int(y))
+            return
+        except Exception as ex:
+            _fast_off("터치 실패 %r" % (ex,))
+    adb("shell", "input", "tap", str(int(x)), str(int(y)))
+
+
+def swipe(x1, y1, x2, y2, ms):
+    adb("shell", "input", "swipe", str(int(x1)), str(int(y1)), str(int(x2)), str(int(y2)), str(int(ms)))
+
+
+def save_shot(im, name):
+    p = os.path.join(SHOTS, name)
+    cv2.imwrite(p, cv2.cvtColor(im, cv2.COLOR_RGB2BGR))
+    return p
+
+
+# ---------------- 화면 읽기 묶음 ----------------
+def board_for_plan(b):
+    """모르는 칸(-1)은 절대 안 합쳐지는 벽으로"""
+    return [(-100 - i) if t < 0 else t for i, t in enumerate(b)]
+
+
+HI = {}      # patch226: 9·10등급 칸 기억 {칸: 등급}. 배경이 무지개색으로 계속 바뀌어 색으로는 못 읽음
+HI_PATH = os.path.join(SHOTS, "hexa_hi.json")
+_HI_LAST = [None]
+
+
+def hi_save(board=None):
+    """patch243: 9·10등급 기억 + 마지막 판을 파일로 (앱이 꺼진 뒤 '이어 하기' 때 되살림). 바뀌었을 때만 씀"""
+    key = (tuple(sorted(HI.items())), tuple(board) if board else None)
+    if key == _HI_LAST[0]:
+        return
+    _HI_LAST[0] = key
+    try:
+        tmp = HI_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"t": time.time(), "hi": {str(k): v for k, v in HI.items()}, "board": list(board or [])}, f)
+        os.replace(tmp, HI_PATH)
+    except Exception:
+        pass
+
+
+def hi_load(im):
+    """patch243: 이어 하기 직후 - 저장된 판과 지금 판이 같으면 9·10등급 기억을 되살림"""
+    try:
+        d = json.load(open(HI_PATH, encoding="utf-8"))
+    except Exception:
+        return
+    hi = {int(k): int(v) for k, v in d.get("hi", {}).items()}
+    if not hi:
+        return
+    sb = d.get("board") or []
+    b, _ = V.read_board(im)
+    same = tot = 0
+    if len(sb) == E.N:
+        for i in range(E.N):
+            if 0 <= sb[i] < 9 and 0 <= b[i] < 9:
+                tot += 1
+                same += sb[i] == b[i]
+    if tot and same / tot >= 0.9:
+        HI.clear()
+        HI.update(hi)
+        log("이어 하기: 9·10등급 기억 %d칸 되살림 %s (판 일치 %d/%d)" % (len(hi), hi, same, tot))
+    else:
+        log("이어 하기: 저장된 판과 달라 9·10등급 기억은 안 씀 (일치 %d/%d)" % (same, tot))
+
+
+def read_all(im):
+    b, unk = V.read_board(im)
+    # 9·10등급: 색으로 읽은 값은 믿지 않고, 우리가 만든 자리(기억)만 인정
+    for i in range(E.N):
+        if b[i] >= 9 and i not in HI:
+            b[i] = -1
+    for i, t in list(HI.items()):
+        if b[i] == 0:
+            del HI[i]          # 칸이 비었으면(합쳐져 사라짐) 기억 지움
+        else:
+            b[i] = t
+    unk = [i for i in range(E.N) if b[i] < 0]
+    hi_save(b)      # patch243
+    return dict(board=b, unk=unk, tray=V.tray(im), prev=V.preview(im), unlocked=V.unlocked(im))
+
+
+def grid_text(b):
+    lines = []
+    for y in range(10):
+        row = []
+        for c in range(5):
+            if (y - (c & 1)) % 2 == 0:
+                r = (y - (c & 1)) // 2
+                i = E.CELLS.index((c, r)) if (c, r) in E.CELLS else None
+                if i is None:
+                    row.append("  ")
+                    continue
+                t = b[i]
+                row.append(" ." if t == 0 else (" ?" if t < 0 else "%2d" % t))
+            else:
+                row.append("  ")
+        lines.append("".join(row))
+    return "\n".join(lines)
+
+
+def norm_piece(p):
+    q0 = min(q for (q, r), t in p)
+    r0 = min(r for (q, r), t in p)
+    return tuple(sorted(((q - q0, r - r0), t) for (q, r), t in p))
+
+
+def rotated(p, k):
+    offs = E.rot([o for o, t in p], k)
+    return norm_piece(list(zip(offs, [t for o, t in p])))
+
+
+def wait_settle(timeout=12.0, need_tray=True, hold=None):
+    """판·조각이 두 번 연속 같게 읽힐 때까지.
+    patch245: 빠른 화면이면 0.05초마다 읽고, 같은 판이 hold 초(기본 cfg stable_fast 0.6) 동안 그대로면 멈춘 것으로"""
+    t0 = time.time()
+    fast = fast_on()
+    if hold is None:
+        hold = CFG.get("stable_fast", 0.6) if fast else 0.0
+    last = None
+    since = 0.0
+    im = None
+    while time.time() - t0 < timeout:
+        im = capture()
+        st = V.state(im)
+        if st != "game":
+            return st, im, None
+        r = read_all(im)
+        key = (tuple(r["board"]), r["tray"] and norm_piece(r["tray"]), r["prev"] and norm_piece(r["prev"]))
+        now = time.time()
+        if key != last:
+            last, since = key, now
+        elif (not need_tray or r["tray"]) and now - since >= hold:
+            return "game", im, r
+        time.sleep(0.05 if fast else 0.25)
+    return "timeout", im, None
+
+
+# ---------------- 한 수 ----------------
+STATS = dict(moves=0, fails=0, best=0)
+META = {}
+NEXT = {}        # patch245: 놓은 뒤 확인한 판(멈춘 판)을 다음 수에 그대로 씀 -> 같은 확인을 두 번 안 함
+TM = dict(n=0, plan=0.0, rot=0.0, drag=0.0, after=0.0, other=0.0, total=0.0, last=None)
+
+
+def tm_add(**kw):
+    """patch245: 한 수 단계별 시간 누적, 10수마다 평균을 로그로"""
+    for k, v in kw.items():
+        TM[k] = TM.get(k, 0.0) + v
+
+
+def tm_move_done():
+    now = time.time()
+    if TM["last"] is not None:
+        TM["total"] += now - TM["last"]
+        TM["n"] += 1
+    else:                         # 첫 수(또는 끊긴 뒤 첫 수)는 기준점만 - 단계 시간도 버림
+        for k in ("plan", "rot", "drag", "after", "total"):
+            TM[k] = 0.0
+        TM["n"] = 0
+    TM["last"] = now
+    if TM["n"] >= 10:
+        n = TM["n"]
+        known = TM["plan"] + TM["rot"] + TM["drag"] + TM["after"]
+        log("시간(최근 %d수 평균, 화면 %s): 한 수 %.2f초 = 계산 %.2f / 회전 %.2f / 드래그 %.2f / 놓은 뒤 확인 %.2f / 그 외 %.2f" % (
+            n, "fast" if fast_on() else "adb", TM["total"] / n, TM["plan"] / n, TM["rot"] / n, TM["drag"] / n,
+            TM["after"] / n, max(0.0, TM["total"] - known) / n))
+        for k in ("plan", "rot", "drag", "after", "total"):
+            TM[k] = 0.0
+        TM["n"] = 0
+
+
+def plan(r, only_k0=False):
+    b = board_for_plan(r["board"])
+    # patch231: 학습된 n-tuple 평가(hexa_nt_w.npz)가 있으면 그것으로 3수 탐색. hexa_cfg.json "brain": "old" 면 예전 방식
+    if CFG.get("brain", "nt") == "nt" and NT is not None and NT.available():
+        t0 = time.time()
+        mv = "py"
+        # patch232: C 수 읽기(hexa_search.exe) 우선. 실패하면 Python 탐색으로
+        if CFG.get("search", "c") == "c" and hasattr(NT, "c_available") and NT.c_available():
+            try:
+                mv = NT.best_move_c(b, r["unlocked"], r["tray"], r["prev"], only_k0=only_k0,
+                                    D=CFG.get("c_depth", 3) if r["prev"] else 1, B=CFG.get("c_B", 8),
+                                    K=CFG.get("c_K", 8), budget_ms=CFG.get("think_sec", 10.0) * 800,
+                                    threads=CFG.get("c_threads", 6), seed=STATS["moves"])
+                if mv is not None:
+                    STATS["c_info"] = mv[4]
+                    mv = mv[:4]
+            except Exception as ex:
+                log("C 수 읽기 실패 -> Python: %s" % ex)
+                NT.c_close()
+                mv = "py"
+        if mv != "py":
+            pass
+        elif r["prev"]:
+            mv = NT.best_move3(b, r["unlocked"], r["tray"], r["prev"], only_k0=only_k0, seed=STATS["moves"],
+                               budget=CFG.get("think_sec", 10.0) * 0.8)
+        else:
+            mv = NT.best_move(b, r["unlocked"], r["tray"], None, only_k0=only_k0)
+        STATS["think"] = STATS.get("think", 0.0) + time.time() - t0
+        STATS["plans"] = STATS.get("plans", 0) + 1
+        return mv
+    if CFG.get("depth", 3) >= 3:
+        t0 = time.time()
+        mv = E.best_move3(b, r["unlocked"], r["tray"], r["prev"], seed=STATS["moves"], only_k0=only_k0,
+                          B1=CFG.get("B1", 24), B2=CFG.get("B2", 10), K=CFG.get("K", 24),
+                          budget=CFG.get("think_sec", 10.0))
+        STATS["think"] = STATS.get("think", 0.0) + time.time() - t0
+        STATS["plans"] = STATS.get("plans", 0) + 1
+        return mv
+    return E.best_move(b, r["unlocked"], r["tray"], r["prev"])
+
+
+def do_move(im, r):
+    b0 = r["board"]
+    cur = r["tray"]
+    META.clear()
+    META.update(spawn=[[list(o), t] for o, t in cur], taps=0)
+    spawn_log(r)                 # patch246
+    _t = time.time()
+    mv = plan(r)
+    tm_add(plan=time.time() - _t)
+    _t_rot = time.time()
+    if mv is None:
+        log("둘 곳 없음 (게임 끝 대기)")
+        time.sleep(2)
+        return False
+    k, cells, ts, sc = mv
+    # 회전
+    if k:
+        n = k if CFG["rot_dir"] == 1 else (6 - k) % 6
+        META["taps"] = n
+        for _ in range(n):
+            tap(*V.ROT_BTN)
+            time.sleep(0.35)
+        st, im2, r2 = wait_settle(6, hold=0.25)
+        if st != "game" or not r2:
+            return False
+        obs = norm_piece(r2["tray"])
+        if obs == rotated(cur, k):
+            pass
+        elif obs == rotated(cur, -k):
+            CFG["rot_dir"] *= -1
+            save_cfg()
+            log("회전 방향 반대로 학습 -> rot_dir", CFG["rot_dir"])
+        else:
+            hit = [j for j in range(6) if obs == rotated(cur, j)]
+            log("회전 %d번 눌렀는데 결과 %s (원래 %s, 실제 %s칸 돈 것)" % (n, obs, norm_piece(cur), hit))
+        # patch221: 회전한 뒤에는 다시 계획부터 하지 않음. 계획한 칸·등급 그대로 되면 그것, 아니면 지금 방향에서 최선
+        # patch224: 지금 방향에 둘 곳이 없으면 한 칸씩 더 돌려 가며 둘 곳 있는 방향을 찾음(최대 5번) - 무한 반복 방지
+        r = r2
+        want = sorted(zip(cells, ts))
+        for extra in range(6):
+            bnow = board_for_plan(r["board"])
+            mk0 = E.moves(bnow, r["tray"], only_k0=True)
+            same = None
+            for k2, c2, t2 in mk0:
+                if sorted(zip(c2, t2)) == want:
+                    same = (c2, t2)
+                    break
+            if same:
+                cells, ts = same
+                break
+            mv = plan(r, only_k0=True) if mk0 else None
+            if mv is not None:
+                k, cells, ts, sc = mv
+                log("회전 결과가 예상과 달라 지금 방향에서 다시 고름 (조각 %s)" % (norm_piece(r["tray"]),))
+                break
+            if extra == 0:
+                save_shot(im2, "hexa_rot_%03d.png" % STATS["moves"])
+            log("지금 방향 둘 곳 없음 -> 한 번 더 회전 (%d) 조각 %s" % (extra + 1, norm_piece(r["tray"])))
+            if extra == 5:
+                return True
+            tap(*V.ROT_BTN)
+            time.sleep(0.45)
+            st, im2, r2 = wait_settle(6, hold=0.25)
+            if st != "game" or not r2:
+                return False
+            r = r2
+    tm_add(rot=time.time() - _t_rot if k else 0.0)
+    # 예상 결과(합쳐질 칸 후보 전부)
+    bp = board_for_plan(r["board"])
+    preds = []
+    ch, nbr = 0, 1
+    while ch < nbr:
+        nb, made, nbr = E.apply(bp, cells, ts, ch)
+        preds.append((nb, made))
+        ch += 1
+    # 드래그
+    xs = [E.pix(c)[0] for c in cells]
+    ys = [E.pix(c)[1] for c in cells]
+    cx, cy = sum(xs) / len(xs), sum(ys) / len(ys)
+    ex, ey = cx + CFG["lift"][0], cy + CFG["lift"][1]
+    META.update(finger=[round(ex), round(ey)], placed=[[c, t] for c, t in zip(cells, ts)],
+                tray_now=[[list(o), t] for o, t in r["tray"]])
+    _t = time.time()
+    swipe(V.TRAY_C[0], V.TRAY_C[1], ex, ey, CFG["swipe_ms"])
+    tm_add(drag=time.time() - _t)
+    _t = time.time()
+    time.sleep(CFG.get("settle_fast", 0.3) if fast_on() else CFG["settle"])     # patch245: 빠른 화면이면 0.9 -> 0.3
+    st, im3, r3 = wait_settle(15)
+    tm_add(after=time.time() - _t)
+    STATS["moves"] += 1
+    if st != "game" or not r3:
+        p = save_shot(im3, "hexa_after_%03d.png" % STATS["moves"]) if im3 is not None else ""
+        log("수 %d: 놓은 뒤 상태 %s %s" % (STATS["moves"], st, p))
+        return st in ("over", "popup")
+    check_result(r, r3, cells, ts, preds, cx, cy, im3)
+    for nb, made in preds:
+        for t, n, nt in made:
+            STATS["best"] = max(STATS["best"], nt)
+    # patch245: 방금 확인한 멈춘 판을 다음 수에 그대로 (9·10등급 기억은 check_result 가 갱신한 것으로 다시 입힘)
+    b = list(r3["board"])
+    for i, t in HI.items():
+        if b[i] != 0:
+            b[i] = t
+    nr = dict(r3)
+    nr["board"] = b
+    nr["unk"] = [i for i in range(E.N) if b[i] < 0]
+    NEXT.clear()
+    NEXT.update(im=im3, r=nr)
+    tm_move_done()
+    return True
+
+
+def check_result(r, r3, cells, ts, preds, cx, cy, im3):
+    b0, b1 = r["board"], r3["board"]
+    # 모르는 색 학습 (9·10등급 등)
+    if r3["unk"]:
+        for nb, made in preds:
+            for i in r3["unk"]:
+                t = nb[i]
+                if 0 < t < 9 and str(t) not in CFG["colors"] and t not in V.REF:
+                    col = [round(float(v)) for v in V.cell_color(im3, i)]
+                    CFG["colors"][str(t)] = col
+                    V.REF[t] = tuple(col)
+                    save_cfg()
+                    log("새 등급 색 학습: %d -> %s" % (t, col))
+    hit = None
+    for ch, (nb, made) in enumerate(preds):
+        if all(nb[i] == b1[i] or b1[i] < 0 or nb[i] < 0 for i in range(E.N)):
+            hit = ch
+            break
+    if hit is None:
+        # 예측이 다 틀려도 9·10 기억은 예측(첫 후보)에서 가져오되, 실제로 빈 칸이면 버림
+        for i, t in enumerate(preds[0][0]):
+            if t >= 9 and b1[i] != 0:
+                HI[i] = t
+    if hit is not None:
+        for i, t in enumerate(preds[hit][0]):
+            if t >= 9:
+                HI[i] = t
+        if len(preds) > 1:
+            # 결과 칸 규칙 찾기용: 실제로 합쳐진 칸 위치 + 처음 나온 조각 모양 + 회전 횟수 + 손가락 위치
+            learn(dict(kind="target", meta=dict(META), result_cells=[i for i in range(E.N) if b1[i] > 0 and b0[i] != b1[i]],
+                       board=b0, cells=list(cells), ts=list(ts), choice=hit,
+                       n=len(preds), made=preds[hit][1]))
+        if preds[hit][1]:
+            log("수 %d: %s -> 합침 %s" % (STATS["moves"], list(zip(cells, ts)), preds[hit][1]))
+        return
+    STATS["fails"] += 1
+    new = [i for i in range(E.N) if b0[i] == 0 and b1[i] > 0]
+    learn(dict(kind="mismatch", board=b0, after=b1, cells=list(cells), ts=list(ts),
+               preds=[p[0] for p in preds]))
+    save_shot(im3, "hexa_err_%03d.png" % STATS["moves"])
+    log("수 %d: 예상과 다름 (놓을 칸 %s, 새로 찬 칸 %s)" % (STATS["moves"], list(cells), new))
+    # 합침이 없을 예정이었고 모양 그대로 다른 자리에 놓였으면 -> 드래그 높이 보정
+    if not preds[0][1] and len(new) == len(cells):
+        tn = sorted(b1[i] for i in new)
+        if tn == sorted(ts):
+            ax = [E.pix(i)[0] for i in new]
+            ay = [E.pix(i)[1] for i in new]
+            dx, dy = sum(ax) / len(ax) - cx, sum(ay) / len(ay) - cy
+            if abs(dx) < 260 and abs(dy) < 260:
+                CFG["lift"][0] -= 0.8 * dx
+                CFG["lift"][1] -= 0.8 * dy
+                save_cfg()
+                log("드래그 보정: 빗나감 (%.0f,%.0f) -> lift %s" % (dx, dy, [round(v) for v in CFG["lift"]]))
+    if b0 == b1:
+        # 조각이 판에 안 들어감 -> 드래그 높이 후보를 돌려 가며 시험
+        cands = [130, 100, 160, 70, 190, 40]
+        CFG["drop_fail"] = CFG.get("drop_fail", 0) + 1
+        i = CFG["drop_fail"] % len(cands)
+        CFG["lift"] = [0.0, float(cands[i])]
+        if CFG["drop_fail"] % len(cands) == 0:
+            CFG["swipe_ms"] = min(1500, CFG["swipe_ms"] + 250)
+        save_cfg()
+        log("판이 그대로 -> 드래그 실패 %d번째, lift %s, swipe %dms" % (CFG["drop_fail"], CFG["lift"], CFG["swipe_ms"]))
+    else:
+        CFG["drop_fail"] = 0
+
+
+# ---------------- 게임 흐름 ----------------
+BTN_START = (360, 1093)
+BTN_RESULT = (359, 1095)
+BTN_AGAIN = (470, 882)
+BTN_EXIT = (211, 882)
+BTN_CLAIM = (597, 647)
+BTN_CLOSE = (638, 120)        # 공방 이벤트 창 오른쪽 위 빨간 X
+
+
+def lobby_button(im):
+    """patch243: 로비 아래 버튼 종류. 'start' = '시작 🎫1'(노란 티켓 그림 약 480점) / 'cont' = '이어 하기'(0점) / None"""
+    try:
+        roi = im[1070:1116, 250:470]
+        hsv = cv2.cvtColor(np.ascontiguousarray(roi), cv2.COLOR_RGB2HSV)
+        n = int(((hsv[..., 1] > 130) & (hsv[..., 2] > 170)).sum())
+    except Exception:
+        return None
+    return "start" if n >= 150 else ("cont" if n <= 40 else None)
+
+
+def claim_and_close():
+    """patch227: 로비에서 '받기' -> (보상 창 뜨면 닫기) -> 오른쪽 위 X 로 공방 창 닫기"""
+    tap(*BTN_CLAIM)
+    time.sleep(2.0)
+    for n in range(5):
+        im = capture()
+        st = V.state(im)
+        if st == "lobby":
+            tap(*BTN_CLOSE)
+            time.sleep(1.5)
+            im2 = capture()
+            if V.state(im2) != "lobby":
+                log("끝. 보상 받기 -> 공방 창 닫음")
+                return True
+            continue
+        if st is None:
+            # 보상 받음 창 등: 저장하고 창 아래 빈 곳을 눌러 닫기
+            if n == 0:
+                save_shot(im, "hexa_claim.png")
+            tap(360, 1180)
+            time.sleep(1.2)
+            continue
+        break
+    log("보상 받기/창 닫기 확인 못함 -> shots\\hexa_claim.png 확인")
+    return False
+
+
+def play(n_games):
+    load_cfg()
+    find_serial()
+    brain = "nt" if (CFG.get("brain", "nt") == "nt" and NT is not None and NT.available()) else "old"
+    if brain == "nt" and CFG.get("search", "c") == "c" and hasattr(NT, "c_available") and NT.c_available():
+        brain = "nt+C(D%d B%d K%d, %d스레드)" % (CFG.get("c_depth", 3), CFG.get("c_B", 8), CFG.get("c_K", 8), CFG.get("c_threads", 6))
+    log("=== 유물 공방 시작: %d판, 기기 %s, lift %s, rot %d, 두뇌 %s" % (n_games, SERIAL, CFG["lift"], CFG["rot_dir"], brain))
+    started = 0
+    finished = 0
+    unknown_since = None
+    in_game = False
+    need_hi = False              # patch243
+    NEXT.clear()
+    TM.update(n=0, last=None)
+    _cam()                       # patch245: 빠른 화면 준비 (안 되면 ADB)
+    while True:
+        if NEXT:                 # patch245: 놓은 뒤 확인한 판이 있으면 다시 찍지 않음
+            im, r_next = NEXT["im"], NEXT["r"]
+            NEXT.clear()
+            st = "game"
+        else:
+            r_next = None
+            im = capture()
+            st = V.state(im)
+        if st is None:
+            if finished >= 1 and started <= finished and icon_score(_adb_capture() if fast_on() else im)[0] >= 0.7:
+                log("끝. 전투 화면으로 돌아옴 (patch238)")
+                break
+            unknown_since = unknown_since or time.time()
+            if time.time() - unknown_since > 25:
+                p = save_shot(im, "hexa_unknown.png")
+                log("화면을 모르겠음 -> 멈춤", p)
+                break
+            time.sleep(1)
+            continue
+        unknown_since = None
+        if st == "lobby":
+            if finished >= n_games or (started > finished and not in_game and started >= n_games):
+                claim_and_close()
+                break
+            if started > finished and in_game:
+                # patch223: 판이 끝나고 결과창이 저절로 닫혀 로비로 온 경우 -> 끝난 판으로 셈
+                finished += 1
+                in_game = False
+                log("판 끝 (결과창 없이 로비로 돌아옴): %d수, 최고 등급 %d" % (STATS["moves"], STATS["best"]))
+                continue
+            if started > finished:
+                # 시작 눌렀는데 로비 그대로 -> 티켓 없음
+                p = save_shot(im, "hexa_lobby_stop.png")
+                log("시작이 안 됨 (티켓 없음?) -> 멈춤", p)
+                break
+            btn = lobby_button(im)          # patch243
+            tap(*BTN_START)
+            started += 1
+            STATS.update(moves=0, fails=0, best=0)
+            HI.clear()
+            NEXT.clear()
+            TM["last"] = None
+            spawn_new_game("cont" if btn == "cont" else "start")   # patch246
+            if btn == "cont":
+                need_hi = True
+                log("판 시작 - 이어 하기 (지난 판 이어서, 티켓 안 씀) (%d/%d)" % (started, n_games))
+            else:
+                hi_save([])
+                log("판 시작 (%d/%d)" % (started, n_games))
+            time.sleep(2.5)
+            continue
+        if st == "over":
+            log("게임 끝: %d수, 최고 등급 %d, 예상 빗나감 %d, 한 수 계산 평균 %.2f초" % (
+                STATS["moves"], STATS["best"], STATS["fails"], STATS.get("think", 0) / max(1, STATS.get("plans", 0))))
+            save_shot(im, "hexa_over_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M"))
+            tap(*BTN_RESULT)
+            time.sleep(2)
+            continue
+        if st == "popup":
+            if in_game:
+                log("게임 끝: %d수, 최고 등급 %d, 예상 빗나감 %d" % (STATS["moves"], STATS["best"], STATS["fails"]))
+            finished += 1
+            save_shot(im, "hexa_result_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M"))
+            in_game = False
+            if finished < n_games:
+                tap(BTN_AGAIN[0], V.POPUP_Y[0])
+                started += 1
+                STATS.update(moves=0, fails=0, best=0)
+                HI.clear()
+                hi_save([])
+                NEXT.clear()
+                TM["last"] = None
+                spawn_new_game("again")   # patch246
+                log("다시 하기 (%d/%d)" % (started, n_games))
+                time.sleep(2.5)
+            else:
+                tap(BTN_EXIT[0], V.POPUP_Y[0])
+                time.sleep(2)
+            continue
+        # game
+        if started == 0:
+            started = 1          # 게임 화면에서 바로 시작한 경우
+            spawn_new_game("ingame")   # patch246
+            need_hi = True       # patch243: 하던 판일 수 있음
+        in_game = True
+        fast_verify_game()       # patch245: 처음 게임 화면에서 ADB 와 판 비교 (다르면 빠른 화면 끔)
+        if need_hi:
+            need_hi = False
+            hi_load(im)
+        if r_next is not None:
+            im2, r = im, r_next
+        else:
+            st2, im2, r = wait_settle(12)
+            if st2 != "game" or not r:
+                TM["last"] = None
+                continue
+        do_move(im2, r)
+    return finished              # patch243: 끝낸 판 수 (0 = 중간에 끊김)
+
+
+def look(path=None):
+    load_cfg()
+    if path:
+        im = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB)
+    else:
+        find_serial()
+        im = capture()
+    st = V.state(im)
+    print("화면 상태:", st)
+    r = read_all(im)
+    print("해금 등급:", r["unlocked"], " 모르는 칸:", r["unk"])
+    print(grid_text(r["board"]))
+    print("지금 조각:", r["tray"])
+    print("다음 조각:", r["prev"])
+    if r["tray"]:
+        t0 = time.time()
+        mv = plan(r)
+        print("계산 %.2f초" % (time.time() - t0))
+        if mv:
+            k, cells, ts, sc = mv
+            print("추천: 회전 %d번, 칸 %s (%s), 평가 %.1f" % (k, [E.CELLS[c] for c in cells], ts, sc))
+            out = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+            for c, t in zip(cells, ts):
+                x, y = E.pix(c)
+                cv2.rectangle(out, (x - 44, y - 44), (x + 44, y + 44), (0, 255, 255), 4)
+                cv2.putText(out, str(t), (x - 10, y + 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 3)
+            p = os.path.join(SHOTS, "hexa_look.png")
+            cv2.imwrite(p, out)
+            print("표시 저장:", p)
+        else:
+            print("둘 곳 없음")
+
+
+def sim(n):
+    import statistics
+    res = [E.play3(s) for s in range(n)]
+    best = [x["best"] for x in res]
+    print("가상 %d판: 최고등급 평균 %.2f, 9등급 %d%%, 10등급 %d%%, 평균 %d수" % (
+        n, statistics.mean(best), 100 * sum(b >= 9 for b in best) / n, 100 * sum(b >= 10 for b in best) / n,
+        statistics.mean(x["moves"] for x in res)))
+
+
+
+# ---------------- patch238: 메인이 부르는 자동 실행 (전투 화면 -> 티켓 5/5 면 2판) ----------------
+EVENT_ICON = (596, 371)          # 전투 화면 오른쪽 아이콘 줄의 유물 공방 아이콘
+TAB_FORGE = (150, 212)           # 공방 이벤트 창 '공방' 탭
+_ICON_T = None
+
+
+def icon_score(im):
+    """전투 화면에 공방 아이콘이 보이는지 (점수, 중심)"""
+    global _ICON_T
+    if _ICON_T is None:
+        t = cv2.imread(os.path.join(BASE, "tpl", "hexa_event_icon.png"))
+        _ICON_T = cv2.cvtColor(t, cv2.COLOR_BGR2RGB) if t is not None else None
+    if _ICON_T is None:
+        return 0.0, EVENT_ICON
+    x0, y0 = EVENT_ICON[0] - 80, EVENT_ICON[1] - 80
+    roi = im[y0:y0 + 160, x0:x0 + 160]
+    r = cv2.matchTemplate(roi, _ICON_T, cv2.TM_CCOEFF_NORMED)
+    _, mv, _, ml = cv2.minMaxLoc(r)
+    h, w = _ICON_T.shape[:2]
+    return float(mv), (x0 + ml[0] + w // 2, y0 + ml[1] + h // 2)
+
+
+def read_tickets(im):
+    """로비 왼쪽 티켓 'N/5' 의 N (못 읽으면 None)"""
+    try:
+        import ocrx
+    except Exception:
+        return None
+    crop = im[392:448, 135:280]
+    big = cv2.resize(crop, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+    big = cv2.copyMakeBorder(big, 30, 30, 30, 30, cv2.BORDER_REPLICATE)
+    ws = ocrx.words(cv2.cvtColor(big, cv2.COLOR_RGB2BGR))
+    if not ws:
+        return None
+    txt = "".join(w[0] for w in ws).replace(" ", "")
+    log("티켓 글자 '%s'" % txt)
+    m = re.search(r"([0-5])/5", txt)
+    return int(m.group(1)) if m else None
+
+
+_MENU_T = None
+MENU_X_OFF = (174, -89)          # 이벤트 메뉴 X = '유물 공방' 버튼 중심 + (174,-89)  (버튼 (360,507), X (534,418))
+
+
+def menu_forge(im):
+    """이벤트 메뉴의 '유물 공방' 버튼 (점수, 중심)"""
+    global _MENU_T
+    if _MENU_T is None:
+        t = cv2.imread(os.path.join(BASE, "tpl", "hexa_menu_forge.png"))
+        _MENU_T = cv2.cvtColor(t, cv2.COLOR_BGR2RGB) if t is not None else None
+    if _MENU_T is None:
+        return 0.0, (360, 507)
+    r = cv2.matchTemplate(im, _MENU_T, cv2.TM_CCOEFF_NORMED)
+    _, mv, _, ml = cv2.minMaxLoc(r)
+    h, w = _MENU_T.shape[:2]
+    return float(mv), (ml[0] + w // 2, ml[1] + h // 2)
+
+
+def close_event():
+    """공방 창 / 이벤트 메뉴를 닫고 전투 화면으로 (patch241). 전투 화면이면 True"""
+    for _ in range(4):
+        im = _adb_capture()          # patch245: 아이콘·메뉴 판정은 정확한 ADB 캡처로
+        if icon_score(im)[0] >= 0.7 and menu_forge(im)[0] < 0.8:
+            return True
+        ms, mp = menu_forge(im)
+        if ms >= 0.8:
+            tap(mp[0] + MENU_X_OFF[0], mp[1] + MENU_X_OFF[1])     # 이벤트 메뉴 X
+        elif V.state(im) in ("lobby", None, "over"):
+            tap(*BTN_CLOSE)                                       # 공방 창 X
+        time.sleep(1.5)
+    return icon_score(_adb_capture())[0] >= 0.7
+
+
+def auto(need=5, games=2):
+    """전투 화면일 때만: 공방 아이콘 -> 이벤트 메뉴 '유물 공방' -> '공방' 탭 확인 -> 티켓 need 장 이상이면 games 판, 아니면 닫기"""
+    load_cfg()
+    find_serial()
+    im = _adb_capture()              # patch245
+    sc, pt = icon_score(im)
+    if sc < 0.7:
+        log("AUTO 건너뜀: 전투 화면이 아님 (공방 아이콘 점수 %.2f)" % sc)
+        return "skip"
+    log("AUTO 이벤트 아이콘 누름 %s (점수 %.2f)" % (pt, sc))
+    tap(*pt)
+    time.sleep(2.0)
+    ok = False
+    icon_taps = 1
+    for i in range(8):
+        im = _adb_capture()          # patch245
+        st = V.state(im)
+        if st == "lobby":
+            ok = True
+            break
+        ms, mp = menu_forge(im)
+        sc_i = icon_score(im)[0]
+        log("AUTO 확인 %d: 화면 %s, 메뉴 '유물 공방' %.2f, 이벤트 아이콘 %.2f" % (i, st, ms, sc_i))
+        if ms >= 0.8:
+            tap(*mp)                 # 이벤트 메뉴 -> '유물 공방'
+            time.sleep(2.5)
+            continue
+        if sc_i >= 0.7:
+            if icon_taps < 2:        # 메뉴가 안 떴으면 한 번만 더
+                icon_taps += 1
+                tap(*pt)
+                time.sleep(2.0)
+                continue
+            break
+        if st in (None, "over"):
+            save_shot(im, "hexa_auto_%d.png" % i)
+            tap(*TAB_FORGE)          # 공방 창은 열렸는데 랭킹/보상 탭이면 공방 탭으로
+        time.sleep(1.5)
+    if not ok:
+        save_shot(im, "hexa_auto_open.png")
+        log("AUTO 공방 창을 못 엶 -> 닫고 건너뜀 (shots\\hexa_auto_open.png)")
+        close_event()
+        return "fail"
+    if lobby_button(im) == "cont":
+        # patch243: 지난 판이 남아 있음(앱이 꺼졌던 판). 티켓을 안 쓰므로 장수와 상관없이 마저 함
+        log("AUTO 이어 하기 판 있음 -> 티켓과 상관없이 이어서 1판")
+        fin = play(1)
+        _after_play(fin)
+        return "resumed" if fin else "interrupted"
+    n = read_tickets(im)
+    log("AUTO 티켓 %s/5" % ("?" if n is None else n))
+    if n is None or n < need:
+        back = close_event()
+        log("AUTO 티켓 %s장 < %d -> 창 닫음%s" % ("?" if n is None else n, need, "" if back else " (전투 화면 확인 못함)"))
+        return "closed"
+    log("AUTO 티켓 %d장 >= %d -> %d판" % (n, need, games))
+    fin = play(games)
+    _after_play(fin)
+    return "played" if fin else "interrupted"
+
+
+def _after_play(fin):
+    """patch243: 판이 끝났으면 창 닫기. 중간에 끊겼으면(앱 꺼짐 등) 공방 화면일 때만 닫음 - 홈 화면을 누르지 않게"""
+    if fin:
+        close_event()
+        return
+    try:
+        im = _adb_capture()
+        if V.state(im) in ("lobby", "over", "popup") or menu_forge(im)[0] >= 0.8:
+            close_event()
+        else:
+            log("AUTO 판이 중간에 끊김 -> 창 닫기 생략 (메인이 복구 뒤 이어 하기)")
+    except Exception as ex:
+        log("AUTO 판이 중간에 끊김 (화면 확인 실패 %r)" % (ex,))
+
+
+if __name__ == "__main__":
+    a = sys.argv[1:]
+    if not a or a[0] == "look":
+        look(a[1] if len(a) > 1 else None)
+    elif a[0] == "play":
+        if "go" not in a:
+            print("테스트: 실제 플레이는 'py hexa.py play go' (티켓 1장 사용)")
+            look()
+        else:
+            nums = [int(x) for x in a if x.isdigit()]
+            play(nums[0] if nums else 1)
+    elif a[0] == "close":            # 로비에서 보상 받기 + 창 닫기만
+        load_cfg()
+        find_serial()
+        claim_and_close()
+    elif a[0] == "auto":             # patch238: 메인이 환생 뒤 부름
+        need = int(a[1]) if len(a) > 1 else 5
+        games = int(a[2]) if len(a) > 2 else 2
+        try:
+            print("AUTO 결과", auto(need, games), flush=True)
+        except Exception as ex:
+            log("AUTO 오류 %r" % (ex,))
+            sys.exit(1)
+    elif a[0] == "sim":
+        sim(int(a[1]) if len(a) > 1 else 10)

@@ -1451,7 +1451,7 @@ def main():
                     except Exception as e:
                         log("영혼의 휴식 처리 오류: %r" % (e,))
                     save_state(st)
-                try:                                     # patch224: 종료 시각 전엔 길게 쉼
+                try:                                     # patch232: 종료 시각 전엔 길게 쉼
                     import soul as _soul_m
                     time.sleep(_soul_m.idle_sleep(st))
                 except Exception:

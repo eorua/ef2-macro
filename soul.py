@@ -359,8 +359,8 @@ def _resolve_end(st, img):
     return False, want_x2
 
 
-END_GRACE = 60                      # patch224: 4시간 + 이만큼 지나면 종료 처리
-END_GIVEUP = 3600                   # patch224: 종료 시각 뒤 이만큼 휴식 화면을 못 찾으면 추적 종료 (patch223 기준 유지)
+END_GRACE = 60                      # patch232: 4시간 + 이만큼 지나면 종료 처리
+END_GIVEUP = 3600                   # patch232: 종료 시각 뒤 이만큼 휴식 화면을 못 찾으면 추적 종료 (patch223 기준 유지)
 
 
 def end_time(d):
@@ -369,7 +369,7 @@ def end_time(d):
 
 
 def idle_sleep(st):
-    """patch224: main 루프 대기 시간 - 종료 시각 전에는 15초, 지나면 3초"""
+    """patch232: main 루프 대기 시간 - 종료 시각 전에는 15초, 지나면 3초"""
     d = st.get("soul")
     if d and time.time() < end_time(d) - 20:
         return 15
@@ -397,7 +397,7 @@ def _clear_cover():
 
 def tick(st, img):
     """휴식 중일 때 main 루프에서 매번 호출. 반환 True 면 휴식 중(다른 동작 금지)
-    patch224: 휴식은 4시간 고정 -> 종료 시각 전에는 화면 확인/가린 창 닫기를 전혀 하지 않고 기다리기만 함.
+    patch232: 휴식은 4시간 고정 -> 종료 시각 전에는 화면 확인/가린 창 닫기를 전혀 하지 않고 기다리기만 함.
     종료 시각(state.json 에 저장된 시작 시각 + 4시간)이 되면 그때만 휴식 화면을 찾아 종료 + 2배 받기."""
     d = st.get("soul")
     if not d:

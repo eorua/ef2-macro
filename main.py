@@ -17,8 +17,9 @@ HIGH_WAVE = 6500                               # 이 웨이브 이상이면 최�
 RELIC_BASIC_WAVE = 7000                        # patch129: 이 웨이브부터 유물 프리셋 기본 (그 전까지는 시간)
 LOOP_SEC = 1.5
 MID_WAVE = 5000                                # 이 웨이브 이상이면 (고레벨 전에) 중간 영웅 업그레이드 1회
-RECRUIT_OK_SEC = 3700                          # 영입 성공 후 다음 시도까지
-RECRUIT_RETRY_SEC = 600                        # 쿨타임이라 못 했을 때 재시도 간격
+RECRUIT_OK_SEC = 3605                          # 영입 성공 후 다음 시도까지 (patch222: 3700 -> 3605, 사용자 지정)
+RECRUIT_RETRY_SEC = 600                        # 쿨타임인데 남은 시간을 못 읽었을 때 재시도 간격
+RECRUIT_TIMER_PAD = 5                          # patch222: 읽은 남은 시간 + 이 초 뒤에 다시 확인
 MAX_HIGH_FAILS = 3
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 PKG = "com.ekkorr.ef2"
@@ -1450,7 +1451,7 @@ def main():
                     except Exception as e:
                         log("영혼의 휴식 처리 오류: %r" % (e,))
                     save_state(st)
-                try:                                     # patch219: 종료 시각 전엔 길게 쉼
+                try:                                     # patch224: 종료 시각 전엔 길게 쉼
                     import soul as _soul_m
                     time.sleep(_soul_m.idle_sleep(st))
                 except Exception:
@@ -1830,7 +1831,16 @@ def main():
                     if res == "done":
                         st.update(last_recruit=now, next_recruit=now + RECRUIT_OK_SEC)
                     elif res == "cooldown":
-                        st["next_recruit"] = now + RECRUIT_RETRY_SEC
+                        _w = getattr(recruit, "last_wait", None)          # patch222: 고용 화면 쿨타임 숫자
+                        if _w is not None:
+                            _w = min(_w, RECRUIT_OK_SEC)
+                            st["next_recruit"] = now + _w + RECRUIT_TIMER_PAD
+                            log("영입 쿨타임 %d분 %02d초 남음 (%s) -> %s 에 다시 확인" % (
+                                _w // 60, _w % 60, getattr(recruit, "last_note", ""),
+                                time.strftime("%H:%M:%S", time.localtime(st["next_recruit"]))))
+                        else:
+                            st["next_recruit"] = now + RECRUIT_RETRY_SEC
+                            log("영입 쿨타임 숫자를 못 읽음 (%s) -> 10분 뒤 다시" % getattr(recruit, "last_note", ""))
                         if _force:                                  # 강제로 열었는데도 쿨타임 -> 강제 확인은 80분 뒤에 다시
                             st["last_force"] = now
                     else:

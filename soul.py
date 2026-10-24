@@ -359,8 +359,8 @@ def _resolve_end(st, img):
     return False, want_x2
 
 
-END_GRACE = 60                      # patch219: 4시간 + 이만큼 지나면 종료 처리
-END_GIVEUP = 1800                   # patch219: 종료 시각 뒤 이만큼 휴식 화면을 못 찾으면 추적 종료
+END_GRACE = 60                      # patch224: 4시간 + 이만큼 지나면 종료 처리
+END_GIVEUP = 3600                   # patch224: 종료 시각 뒤 이만큼 휴식 화면을 못 찾으면 추적 종료 (patch223 기준 유지)
 
 
 def end_time(d):
@@ -369,17 +369,36 @@ def end_time(d):
 
 
 def idle_sleep(st):
-    """main 루프 대기 시간: 종료 시각 전에는 길게(15초), 지나면 3초"""
+    """patch224: main 루프 대기 시간 - 종료 시각 전에는 15초, 지나면 3초"""
     d = st.get("soul")
     if d and time.time() < end_time(d) - 20:
         return 15
     return 3
 
 
+def _clear_cover():
+    """가린 창(우편함·이벤트 등)을 빨간 X 로 닫음 -> 닫은 개수"""
+    n = 0
+    try:
+        import ocrx
+        for _ in range(4):
+            cur = grab()
+            if cur is None or running_view(cur) or end_dialog(cur):
+                break
+            xs = ocrx.red_x_buttons(cur)
+            if not xs:
+                break
+            tap(xs[0], "가린 창 X", 0.8)
+            n += 1
+    except Exception as e:
+        log("가린 창 닫기 오류: %r" % (e,))
+    return n
+
+
 def tick(st, img):
     """휴식 중일 때 main 루프에서 매번 호출. 반환 True 면 휴식 중(다른 동작 금지)
-    patch219: 휴식은 4시간 고정 -> 종료 시각 전에는 화면 확인/가림 처리를 전혀 하지 않고 기다리기만 함.
-    종료 시각(state.json 에 저장된 시작 시각 기준)이 되면 그때만 휴식 화면을 찾아 종료 + 2배 받기."""
+    patch224: 휴식은 4시간 고정 -> 종료 시각 전에는 화면 확인/가린 창 닫기를 전혀 하지 않고 기다리기만 함.
+    종료 시각(state.json 에 저장된 시작 시각 + 4시간)이 되면 그때만 휴식 화면을 찾아 종료 + 2배 받기."""
     d = st.get("soul")
     if not d:
         return False
@@ -391,6 +410,7 @@ def tick(st, img):
             log("휴식 중 - 종료 예정 %s (%.0f분 남음)" % (time.strftime("%H:%M", time.localtime(end)), (end - now) / 60))
         return True
     if end_dialog(img):
+        d["last_seen"] = now
         ok, x2 = _resolve_end(st, img)
         if ok:
             _finish(st, x2)
@@ -398,27 +418,30 @@ def tick(st, img):
             log("종료창을 닫지 못함 -> 다음 루프에서 재시도")
         return True
     if running_view(img):
+        d["last_seen"] = now
         if now - d.get("end_tap", 0) > 5:
             d["end_tap"] = now
             log("%.1f시간 경과 -> 휴식 종료 버튼" % ((now - d.get("start", now)) / 3600))
             tap(BTN_REST_END, "휴식 종료", 1.2)
         return True
-    # 종료 시각이 지났는데 휴식 화면이 안 보임 -> 그때만 가린 팝업 정리 후 재확인
+    # 종료 시각이 지났는데 휴식 화면이 안 보임 -> 이때만 가린 창을 닫고 다시 확인
     if now - end > END_GIVEUP:
         log("종료 시각 뒤 %d분 동안 휴식 화면을 못 찾음 -> 추적 종료 (상태 확인 필요)" % (END_GIVEUP // 60))
         shot("soul_lost")
         st.pop("soul", None)
         st["soul_next"] = now + 1800
         return False
-    if now - d.get("clear_try", 0) > 60:
-        d["clear_try"] = now
-        log("종료 시각인데 휴식 화면이 안 보임 -> 팝업 정리 후 재확인")
-        shot("soul_miss_%d" % int(now), img)
-        try:
-            import closer
-            closer.close_all(3)
-        except Exception as e:
-            log("팝업 정리 오류:", repr(e))
+    if now - d.get("close_try", 0) > 60:
+        d["close_try"] = now
+        n = _clear_cover()
+        if n:
+            log("휴식 화면을 가린 창 %d개 닫음 -> 다시 확인" % n)
+            cur = grab()
+            if cur is not None and (running_view(cur) or end_dialog(cur)):
+                return tick(st, cur)
+        else:
+            log("종료 시각인데 휴식 화면이 안 보임 (닫을 창도 없음) -> 1분 뒤 다시")
+            shot("soul_miss_%d" % int(now), img)
     return True
 
 

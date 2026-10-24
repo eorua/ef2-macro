@@ -95,6 +95,17 @@ py main.py go      # 실제 자동화 실행
 ```
 - 일시정지: `C:\macro\PAUSE` 빈 파일을 생성하면 메인 루프가 안전 지점에서 멈추고 `PAUSED` 파일을 생성합니다. `PAUSE` 파일을 삭제하면 재개됩니다.
 
+### 매크로 재시작 방법 (`restart_main.req`)
+코드 수정 후 실행 중인 오환2 `main.py`만 안전하게 재시작할 때는 `panel.py`(`# patch183`) 및 통합 패널(`C:\pyokey\hub.py`)의 `watch()`가 2초마다 감지하는 **`C:\macro\restart_main.req` 빈 파일 생성 방식**을 사용합니다.
+```powershell
+New-Item -Path C:\macro\restart_main.req -ItemType File -Force
+```
+- **동작 원리**: 실행 중인 패널(`panel.py` 또는 `C:\pyokey\hub.py`)이 `restart_main.req`를 감지하면 즉시 해당 파일을 삭제하고, `C:\macro\main.pid`에 기록된 오환2 `main.py` PID만 종료(`taskkill /PID <pid> /T /F`)한 뒤 2.5초 후 `python.exe main.py go` (`CREATE_NO_WINDOW`)를 새로 실행하여 `main.pid`를 갱신합니다.
+- **재시작 전 필수 주의사항**:
+  1. **진행 중인 작업 확인**: 재시작 전에 반드시 `macro.log` 마지막 줄과 `state.json`을 확인하여 **영혼의 휴식(`soul.py`), 유물 공방(`hexa.py`), 일일 숙제(`daily.py`), 고레벨 병영/배치(`barracks.py`, `arrange.py`) 등 중요한 작업이 진행 중인지 점검**합니다. 진행 중이라면 임의로 재시작하지 말고 사용자에게 먼저 알리거나 작업 완료 후 일반 전투 상태에서 재시작합니다.
+  2. **타 프로세스 종료 절대 금지**: `taskkill /IM python.exe` 같이 전체 Python 프로세스를 종료하면 함께 돌아가는 **표키2 매크로(`C:\pyokey\main.py`)** 나 **통합 패널(`C:\pyokey\hub.py`)** 까지 꺼지므로 절대 사용하지 않습니다. 반드시 `restart_main.req` 파일을 통해 오환2 `main`만 재시작합니다.
+  3. **재시작 후 확인**: 약 3~4초 뒤 `restart_main.req` 파일이 삭제되었는지, `main.pid`가 새 PID로 바뀌었는지, `macro.log`에 `매크로 시작 (실제 클릭 모드)` 로그가 찍혔는지 확인합니다.
+
 ### 개별 모듈 진단 및 단발 실행 (`look` / `go` 컨벤션)
 대부분의 모듈은 안전을 위해 **`go` 인자가 없으면 읽기/판별만 수행(Dry-run)** 하고, **`go`를 붙여야 실제로 화면을 터치**합니다.
 ```powershell

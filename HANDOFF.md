@@ -26,6 +26,7 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
   - Claude Code와 Antigravity CLI 공용 프로젝트 설명 및 규칙 문서 `AGENTS.md` 작성 (프로젝트 목적, 폴더·주요 파일 역할, 실행 방법, 주요 기능 목록, 필수 안전 규칙 및 코딩 규칙 정리).
   - `CLAUDE.md` (`@AGENTS.md`) 및 `GEMINI.md` (`@./AGENTS.md`) 생성하여 양쪽 AI 도구가 동일한 `AGENTS.md`를 참조하도록 설정.
   - 작업 인수인계 문서 `HANDOFF.md` 최초 작성 및 공용 설명 파일 Git 커밋 (`AI 공용 설명 파일 추가`).
+  - `C:\macro\restart_main.req` 요청 파일을 통해 오환2 `main.py` 단독 재시작 완료(PID `333416` 기동 확인, 표키2 매크로·통합 패널 무간섭 유지) 및 `AGENTS.md`에 "매크로 재시작 방법 (`restart_main.req`)"과 주의사항 문서화.
 
 ---
 

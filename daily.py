@@ -573,6 +573,101 @@ def due(st):
     return time.time() >= inf_due(st)
 
 
+# ---------------------------------------------------------------- patch233: 작업 함수 분리 (영혼의 휴식 중에도 사용)
+def _task_dungeon(st, d):
+    import dungeon
+    log("던전 소탕 시작 (40분 주기)")     # patch123
+    ok = dungeon.run(True, d)
+    st["dg_next"] = time.time() + (dungeon.INTERVAL if ok else dungeon.RETRY)
+    if ok:
+        d["dungeon"] = True
+    else:
+        log("던전 소탕 실패 -> %d분 뒤 재시도" % (dungeon.RETRY // 60))
+    return ok
+
+
+def _spirit_pending(d):
+    return (not d.get("spirit") and time.time() >= d.get("spirit_next", 0)
+            and setting("fairy", True))
+
+
+def _task_spirit(d):
+    import spirit
+    spirit.GO = True
+    log("정령의 고원 시작")
+    d["sp_tries"] = d.get("sp_tries", 0) + 1
+    ok = False
+    try:
+        ok = spirit.run(d)
+    except Exception as e:
+        log("정령의 고원 오류: %r" % (e,))
+        close_panels()
+    if ok or d["sp_tries"] >= 3:
+        d["spirit"] = True
+    else:
+        d["spirit_next"] = time.time() + 600
+    return ok
+
+
+def _task_inf(st):
+    log("무한랭킹전 시작")
+    r = do_infinite(True)
+    try:
+        import inf2
+        inf2.close_if_open()
+    except Exception as e:
+        log("무한랭킹전 화면 닫기 오류: %r" % (e,))
+    st["inf_next"] = time.time() + (INF_INTERVAL if r in ("ok", "empty") else INF_RETRY)
+    return r
+
+
+def _soul_day(st):
+    d = st.setdefault("daily", {})
+    today = game_day()
+    if d.get("date") != today:
+        d.clear()
+        d["date"] = today
+    return d
+
+
+def soul_due(st):
+    """patch233: 영혼의 휴식 중에 할 작업(던전 소탕 / 정령의 고원 / 무한랭킹전)이 있는지"""
+    if time.time() < st.get("soul_task_next", 0):
+        return False
+    d = st.get("daily", {})
+    if d.get("date") != game_day():
+        return True
+    if d.get("ads") and time.time() >= st.get("dg_next", 0):
+        return True
+    if _spirit_pending(d):
+        return True
+    return time.time() >= inf_due(st)
+
+
+def run_soul_tasks(st):
+    """patch233: 영혼의 휴식 중 - 던전 소탕 / 정령의 고원 / 무한랭킹전만 한 번에 하나.
+    상점 광고가 아직이면(9시 갱신 직후) 던전은 휴식이 끝난 뒤 광고 다음에 (patch194 순서 유지).
+    작업을 했으면 True"""
+    d = _soul_day(st)
+    try:
+        img = cap()
+        if img is None or blocked(img):
+            return False
+        if d.get("ads") and time.time() >= st.get("dg_next", 0):
+            _task_dungeon(st, d)
+            return True
+        if _spirit_pending(d):
+            _task_spirit(d)
+            return True
+        if time.time() >= inf_due(st):
+            _task_inf(st)
+            return True
+    except Exception as e:
+        log("오류:", e)
+        close_panels()
+    return False
+
+
 def run_daily(st):
     """main.py에서 호출. 한 번 호출에 한 작업만 실행하고 True 반환(상태 변경 시 저장 필요)."""
     d = st.setdefault("daily", {})
@@ -594,14 +689,7 @@ def run_daily(st):
                 d["ads_next"] = time.time() + 600
             return True
         if time.time() >= st.get("dg_next", 0):          # patch101: 1시간마다 던전 소탕
-            import dungeon
-            log("던전 소탕 시작 (40분 주기)")     # patch123
-            ok = dungeon.run(True, d)
-            st["dg_next"] = time.time() + (dungeon.INTERVAL if ok else dungeon.RETRY)
-            if ok:
-                d["dungeon"] = True
-            else:
-                log("던전 소탕 실패 -> %d분 뒤 재시도" % (dungeon.RETRY // 60))
+            _task_dungeon(st, d)
             return True
         if not d.get("ranking") and time.time() >= d.get("ranking_next", 0):
             log("일일 랭킹전 시작")
@@ -627,22 +715,8 @@ def run_daily(st):
             else:
                 d["guild_next"] = time.time() + 600
             return True
-        if (not d.get("spirit") and time.time() >= d.get("spirit_next", 0)
-                and setting("fairy", True)):                 # patch164: 정령의 고원 (patch181: 패널의 '정령의 고원' 체크와 연결)
-            import spirit
-            spirit.GO = True
-            log("정령의 고원 시작")
-            d["sp_tries"] = d.get("sp_tries", 0) + 1
-            ok = False
-            try:
-                ok = spirit.run(d)
-            except Exception as e:
-                log("정령의 고원 오류: %r" % (e,))
-                close_panels()
-            if ok or d["sp_tries"] >= 3:
-                d["spirit"] = True
-            else:
-                d["spirit_next"] = time.time() + 600
+        if _spirit_pending(d):                               # patch164: 정령의 고원 (patch181: 패널의 '정령의 고원' 체크와 연결)
+            _task_spirit(d)
             return True
         if friend_due(st, d):                                # patch146: 친구 선물
             import friend
@@ -669,14 +743,7 @@ def run_daily(st):
             if r.get("opened"):
                 return True
         if time.time() >= inf_due(st):
-            log("무한랭킹전 시작")
-            r = do_infinite(True)
-            try:
-                import inf2
-                inf2.close_if_open()
-            except Exception as e:
-                log("무한랭킹전 화면 닫기 오류: %r" % (e,))
-            st["inf_next"] = time.time() + (INF_INTERVAL if r in ("ok", "empty") else INF_RETRY)
+            _task_inf(st)
             return True
     except Exception as e:
         log("오류:", e)

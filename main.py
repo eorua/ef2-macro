@@ -1443,6 +1443,38 @@ def main():
                 stuck.reset()
                 hist.clear()
                 if GO:
+                    try:                                 # patch233: 휴식 중에도 던전 소탕 / 정령의 고원 / 무한랭킹전
+                        import soul as _sm
+                        _sd = st["soul"]
+                        if (not _sd.get("no_tasks") and time.time() < _sm.end_time(_sd) - 600
+                                and daily.soul_due(st)):
+                            log("영혼의 휴식 중 작업 확인")
+                            if daily.run_soul_tasks(st):
+                                daily.go_battle()
+                                time.sleep(1.5)
+                                _ok = False
+                                for _k in range(3):
+                                    _c = cap()
+                                    if _c is not None and _sm.running_view(_c):
+                                        _ok = True
+                                        break
+                                    __import__("closer").close_all(3)
+                                    daily.tap(daily.TAB_BATTLE, 1.0)
+                                if _ok:
+                                    log("작업 후 휴식 상태 유지 확인")
+                                else:
+                                    _sd["no_tasks"] = True
+                                    _sm.shot("soul_after_task_%d" % int(time.time()))
+                                    log("작업 후 휴식 화면이 안 보임 -> 이번 휴식 동안은 작업 중단 (shots 확인)")
+                            else:
+                                st["soul_task_next"] = time.time() + 120
+                            save_state(st)
+                            continue
+                    except Abort:
+                        raise
+                    except Exception as e:
+                        log("영혼의 휴식 중 작업 오류: %r" % (e,))
+                        st["soul_task_next"] = time.time() + 300
                     try:
                         import soul
                         soul.tick(st, img)

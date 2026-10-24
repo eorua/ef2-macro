@@ -343,7 +343,7 @@ def _resolve_end(st, img):
     dia, exact = read_diamonds(img)
     if dia is None:
         dia = d.get("dia", 0)
-    want_x2 = daily.setting("soul_x2", True) and dia >= MIN_DIA_X2
+    want_x2 = True                                       # patch232: 항상 다이아 1000 으로 2배 (옵션 삭제, 2배 안 할 거면 영휴를 안 함)
     if d.get("force_x2"):                                # patch206: 사용자 예약 - 무조건 2배
         want_x2 = True
     log("종료창: 다이아 %s -> %s" % (dia, "훈장 x2 (다이아 1000)" if want_x2 else "그냥 받기"))

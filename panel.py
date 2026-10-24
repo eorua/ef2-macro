@@ -20,7 +20,7 @@ STATE = os.path.join(BASE, "state.json")
 PIDFILE = os.path.join(BASE, "main.pid")
 SETTINGS = os.path.join(BASE, "settings.json")
 SHOTS = os.path.join(BASE, "shots")
-DEFAULTS = {"fairy": False, "log_font": 10, "guild_post": True, "raid_shop": True, "archery": False, "soul": False, "soul_x2": True, "maint": True, "cont_skip": True, "q30_open": False}     # fairy: 정령의 고원 자동 구매/소탕 (다이아 사용이라 기본 꺼짐)
+DEFAULTS = {"fairy": False, "log_font": 10, "guild_post": True, "raid_shop": True, "archery": False, "soul": False, "maint": True, "cont_skip": True, "q30_open": False}     # fairy: 정령의 고원 자동 구매/소탕 (다이아 사용이라 기본 꺼짐)
 MAX_LINES = 400                                  # 로그창에 남기는 최대 줄 수
 FONT = "맑은 고딕"
 
@@ -105,6 +105,11 @@ class App:
          "발굴 화면이면 바로, 기본 화면이면 이벤트 > 화석 발굴로 들어가서 시작합니다. 끝나면 창을 닫습니다."),
         ("레이드 전투", "길드레이드 보스 실제 전투 한 판", ["raid.py", "go"],
          "실제 [전투] 한 판 (입장 횟수 사용). 스킬 규칙은 연습과 같음."),
+        # patch220: 유물 공방(헥사 머지) - 왼쪽 1판 / 오른쪽 남은 티켓 전부(5판)
+        ("유물 공방", "로비에서 한 판 (티켓 1장)", ["hexa.py", "play", "go", "1"],
+         "유물 공방 이벤트 로비(시작 버튼 보이는 화면)나 게임 화면을 열어 둔 뒤 누르세요. 끝나면 로비에서 보상 받기까지. 기록 shots\\hexa_log.txt"),
+        ("유물 공방 5판", "티켓 5장 연속 (다시 하기)", ["hexa.py", "play", "go", "5"],
+         "한 판 끝날 때마다 '다시 하기'로 이어서 5판. 티켓이 모자라면 거기서 멈춥니다."),
     ]
 
     def __init__(self, root):
@@ -317,7 +322,6 @@ class App:
         for key, label, sub in (
                 ("fairy", "정령의 고원 (티켓 구매 + 소탕)", "다이아를 사용합니다. 기본은 꺼짐."),
                 ("soul", "신전 영혼의 휴식 (실험)", "다이아 5000 이상이고 일일 작업이 끝났을 때 최대 4시간 쉬며 훈장을 받습니다. 쉬는 동안 다른 동작은 멈춥니다. 먼저 py soul.py start go 로 시험해 보세요. 기본은 꺼짐."),
-                ("soul_x2", "영혼의 휴식 종료 시 훈장 2배 (다이아 1000)", "종료할 때 다이아 1000개를 써서 훈장을 2배로 받습니다. 끄면 1배로 받습니다. 기본은 켜짐."),
                 ("q30_open", "(시범) 퀘스트 30번 열기 전략", "환생 후 영웅 '골드' 프리셋 -> 29퀘 400c 뒤 유물 '골드 모으기'로 200ao 모으기 -> '오픈골드 감소' + 레오로 30퀘 오픈 -> 기본/시간 복귀. 모으는 중 중간 업글은 +1000 두 번만. 기본은 꺼짐."),
                 ("cont_skip", "이어하기 후 카운트다운 15회 연타", "성 함락 때 이어하기를 누른 뒤 준비 카운트다운(20초)을 화면 연타로 줄입니다. 끄면 연타 없이 기다립니다. 기본은 켜짐."),
                 ):

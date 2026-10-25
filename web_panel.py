@@ -275,13 +275,20 @@ def do_action():
             return jsonify({"ok": False, "msg": "시작 실패: %r" % (e,)})
 
     elif action == "ohwan_restart":
-        req_file = os.path.join(BASE_OHWAN, "restart_main.req")
-        try:
-            with open(req_file, "w", encoding="utf-8") as f:
-                f.write("restart")
-            return jsonify({"ok": True, "msg": "오환2 재시작 요청이 전달되었습니다 (restart_main.req)"})
-        except Exception as e:
-            return jsonify({"ok": False, "msg": "재시작 요청 실패: %r" % (e,)})
+        pid = get_pid_from_file(os.path.join(BASE_OHWAN, "main.pid"))
+        def do_restart():
+            if pid and is_pid_alive(pid):
+                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+                time.sleep(1.5)
+            p = subprocess.Popen([sys.executable, "main.py", "go"], cwd=BASE_OHWAN, creationflags=CREATE_NO_WINDOW)
+            with open(os.path.join(BASE_OHWAN, "main.pid"), "w", encoding="utf-8") as f:
+                f.write(str(p.pid))
+            req_file = os.path.join(BASE_OHWAN, "restart_main.req")
+            if os.path.exists(req_file):
+                try: os.remove(req_file)
+                except Exception: pass
+        threading.Thread(target=do_restart, daemon=True).start()
+        return jsonify({"ok": True, "msg": "오환2 매크로 재시작을 진행 중입니다."})
 
     elif action == "ohwan_stop":
         pid = get_pid_from_file(os.path.join(BASE_OHWAN, "main.pid"))

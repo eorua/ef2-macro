@@ -68,8 +68,34 @@ def mark():
     print("저장:", path)
 
 
-GEM_ROW_Y0, GEM_ROW_DY = 868, 107      # patch204: 고용 목록 줄의 가격 버튼 가운데 y (첫 줄, 줄 간격)
+GEM_ROW_Y0, GEM_ROW_DY = 868, 90       # patch204/patch277: 고용 목록 줄의 가격 버튼 가운데 y (첫 줄 868, 줄 간격 90px)
 GEM_FILE = os.path.join(BASE, "recruit_left.json")
+
+KNOWN_HEROES = [
+    # 5성~6성 및 주요 고용 출현 영웅 (patch277: OCR 오인식 보정용 사전)
+    "다크아처", "데스나이트", "폭탄병", "사제", "드루이드", "전장의북", "불의정령", "골렘",
+    "죽음의 손", "암흑제독", "서큐버스", "메두사", "리치", "다크엘프", "어비스메이지",
+    "실피드", "윈드워커", "알라딘", "요정", "오공", "페가수스", "히포그리프", "세이지",
+    "나가", "서리악마", "오크현자", "발키리", "그리핀라이더", "파일럿", "스팀펑크",
+    "윙나이트", "클레릭", "아틀라스", "닌자", "늑대기사", "마술사", "대마법사",
+    "열혈사제", "암흑궁수", "오크도끼병", "중갑병", "해골병", "총병", "보병",
+    "엘프궁병", "오크파이터", "마법사", "사령관", "암살자", "서큐", "울프라이더"
+]
+
+
+def _read_hero_name(img, y):
+    """patch277: 행 y 중심 기준 영웅 이름 텍스트 OCR 판독 및 보정"""
+    import ocrx, re, difflib
+    crop = img[y - 25:y + 6, 160:430]
+    padded = cv2.copyMakeBorder(crop, 25, 25, 25, 25, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    resized = cv2.resize(padded, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    ws = ocrx.words(resized) or []
+    raw = "".join(w[0] for w in sorted(ws, key=lambda w: w[1]))
+    cleaned = re.sub(r"[^가-힣a-zA-Z\s]", "", raw).strip()
+    if not cleaned:
+        return ""
+    m = difflib.get_close_matches(cleaned, KNOWN_HEROES, n=1, cutoff=0.45)
+    return m[0] if m else cleaned
 
 
 def _gem_ratio(img, y):
@@ -78,28 +104,32 @@ def _gem_ratio(img, y):
     return float(((roi[..., 0] >= 95) & (roi[..., 0] <= 125) & (roi[..., 1] > 100) & (roi[..., 2] > 140)).mean())
 
 
-def gem_left():
-    """patch204: 훈장구매 뒤 남은 '보석으로 사야 하는' 영웅 이름/가격을 읽어 recruit_left.json 에 저장 (패널에 크게 표시)"""
-    import json, re
-    img = capture()
+def gem_left(img=None):
+    """patch204/patch277: 훈장구매 뒤 남은 '보석으로 사야 하는' 영웅 이름/가격을 읽어 recruit_left.json 에 저장 (패널에 크게 표시)"""
+    import json
+    if img is None:
+        img = capture()
     if img is None:
         return None
     cv2.imwrite(os.path.join(BASE, "shots", "recruit_after_buy.png"), img)
-    info = {"name": "", "price": None, "t": time.time()}
+    
+    found_heroes = []
+    has_gem = False
     for i in range(4):
         y = GEM_ROW_Y0 + GEM_ROW_DY * i
-        if y + 14 > img.shape[0] or _gem_ratio(img, y) < 0.08:
+        if y + 14 > img.shape[0]:
             continue
-        name, price = "", None
-        try:
-            import ocrx
-            c = cv2.resize(img[y - 42:y - 4, 150:430], None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-            ws = ocrx.words(c) or []
-            name = "".join(w[0] for w in sorted(ws, key=lambda w: w[1]) if not re.search(r"\d", w[0])).strip()
-        except Exception as e:
-            print("보석 영웅 글자 읽기 오류:", e)
-        info.update(name=name or "?", price=price)
-        break
+        if _gem_ratio(img, y) >= 0.08:
+            has_gem = True
+            try:
+                name = _read_hero_name(img, y)
+                if name:
+                    found_heroes.append(name)
+            except Exception as e:
+                print(f"보석 영웅 ({i}행) 글자 읽기 오류:", e)
+
+    hero_str = ", ".join(found_heroes) if found_heroes else ("?" if has_gem else "")
+    info = {"name": hero_str, "price": 2000 if hero_str else None, "t": time.time()}
     try:
         with open(GEM_FILE, "w", encoding="utf-8") as f:
             json.dump(info, f, ensure_ascii=False)

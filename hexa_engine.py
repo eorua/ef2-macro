@@ -94,35 +94,44 @@ def resolve(b, placed, choice=0, info=None):
     branches = 1
     front = list(placed)
     first_amb = True
-    while front:
-        nxt = []
+    chain = None
+    # patch269: 한 번에 한 그룹씩 처리 - 낮은 등급 그룹 먼저(같으면 놓은 순서), 연쇄면 직전 결과 칸이 결과 칸.
+    #   실전 로그 2458수 재현: 예전(그룹 동시 처리) 불일치 52수 -> 26수, 새로 틀린 수 0
+    #   (예: ★5·★4·★5 를 놓으면 ★4 그룹이 먼저 ★5 가 되고, 그 칸이 ★5 그룹과 이어져 ★6 이 그 자리에)
+    while True:
+        best = None
         done = set()
         for a in front:
-            if a in done or b[a] == 0:
+            if a in done or b[a] <= 0:
                 continue
             g = group(b, a)
             done |= g
-            if len(g) >= 3 and b[a] < MAXT:
-                t = b[a]
-                cands = [x for x in front if x in g]
-                # patch230: 3칸 사슬(직선·휘어진) 조각이 셋 다 합쳐지면 결과는 항상 양 끝 중 하나(실전 12/12, 가운데 0)
-                if len(cands) == 3 and first_amb and len(placed) == 3:
-                    deg = {c: sum(1 for d in cands if d != c and d in NB[c]) for c in cands}
-                    if sorted(deg.values()) == [1, 1, 2]:
-                        cands = [c for c in cands if deg[c] == 1]
-                if len(cands) > 1 and first_amb:
-                    first_amb = False
-                    branches = len(cands)
-                    tgt = cands[choice % len(cands)]
-                else:
-                    tgt = cands[0]
-                for x in g:
-                    b[x] = 0
-                nt = min(MAXT, t + gain(len(g)))
-                b[tgt] = nt
-                made.append((t, len(g), nt))
-                nxt.append(tgt)
-        front = nxt
+            if len(g) >= 3 and b[a] < MAXT and (best is None or b[a] < best[0]):
+                best = (b[a], g)
+        if best is None:
+            break
+        t, g = best
+        cands = [x for x in front if x in g]
+        if chain is not None and chain in g:
+            cands = [chain]
+        # patch230: 3칸 사슬(직선·휘어진) 조각이 셋 다 합쳐지면 결과는 항상 양 끝 중 하나(실전 12/12, 가운데 0)
+        if len(cands) == 3 and first_amb and len(placed) == 3:
+            deg = {c: sum(1 for d in cands if d != c and d in NB[c]) for c in cands}
+            if sorted(deg.values()) == [1, 1, 2]:
+                cands = [c for c in cands if deg[c] == 1]
+        if len(cands) > 1 and first_amb:
+            first_amb = False
+            branches = len(cands)
+            tgt = cands[choice % len(cands)]
+        else:
+            tgt = cands[0]
+        for x in g:
+            b[x] = 0
+        nt = min(MAXT, t + gain(len(g)))
+        b[tgt] = nt
+        made.append((t, len(g), nt))
+        chain = tgt
+        front = [tgt] + [x for x in front if x not in g and x != tgt]
     if info is not None:
         info['branches'] = branches
     return made, branches

@@ -108,16 +108,16 @@ def values(boards, us):
 
 _RMODE = None
 _BONUS = 0.002
-_TENB = 180.0
-_CLUST = 1.0
+_TENB = 0.0     # patch260: 기본 끔 (hexa_cfg.json c_tenb 로만 켬)
+_CLUST = 0.0    # patch260: 기본 끔 (bench_clust 검증 전)
 
 
 def _load_cfg_ten():
     global _TENB, _CLUST
     try:
         cfg = json.load(open(os.path.join(HERE, "hexa_cfg.json"), encoding="utf-8"))
-        _TENB = float(cfg.get("c_tenb", 180.0))
-        _CLUST = float(cfg.get("c_clust", 1.0))
+        _TENB = float(cfg.get("c_tenb", 0.0))
+        _CLUST = float(cfg.get("c_clust", 0.0))
     except Exception:
         pass
 
@@ -388,6 +388,13 @@ def _exe_path():
         # patch244: 낮은 등급 벌점(c_deadp)을 아는 새 수 읽기가 있으면 그것 (벌점 0 이면 예전과 같음)
         v2 = os.path.join(HERE, "hexa_search_v2.exe")
         v3 = os.path.join(HERE, "hexa_search_v3.exe")   # patch246: v2 + 3수째 조각 전부 가중평균(c_exact). 끄면 v2 와 같음
+        v7 = os.path.join(HERE, "hexa_search_v7.exe")   # patch262: search10.c = v6 + ★8 허브 보너스(c_hub/c_hub7). 0 이면 v6 와 같음
+        # patch269: search11.c = v7 + 합치기 처리 순서(낮은 등급 먼저, 연쇄 결과 칸 우선, hexa_engine.resolve 와 같음). 롤백은 v8 삭제
+        v8 = os.path.join(HERE, "hexa_search_v8.exe")
+        if os.path.exists(v8):
+            return v8
+        if os.path.exists(v7):
+            return v7
         v6 = os.path.join(HERE, "hexa_search_v6.exe")   # patch259: v5 + ★8·★9 인접 결합 가중치(c_clust)
         if os.path.exists(v6):
             return v6
@@ -482,6 +489,11 @@ def _cproc():
         env["TENB"] = str(float(_cfg["c_tenb"]))
     if "c_clust" in _cfg:
         env["CLUST"] = str(float(_cfg["c_clust"]))
+    # patch262: ★8(★7) 2+2 쌍이 빈 칸을 둘러싼 허브 구조 보너스 (hexa_cfg.json c_hub / c_hub7, bench_hub 가 정함)
+    if "c_hub" in _cfg:
+        env["HUB"] = str(float(_cfg["c_hub"]))
+    if "c_hub7" in _cfg:
+        env["HUB7"] = str(float(_cfg["c_hub7"]))
     kw = {}
     if os.name == "nt":
         # 창 없이, 낮은 우선순위로 (다른 프로그램·블루스택 방해 최소화)

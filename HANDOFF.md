@@ -24,6 +24,17 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-26 (Antigravity, patch279) 유물 공방 사전 포석(CLUST / HUB7) 3,000판 벤치마크 검증 및 Claude Code 권한 완성** (`bench_prehub.py`, `bench_prehub_result.txt`, `.claude/settings.local.json`, `~/.claude/settings.json`):
+  - 1) **유물 공방 사전 포석 시뮬레이션 비교 (총 3,000판, 5개 군 x 600판)**:
+    - **A (현재 기준: HUB 60, TENB 100)**: ★10 **27.5%**, 평균 **154.1수**, 점수 7,609, 8x5 직행 158회 (최고 성적).
+    - **B (CLUST 0.5 - 8성 1~2개 약한 결합)**: ★10 22.0% (-5.5%p), 149.8수.
+    - **C (CLUST 1.0 - 8성 1~2개 강한 결합)**: ★10 16.8% (-10.7%p), 144.4수.
+    - **D (HUB7 30 - 7성 단계 허브 밑그림)**: ★10 **5.8% (-21.7%p 폭망)**, 115.0수 (-25.4%), 7성 사망 103판.
+    - **E (CLUST 0.5 + HUB7 20 복합 포석)**: ★10 9.0% (-18.5%p), 131.5수.
+    - **결론 및 분석**: 23칸 좁은 보드에서 7성 단계나 8성 1~2개일 때 미리 모양을 잡으려고 블록을 쥐고 있으면 하위 머지 공간이 사라져 보드가 조기 질식함. 8성이 3개 이상 모이기 전까지는 보드를 유연하고 깨끗하게 비우는 현재 설정(A)이 수학적으로 10성 달성률이 가장 높음 (현재 설정 `hexa_cfg.json` 유지 확정).
+  - 2) **Claude Code 권한 설정(permissions.allow) 완비**:
+    - `C:\macro\.claude\settings.local.json` 및 `C:\Users\admin\.claude\settings.json`에 Read/Edit/Write(macro, pyokey), Bash(py, python, pythonw, pip, cmd, *.bat, git, taskkill, tasklist, adb, powershell 및 파일제어 명령어 10종) 등록 완료.
+
 - **2026-10-26 (Antigravity, patch278) 표키2 로젠가의 영애 패스 일일 보상 자동화 신설, 웹 대시보드 버튼 정리 및 권한 설정** (`pass_quest.py`, `C:\pyokey\main.py`, `C:\pyokey\settings.json`, `web_panel.py`, `templates/index.html`, `.claude/settings.local.json`, `.gitignore`):
   - 1) **표키2 로젠가 영애 패스 일일 수령 자동화 (`pass_quest.py`)**:
     - 홈 화면 `패스` 아이콘 진입 → `[패스 미션]` 탭 전환 → 일일 미션 6종 보상 수령 → `[패스 보상]` 탭 전환(달성 레벨 위치 자동 스크롤) → 최상단 무료 보상 2회 탭 수령 → 다이아몬드 X 닫기 복귀.

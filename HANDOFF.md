@@ -117,7 +117,7 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
   - **계획 B 학습/선별(`hexa_train/nt3.c`, `hexa_train/train_b.py`) ★10 최우선 보상 반영**:
     - `nt3.c`를 `core4.inc`(`G10A/G10B` 추적) 기반으로 전환하고, TD(0) 학습 보상에 `TENB=180, STAR9B=15, STAR8B=3` 및 탐색 정책 내 `cluster_eval`(`CLUST=1.0`)을 반영(기본값 `0`일 때 `nt2` 회귀 100% 호환 유지).
     - `train_b.py` 5단계 후보 선별 기준을 평균 생존 수가 아닌 **★10 달성률(`res10`) 최우선**으로 변경.
-- **2026-10-25 (Antigravity CLI, patch260) 양궁 70점 퍼펙트 무한 리트라이 루프 추가 및 발사 타이밍 미세 튜닝 (`arch.py`, `arch2.py`)**:
+- **2026-10-25 (Antigravity CLI, patch260(양궁)) 양궁 70점 퍼펙트 무한 리트라이 루프 추가 및 발사 타이밍 미세 튜닝 (`arch.py`, `arch2.py`)**:
   - **발사 타이밍 미세 튜닝**: 최근 25발 실측 중앙값(`0.7020초`)에 맞춰 `LEAD0 = 0.702`(`0.697 → 0.702`), 조준 오프셋 `AIM_PX = 2.0`(`4.0 → 2.0`, R1·R7 조기 탄착 보정), 발사 직전 대기 임계치 `0.022초`(`0.03 → 0.022`, 고속 라운드 1~2프레임 추가 관찰) 및 `wait_until` 마지막 2ms 정밀 폴링 적용, 화살 관측 이상치(`0.66~0.75초` 범위 밖) 무시 안전장치 추가. (`arch_rec_1020_115024.mp4` 리플레이 오차 R2~R7 전원 `±6px` 이내, 평균 `-0.8px` 달성).
   - **70점 퍼펙트 무한 리셋 루프**: 발사 후 중앙 점수 팝업(`HIT_ROI = (150, 775, 570, 820)`)에서 `'☆ PERFECT! 7점!'`(콤보 포함 7라운드 합산 70점 만점, 폭 `198~401px`)이 아닌 하위 점수(`6점!` 이하, 폭 `43~59px`) 또는 불발/미스 감지 즉시 우상단 빨간 X(`ARCH_X = (683, 181)`)를 눌러 놀이터로 탈출 후 `BLD_PLAY = (360, 653)`를 눌러 재도전하도록 구현 (`'오늘 도전 끝'` 텍스트 `done_today(img)` 인식 시 즉시 예외 탈출).
 
@@ -134,7 +134,19 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
   - 신규: `hexa_train/search10.c` (= search9.c + `hub_tier`, 환경변수 `HUB`/`HUB7`, 기본 0 이면 search9 와 동일), `search10.exe` (zig cc x86_64-windows-gnu -O3), `bench_hub.py`/`.bat` (A 기준 / B HUB5 / C HUB15 / D HUB30 / E HUB15+HUB7 5 / F CLUST1.0 × 600판, 자동 적용 없음). F 가 patch260 의 bench_clust 를 대신함.
   - 기존 FIVEB(모든 등급 5개 합치기 보너스)는 판 길이 하락으로 실패했었음 → HUB 는 ★8(★7) 구조에만 작용.
 
+- **2026-10-25 (Antigravity CLI, patch263) 양궁 70점 퍼펙트 루프 보강 (`arch.py`, `arch2.py`)**:
+  - **재시도 상한 및 보상 수령 보장 (`arch2.run`)**: `max_tries` `50 → 10` 축소 및 전체 시간 상한 10분(`MAX_BUDGET_SEC = 600.0`) 추가. 상한 도달 시 `perfect_only=False`로 1판 정상 완주 후 결과창 `RES_OK`를 눌러 보상을 수령하고 `"done"`을 반환하여 `guild.do_archery`가 `"timeout"`(`False`)으로 매 일일 점검마다 50판씩 재시도하며 메인 루프를 막는 문제 차단.
+  - **판정 순서 보강 (`arch2.play`)**: `phase == "post"`의 화살 궤적 수집 및 `hit_judge`를 `if x is None:` 분기 앞으로 이동하여 과녁이 화면에서 사라진 프레임에서도 `fired` 상태면 판정 수행(실제로 `arch_rec_1020_115024.mp4` 리플레이에서 기존 `x is None`으로 누락되던 6라운드 PERFECT까지 정상 감지됨). 라운드 종료(`GONE_SEC`) 직전에도 `hit_judge(img) == "perfect"`를 한 번 더 확인.
+  - **미스 오판 방지 (`arch2.play`)**: `"perfect"`는 1프레임 즉시 확정(우선), `"miss"`는 기존 연속 2프레임 대신 `0.15초 이상 연속 + 그 사이 perfect 0회`(`MISS_CONFIRM_SEC = 0.15`)일 때만 확정. `1.15초` 마감(`JUDGE_DEADLINE`) 시점에 `hit_judge`가 `None`이면 `shots\arch_judge_none_<라운드>.png` 저장 후 리셋.
+  - **재진입 안전장치 (`arch2._exit_and_reenter`)**: 우상단 X(`y < 240`, `RES_OK(360,602)` 근처 배제) 터치 후 2.5초 내 `title_score(img) < 0.70 and not result_visible(img)` 이탈이 확인됐을 때만 `BLD_PLAY` 터치. 미확인 시 `BLD_PLAY` 터치 없이 `shots\arch_exit_fail.png` 저장 후 `"timeout"` 반환.
+  - **LEAD 보정 이상치 경고 (`arch2._calib_lead`)**: `0.66~0.75초` 범위 밖 관측이 3라운드 연속(`out_streak >= 3`) 발생 시 `"LEAD 범위 재검토 필요"` 경고 로그 출력 후 기존 `lead` 유지.
+  - **검증 근거 및 미검증 항목**:
+    - 문법 및 리플레이 검증: `py -m py_compile arch.py arch2.py guild.py` 통과. `py arch2.py replay shots\rec\arch_rec_1020_115024.mp4` (`perfect_only=False`) 결과 기존 대비 변화 없음 — **R1: `-41ms (-8px)`, R2: `-9ms (-2px)`, R3: `-15ms (-4px)`, R4: `+23ms (+6px)`, R5: `+6ms (+1px)`, R6: `-7ms (-2px)`, R7: `-16ms (-4px)`** (R2~R6 5개 라운드 모두 `★ PERFECT` 판정 확인).
+    - **미검증(실전)**: 금일 양궁 도전은 이미 완료되었고 패널 `archery` 옵션이 꺼져 있어 실전 X 리셋 및 재진입 루프는 내일 오전 9시 이후 실전 시험 예정. 백업 `arch.py.bak263`, `arch2.py.bak263`.
+
 ## 다음 할 일
+
+0-A. **(patch263) 내일 오전 9시 이후 양궁 실전 시험**: 사용자가 `py guild.py arch go` 로 직접 실행 예정 (패널 `archery` 옵션은 건드리지 않음). **중점 확인 사항**: 첫 미스 발생 시 우상단 X 탈출 후 놀이터 재진입했을 때 오늘 도전 기회가 차감 없이 남아 있는지 확인.
 
 0. **(patch262) `hexa_train\bench_hub.bat` PC 실행** → `bench_hub_result.txt` 요약에 "합격"(★10 오차 초과 상승 + 판 길이 -3% 이내) 후보가 있으면 search10.c 로 `hexa_search_v6.exe` 빌드 + `hexa_nt.py` 에 HUB 전달 후 실전 적용.
 

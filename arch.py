@@ -16,11 +16,11 @@ START = (360, 868)
 START_ROI = (296, 844, 424, 894)
 RES_OK = (360, 602)
 RES_ROI = (300, 585, 420, 620)
-ARCH_X = (683, 181)                   # patch260: 양궁 창 우상단 빨간 X (놀이터로 즉시 탈출)
+ARCH_X = (683, 181)                   # patch260(양궁): 양궁 창 우상단 빨간 X (놀이터로 즉시 탈출)
 TAB_B = (620, 1247)                   # 길드 건물 탭
 BLD_PLAY = (360, 653)                 # 길드 건물 탭 3번째 줄: 놀이터
-HIT_ROI = (150, 775, 570, 820)        # patch260: 발사 후 중앙 점수 팝업 ('☆ PERFECT! 7점!' vs '6점!')
-DONE_ROI = (300, 850, 420, 890)       # patch260: '오늘 도전 끝' 텍스트 영역
+HIT_ROI = (150, 775, 570, 820)        # patch260(양궁): 발사 후 중앙 점수 팝업 ('☆ PERFECT! 7점!' vs '6점!')
+DONE_ROI = (300, 850, 420, 890)       # patch260(양궁): '오늘 도전 끝' 텍스트 영역
 SHOOT = (360, 900)                    # 화면 아무데나 누르면 발사
 TGT_ROI = (0, 430, 720, 600)          # 과녁이 지나가는 띠
 TGT_MIN = 0.80
@@ -60,7 +60,7 @@ def result_visible(img):
 
 
 def done_today(img):
-    """patch260: '오늘 도전 끝' 텍스트 표시 여부 (초록 글씨 + 검은 테두리, 시작 버튼/결과창 아님)"""
+    """patch260(양궁): '오늘 도전 끝' 텍스트 표시 여부 (초록 글씨 + 검은 테두리, 시작 버튼/결과창 아님)"""
     if start_visible(img) or result_visible(img):
         return False
     x1, y1, x2, y2 = DONE_ROI
@@ -72,7 +72,7 @@ def done_today(img):
 
 
 def hit_judge(img):
-    """patch260: 발사 후 중앙 팝업 텍스트로 정중앙 만점('☆ PERFECT! 7점!') 여부 판정.
+    """patch260(양궁): 발사 후 중앙 팝업 텍스트로 정중앙 만점('☆ PERFECT! 7점!') 여부 판정.
     반환: 'perfect' (정중앙 명중, 폭 198~401px) / 'miss' (하위 점수 6점 이하, 폭 43~59px) / None (팝업 전)"""
     x1, y1, x2, y2 = HIT_ROI
     hsv = cv2.cvtColor(img[y1:y2, x1:x2], cv2.COLOR_BGR2HSV)

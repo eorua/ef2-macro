@@ -158,11 +158,6 @@ def record_rebirth(st, why=""):
     """환생 직전의 최고 웨이브(peak_wave)를 최근 환생 목록에 기록 (패널에서 표시)"""
     st["probe_fell"] = False                   # patch156
     st["reborn_tribe_checked"] = False         # patch244: 환생 완료 후 종족 보너스 다시 판별
-    try:                                        # patch253: 환생 직후 웨이브 호출 AUTO 켜짐 확인 예약
-        import wavecall
-        wavecall.request_check(st, "환생")
-    except Exception as e:
-        log("웨이브 호출 확인 예약 오류: %r" % (e,))
     bonus_reset()                               # patch235: 환생하면 배지 값을 다시 읽음
     _rp = st.get("rprobe")                      # patch161: 한 판 다 모았으면 끝
     if _rp and _rp.get("shots") and not _rp.get("done"):
@@ -871,11 +866,6 @@ def after_restart_setup(st):
     log(f"프리셋 선택({hero}/{relic}): " + ("성공" if ok2 else "실패"))
     if not st.get("high_done"):
         st["need_low"] = False if ok2 else True
-    try:                                                   # patch253: 재시작 뒤엔 AUTO 가 꺼져 있을 수 있음 -> 확인 예약
-        import wavecall
-        wavecall.request_check(st, "재시작")
-    except Exception as e:
-        log("웨이브 호출 확인 예약 오류: %r" % (e,))
     save_state(st)
 
 
@@ -2016,12 +2006,6 @@ def main():
                     log("웨이브 미인식 처리 오류: %r" % (e,))
             w = wave_sane(w)
             if w is not None:
-                if GO:
-                    try:
-                        import wavecall
-                        if wavecall.tick(st, w): save_state(st)
-                    except Exception as _e:
-                        log("웨이브 호출 오류: %r" % (_e,))      # patch104: 인자 1개로
                 hist.append(w)
                 hist[:] = hist[-3:]
                 try:                                    # patch182: 7500 이후 화면 녹화 (스킬 직접 굴리기 중일 때만)

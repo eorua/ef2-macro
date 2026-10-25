@@ -4,8 +4,9 @@
   py wavecall.py off go      AUTO 끄기 한 번 실행
   py wavecall.py on go       AUTO 켜기 한 번 실행
 
-main.py 연결 (patch253): AUTO 는 항상 켜 둠. 시작·환생·재시작 직후와 30분마다 실제 상태를 확인해 꺼져 있으면 켬
-  (OFF_WAVE / ON_WAVE 는 예전 고층 끄기용 값 - 지금은 쓰지 않음)
+main.py 연결:
+  (patch273: 웨이브 호출 AUTO 상시 켜짐 전제로 메인 루틴의 확인 및 켜기/끄기 검증 제거.
+   단독 실행 명령은 진단용으로 유지: py wavecall.py look / on go / off go)
 """
 import os, sys, time
 import cv2, numpy as np
@@ -189,49 +190,17 @@ def set_auto(want_on):
         return False
 
 
-RECHECK_SEC = 1800         # patch253: 이 간격마다 설정창을 열어 AUTO 가 실제로 켜져 있는지 확인
-_BOOT = [True]             # patch253: 매크로 시작 후 첫 확인
+# patch273: 사용자 요청으로 웨이브 호출 상시 켜짐 전제 -> 주기적 확인 및 토글 루틴 제거
 
 
 def request_check(st, why=""):
-    """patch253: 환생 직후 / 게임·에뮬 재시작 직후 등에 호출 -> 다음 tick 에서 바로 AUTO 확인"""
-    st["wc_check"] = True
-    st["wc_next"] = 0
-    if why:
-        log("다음 루프에서 AUTO 확인 예약 (%s)" % why)
+    """patch273: 웨이브 호출 상시 켜짐 전제로 검증 루틴 제거 (호환용 no-op)"""
+    pass
 
 
 def tick(st, w):
-    """main 루프에서 호출. 확인/켜기를 시도했으면 True (state 저장 필요)
-    patch224: 사용자 요청 - AUTO 는 절대 끄지 않음 (항상 켜 둠)
-    patch253: 예전엔 '내가 끈 기록(wc_off)'이 있을 때만 켰기 때문에, 게임 재시작·에뮬 전환·업데이트 등
-              다른 이유로 꺼지면 영영 다시 켜지 않았음 -> 화면에서 실제 상태를 확인해서 켜도록 변경
-              확인 시점: 매크로 시작 직후 / 환생 직후 / 재시작 직후 / 그 외 30분마다"""
-    if w is None:
-        return False
-    now = time.time()
-    due = (_BOOT[0] or st.get("wc_check") or st.get("wc_off")
-           or now - st.get("wc_last_ok", 0) >= RECHECK_SEC)
-    if not due:
-        return False
-    if now < st.get("wc_next", 0):                 # 실패 후 재시도 대기 중
-        return False
-    why = ("시작" if _BOOT[0] else "환생/재시작" if st.get("wc_check")
-           else "예전 끔 기록" if st.get("wc_off") else "정기 30분")
-    log("웨이브 %d -> 웨이브 호출 AUTO 켜짐 확인 (%s)" % (w, why))
-    if set_auto(True):
-        _BOOT[0] = False
-        st["wc_off"] = False
-        st["wc_check"] = False
-        st["wc_last_ok"] = now
-        st["wc_fail"] = 0
-        st["wc_next"] = 0
-        st.pop("wc_low_since", None)
-    else:
-        st["wc_fail"] = st.get("wc_fail", 0) + 1
-        st["wc_next"] = now + (120 if st["wc_fail"] < 3 else 600)
-        log("AUTO 확인/켜기 실패 %d회 -> %d초 뒤 재시도" % (st["wc_fail"], int(st["wc_next"] - now)))
-    return True
+    """patch273: 웨이브 호출 상시 켜짐 전제로 검증 루틴 제거 (호환용 no-op)"""
+    return False
 
 
 if __name__ == "__main__":

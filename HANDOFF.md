@@ -24,6 +24,15 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-25 (Antigravity, patch273) 웨이브 호출 AUTO 불필요한 검증·토글 루틴 완전 제거** (`main.py`, `wavecall.py`):
+  - 사용자 요청: 게임 내에서 웨이브 호출 AUTO가 상시 켜져 있으므로, 한 사이클에 2번씩 설정창에 들어가서 켜짐 여부를 확인하거나 토글하던 불필요한 루틴을 제거.
+  - 제거 내역:
+    - `main.py`의 `record_rebirth`에서 환생 직후 `wavecall.request_check(st, "환생")` 예약 제거.
+    - `main.py`의 `after_restart_setup`에서 재시작 직후 `wavecall.request_check(st, "재시작")` 예약 제거.
+    - `main.py`의 메인 루프에서 `wavecall.tick(st, w)` 정기 30분/예약 검증 호출 완전 제거.
+    - `wavecall.py`의 `tick()` 및 `request_check()`를 no-op으로 전환하여 외부 호출 시에도 설정창 팝업이 뜨지 않도록 방어.
+    - `state.json`의 `wc_*` 잔여 상태 키 정리.
+    - 단발 진단 명령(`py wavecall.py look / on go / off go`)은 CLI 도구로 그대로 보존.
 - **2026-10-25 (Antigravity, patch272) 텔레그램 환생 알림 내용 확장 (소요 시간 + 획득 훈장 추가)** (`rebirth.py`, `main.py`):
   - 사용자 요청: 환생할 때마다 텔레그램 알림에 '이번 환생에 걸린 시간'과 '이번 환생을 통해 얻은 훈장' 2개 항목 추가.
   - 소요 시간 계산:

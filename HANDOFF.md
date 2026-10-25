@@ -8,8 +8,9 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 - **환경**:
   - 프로젝트 경로: `C:\macro` (통합 패널은 `C:\pyokey`에 위치)
-  - 대상 에뮬레이터: BlueStacks 인스턴스 `Pie64_3` (창 제목 `오환2`), ADB 포트 `127.0.0.1:5586` 고정 (`adbport.py`)
-  - **patch250**: `emu.json`으로 BlueStacks/뮤뮤(MuMu) 전환 가능 (기본값 `bluestacks`, 뮤뮤는 `127.0.0.1:16384`, 인스턴스 `0`). 뮤뮤 시험 중이며 점검 도구는 `emucheck.py`.
+  - 대상 에뮬레이터: BlueStacks 인스턴스 `Pie64_3` (창 제목 `오환2`), 현재 ADB `127.0.0.1:5585` (`adbport.py` scan 으로 자동 탐색, 대체값 5586)
+  - **patch250**: `emu.json`으로 BlueStacks/뮤뮤(MuMu) 전환 가능. **patch259에서 `bluestacks`로 롤백됨** (뮤뮤는 `127.0.0.1:16384`, 점검 도구 `emucheck.py`).
+  - **유물 공방 탐색 설정 (patch260)**: `hexa_cfg.json` `c_tenb=10`, `c_clust=0` → 항상 C 탐색기(v5). CLUST 는 `hexa_train/bench_clust.bat` 결과 보고 결정.
 - **매크로 코드 상태 (patch246 기준)**:
   - 메인 루프(`main.py`) 및 조작 패널(`panel.py`)을 통해 자동 환생 사이클, 일일 작업(`daily.py`, `dungeon.py`, `spirit.py`, `guild.py`, `friend.py`), 영혼의 휴식(`soul.py`), 무료 영입(`recruit.py`), 고층 스킬/웨이브호출 제어(`skillctl.py`, `wavecall.py`) 가동 중.
   - 최근 업데이트된 주요 기능(현재 커밋 반영 완료):
@@ -116,10 +117,30 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
   - **계획 B 학습/선별(`hexa_train/nt3.c`, `hexa_train/train_b.py`) ★10 최우선 보상 반영**:
     - `nt3.c`를 `core4.inc`(`G10A/G10B` 추적) 기반으로 전환하고, TD(0) 학습 보상에 `TENB=180, STAR9B=15, STAR8B=3` 및 탐색 정책 내 `cluster_eval`(`CLUST=1.0`)을 반영(기본값 `0`일 때 `nt2` 회귀 100% 호환 유지).
     - `train_b.py` 5단계 후보 선별 기준을 평균 생존 수가 아닌 **★10 달성률(`res10`) 최우선**으로 변경.
+- **2026-10-25 (Antigravity CLI, patch260) 양궁 70점 퍼펙트 무한 리트라이 루프 추가 및 발사 타이밍 미세 튜닝 (`arch.py`, `arch2.py`)**:
+  - **발사 타이밍 미세 튜닝**: 최근 25발 실측 중앙값(`0.7020초`)에 맞춰 `LEAD0 = 0.702`(`0.697 → 0.702`), 조준 오프셋 `AIM_PX = 2.0`(`4.0 → 2.0`, R1·R7 조기 탄착 보정), 발사 직전 대기 임계치 `0.022초`(`0.03 → 0.022`, 고속 라운드 1~2프레임 추가 관찰) 및 `wait_until` 마지막 2ms 정밀 폴링 적용, 화살 관측 이상치(`0.66~0.75초` 범위 밖) 무시 안전장치 추가. (`arch_rec_1020_115024.mp4` 리플레이 오차 R2~R7 전원 `±6px` 이내, 평균 `-0.8px` 달성).
+  - **70점 퍼펙트 무한 리셋 루프**: 발사 후 중앙 점수 팝업(`HIT_ROI = (150, 775, 570, 820)`)에서 `'☆ PERFECT! 7점!'`(콤보 포함 7라운드 합산 70점 만점, 폭 `198~401px`)이 아닌 하위 점수(`6점!` 이하, 폭 `43~59px`) 또는 불발/미스 감지 즉시 우상단 빨간 X(`ARCH_X = (683, 181)`)를 눌러 놀이터로 탈출 후 `BLD_PLAY = (360, 653)`를 눌러 재도전하도록 구현 (`'오늘 도전 끝'` 텍스트 `done_today(img)` 인식 시 즉시 예외 탈출).
+
+- **2026-10-25 (Claude, patch260) patch259 ★10 올인 되돌림 (검증 전까지)**:
+  - 근거: `bench_ten_result.txt`(300판) ★10 보너스 0/10/30 → ★10 8.3/9.0/8.7%, 171수 / 100·300 → 7.0·7.7%, 169수. 보너스 크게 주면 둘 다 하락. `cluster_eval` 은 가상 대전 검증 없음.
+  - 문제였던 점: v6.exe 미빌드라 ★8 이상이 뜨면 `best_move_c`가 C(3수째 정확 평균) 대신 Python D3(3수째 무작위 K=8)로 내려감 → 후반에 수 읽기가 약해짐. `search9.c` 기본값이 TENB 180/CLUST 1.0 으로 바뀌어 재빌드 시 기존 벤치 기준선이 조용히 바뀜.
+  - 변경: `hexa_cfg.json` `c_tenb` 180→10, `c_clust` 1.0→0 / `hexa_nt.py` `_TENB`·`_CLUST` 및 설정 없을 때 기본값 0 / `search9.c` 기본값 TENB=0 CLUST=0 / `train_b.py` `TEN_RW`=TENB10(STAR9B·STAR8B·CLUST 0), `TEN_SIM`=TENB10 CLUST0, 5단계 선별 = 판 길이 +3% 관문 + ★10 은 동률 보조.
+  - 신규: `hexa_train/search9clust.exe`(search9.c 기본값 0 빌드, MinGW -O3 static), `bench_clust.py`/`.bat` (A: 10/0, B: 10/0.5, C: 10/1.0, D: 180/1.0 × 600판).
+  - 메인 재시작 불필요 (유물 공방은 판마다 `hexa.py` 새로 실행, 설정은 매 수 다시 읽음). `cluster_eval` 함수·C 코드는 지우지 않음.
+  - 참고: `hexa_cfg.json` `lift` 130→100 은 `hexa.py` 드래그 자동 보정 값(정상).
+
+- **2026-10-25 (Claude, patch262) ★8 허브 보너스 실험 준비 (실전 미적용)**:
+  - 근거: 밤샘 실전 11판(`shots/hexa_spawn.jsonl`) ★10 0회, ★9 3개 동시 0회, ★8 최대 4개(덩어리 2+1+1). 로그상 5~7개 합치기 = +2등급 확인 → ★8 5개(2+2 쌍이 빈 칸 하나를 둘러쌈) → ★10 이 ★9 3개(★8 9개분)보다 재료 절반 이하. 분석 문서: 프로젝트 `claude/유물공방_실전로그분석_1025.md`.
+  - 신규: `hexa_train/search10.c` (= search9.c + `hub_tier`, 환경변수 `HUB`/`HUB7`, 기본 0 이면 search9 와 동일), `search10.exe` (zig cc x86_64-windows-gnu -O3), `bench_hub.py`/`.bat` (A 기준 / B HUB5 / C HUB15 / D HUB30 / E HUB15+HUB7 5 / F CLUST1.0 × 600판, 자동 적용 없음). F 가 patch260 의 bench_clust 를 대신함.
+  - 기존 FIVEB(모든 등급 5개 합치기 보너스)는 판 길이 하락으로 실패했었음 → HUB 는 ★8(★7) 구조에만 작용.
 
 ## 다음 할 일
 
-0. **뮤뮤 전환 시험 (patch250)**: `emu.json`을 `mumu`로 바꾼 뒤 `py adbport.py scan` → `py emucheck.py fast` → `py emucheck.py touch X Y go`로 확인, 이후 `restart_main.req`로 메인 재시작. MuMuManager `control` 명령(재시작/종료)은 실제 뮤뮤 버전에서 아직 미검증 → `py bsrestart.py`(시험 모드) 출력 확인 필요.
+0. **(patch262) `hexa_train\bench_hub.bat` PC 실행** → `bench_hub_result.txt` 요약에 "합격"(★10 오차 초과 상승 + 판 길이 -3% 이내) 후보가 있으면 search10.c 로 `hexa_search_v6.exe` 빌드 + `hexa_nt.py` 에 HUB 전달 후 실전 적용.
+
+0-0. (patch262 의 F 로 대체됨) **(patch260) `hexa_train\bench_clust.bat` PC 실행** → `bench_clust_result.txt`에서 A(CLUST 0) 대비 B/C 가 판 길이·★10 둘 다 낫거나, ★10 이 오차(약 ±2.3%p) 넘게 나을 때만 search9.c 로 `hexa_search_v6.exe` 빌드 후 `c_clust` 적용.
+
+0-1. (보류) **뮤뮤 재시험**: `emu.json`을 `mumu`로 바꾼 뒤 `py adbport.py scan` → `py emucheck.py fast` → `py emucheck.py touch X Y go`로 확인, 이후 `restart_main.req`로 메인 재시작. MuMuManager `control` 명령(재시작/종료)은 실제 뮤뮤 버전에서 아직 미검증 → `py bsrestart.py`(시험 모드) 출력 확인 필요.
 
 1. **유물 공방 봇 방향성**:
    - 조각 출현이 가방·연속제한·판 상태 보정 없는 독립 무작위(i.i.d.)이고, 현재 봇 대비 `N=2~3`개를 완벽히 알아도 상승 폭이 `+7.5~8.9%` 수준이므로, **출현 예측기(카운팅) 추가는 불필요**함.

@@ -9,15 +9,16 @@ import sys, os, time
 import numpy as np
 import cv2
 import arch
-from arch import (START, RES_OK, SHOOT, CENTER_X, HIT_Y, TIP_V, start_visible, result_visible,
+from arch import (START, RES_OK, SHOOT, CENTER_X, HIT_Y, TIP_V, ARCH_X, TAB_B, BLD_PLAY,
+                  start_visible, result_visible, done_today, hit_judge,
                   find_target, arrow_strip, arrow_tip, title_score, _tpl)
 
 SHOTS = r"C:\macro\shots"
 LOGF = os.path.join(SHOTS, "arch2_log.txt")
-LEAD0 = 0.697   # patch213: 10-20~23 실측 0.686~0.705 (업데이트 뒤 화살이 조금 빨라짐), 지난 판 값이 있으면 그것부터 / 예전 0.72                 # patch143: 0.70 -> 0.72 (실측 0.709~0.730, 1라운드 6점이던 원인). 누른 뒤 화살이 과녁 높이에 닿기까지(관찰 지연 포함) 첫 추정. 라운드마다 스스로 보정
+LEAD0 = 0.702   # patch260: 10-24~25 실측 25발 중앙값 0.7020(평균 0.7025, 표준편차 0.0042) 반영 / patch213: 0.697
 V0 = 200.0                   # 1라운드 과녁 속도 첫 추정 (영상: 140~300 px/s)
 MIN_SPAN = 0.12              # 속도는 최소 이 시간 동안 본 뒤에 계산 (patch152: 0.15 -> 0.12, 화면 시각이 정확해져서 짧게 봐도 됨)
-AIM_PX = 4.0                 # patch152: 실측으로 평균 3~6px 늦게 맞음 -> 가운데보다 이만큼 앞을 노림
+AIM_PX = 2.0                 # patch260: 4.0 -> 2.0 (10-20 영상 실측: 4.0일 때 R1·R7이 tgt_x=368~369로 2~3px 일찍 맞아 6점 발생 -> 정중앙 360.0 정렬)
 GONE_SEC = 0.35              # 과녁이 이만큼 안 보이면 라운드 끝
 # patch165: 빠른 라운드(6·7)는 관찰 0.12~0.2초뿐이라 속도를 7~9% 틀리게 잼 (10-18 7라운드 317 -> 실제 346, 28px 늦음)
 #   -> 라운드별 지난 판 속도(중앙값)를 미리 알고, 관찰이 짧을수록 그 값을 더 믿음
@@ -95,7 +96,8 @@ class FastEnv:
             d = t - time.perf_counter()
             if d <= 0:
                 return
-            _sleep(d - 0.004 if d > 0.008 else 0.0005)
+            if d > 0.002:
+                _sleep(d - 0.003 if d > 0.006 else 0.0005)
 
     def grab(self, timeout=0.5):
         """새 화면이 오면 (받은 시각, 화면). 화면이 안 바뀌면 timeout 뒤 마지막 화면"""
@@ -177,15 +179,32 @@ def robust_fit(samples):
 
 
 # ---------------------------------------------------------------- 한 판
-def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True):
+def _calib_lead(tips, t_tap, lead, calibrated, say):
+    """patch260: 화살 궤적에서 실제 도달 지연(obs) 추정. 이상치(0.66~0.75 밖) 무시 및 완만한 보정"""
+    if not tips or t_tap is None:
+        say("  화살을 못 봄 (LEAD 그대로 %.3f)" % lead)
+        return lead, calibrated, None
+    vals = sorted(t2 + (ty - HIT_Y) / TIP_V - t_tap for t2, ty in tips)
+    obs = vals[len(vals) // 2]
+    if not (0.66 <= obs <= 0.75):
+        say("  화살 관측 이상치 무시 (%.3f초, LEAD 그대로 %.3f)" % (obs, lead))
+        return lead, calibrated, round(obs, 3)
+    w = 0.5 if calibrated == 0 else 0.35
+    new = min(0.74, max(0.67, w * obs + (1 - w) * lead))
+    say("  화살 관측: 누른 뒤 %.3f초에 도달 -> LEAD %.3f -> %.3f" % (obs, lead, new))
+    return new, calibrated + 1, round(obs, 3)
+
+
+def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True, perfect_only=True):
     t_begin = env.now()
     v_prev = V0
     hist = _speeds()                                 # patch165
-    seen = shots = calibrated = 0
+    seen = shots = calibrated = perfects = 0
     phase = "wait"
     samples, tips, bg = [], [], None
     t_tap = None
-    fired = False
+    fired = round_perfect = False
+    miss_cnt = 0
     last_seen = 0.0
     last_start_tap = env.now()
     popup = False
@@ -196,6 +215,11 @@ def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True)
             break
         tf, img = g
         if result_visible(img):
+            if perfect_only and perfects < 7:
+                say("  70점 미달성(%d/7) 결과창 감지 -> 확인 안 누르고 리셋" % perfects)
+                if calibrate:
+                    _save_speeds(hist)
+                return dict(result="retry", shots=shots, perfects=perfects, lead=lead, rounds=rounds, seen=seen)
             popup = True
             break
         x = find_target(img, tpl)
@@ -203,6 +227,8 @@ def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True)
             trace.append((tf, -1 if x is None else x, seen, phase))
         if phase == "wait":
             if x is None:
+                if seen == 0 and done_today(img):
+                    return dict(result="already", shots=shots, perfects=perfects, lead=lead, rounds=rounds, seen=seen)
                 if seen == 0 and start_visible(img) and env.now() - last_start_tap > 3.0:
                     env.tap(START)
                     last_start_tap = env.now()
@@ -212,7 +238,7 @@ def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True)
             seen += 1
             samples, tips = [(tf, x)], []
             bg = arrow_strip(img)
-            fired, t_tap = False, None
+            fired, round_perfect, miss_cnt, t_tap = False, False, 0, None
             last_seen = tf
             phase = "track"
             say("라운드 %d 시작: 과녁 x=%d" % (seen, x))
@@ -220,7 +246,7 @@ def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True)
         # track / post
         if x is None:
             if tf - last_seen >= GONE_SEC:
-                info = {"round": seen, "fired": fired}
+                info = {"round": seen, "fired": fired, "perfect": round_perfect}
                 fit = robust_fit(samples)
                 if fit:
                     v_prev = fit[0]
@@ -229,18 +255,15 @@ def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True)
                         hist.setdefault(seen, []).append(round(fit[0]))
                     say("  라운드 %d 과녁 속도 %.0f px/s" % (seen, fit[0]))
                 if fired and t_tap is not None and calibrate:
-                    if tips:
-                        vals = sorted(t2 + (ty - HIT_Y) / TIP_V - t_tap for t2, ty in tips)
-                        obs = vals[len(vals) // 2]
-                        w = 0.7 if calibrated == 0 else 0.5
-                        new = min(1.2, max(0.4, w * obs + (1 - w) * lead))
-                        say("  화살 관측: 누른 뒤 %.3f초에 도달 -> LEAD %.3f -> %.3f" % (obs, lead, new))
-                        info["lead_obs"] = round(obs, 3)
-                        lead = new
-                        calibrated += 1
-                    else:
-                        say("  화살을 못 봄 (LEAD 그대로 %.3f)" % lead)
+                    lead, calibrated, obs_r = _calib_lead(tips, t_tap, lead, calibrated, say)
+                    if obs_r is not None:
+                        info["lead_obs"] = obs_r
                 rounds.append(info)
+                if perfect_only and (not fired or not round_perfect):
+                    say("  라운드 %d: 10점(PERFECT) 미달성 상태로 라운드 종료 -> 즉시 X 리셋" % seen)
+                    if calibrate:
+                        _save_speeds(hist)
+                    return dict(result="retry", shots=shots, perfects=perfects, lead=lead, rounds=rounds, seen=seen)
                 phase = "wait"
             continue
         last_seen = tf
@@ -250,6 +273,29 @@ def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True)
                 ty = arrow_tip(img, bg)
                 if ty is not None and 600 <= ty <= 1030:
                     tips.append((tf, ty))
+            if t_tap is not None and tf >= t_tap + 0.55 and not round_perfect:
+                j = hit_judge(img)
+                if j == "perfect":
+                    round_perfect = True
+                    perfects += 1
+                    miss_cnt = 0
+                    say("  라운드 %d: ★ PERFECT 확인 (%d/7)" % (seen, perfects))
+                elif j == "miss":
+                    miss_cnt += 1
+                    if perfect_only and miss_cnt >= 2:
+                        if calibrate:
+                            lead, calibrated, _ = _calib_lead(tips, t_tap, lead, calibrated, say)
+                            _save_speeds(hist)
+                        say("  라운드 %d: 10점 미달(하위 점수) 감지 -> 즉시 X 터치 후 리셋" % seen)
+                        return dict(result="retry", shots=shots, perfects=perfects, lead=lead, rounds=rounds, seen=seen)
+                else:
+                    miss_cnt = 0
+                if perfect_only and not round_perfect and tf - t_tap >= 1.15:
+                    if calibrate:
+                        lead, calibrated, _ = _calib_lead(tips, t_tap, lead, calibrated, say)
+                        _save_speeds(hist)
+                    say("  라운드 %d: PERFECT 미확인(미스) -> 즉시 X 터치 후 리셋" % seen)
+                    return dict(result="retry", shots=shots, perfects=perfects, lead=lead, rounds=rounds, seen=seen)
             continue
         # 발사 시각 계산
         span = samples[-1][0] - samples[0][0]
@@ -274,7 +320,7 @@ def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True)
             t_cross = tl + (xl - CENTER_X) / v
         t_shot = t_cross - lead - AIM_PX / v
         now = env.now()
-        if t_shot - now > 0.03:                      # 아직 여유 있음 -> 다음 화면 보고 다시 계산
+        if t_shot - now > 0.022:                     # patch260: 0.03 -> 0.022 (빠른 라운드에서 1프레임 더 관찰)
             continue
         if fit is None and span < 0.08:
             say("  관찰 시간이 너무 짧음(%.2f초) - 추정 속도 %.0f 로 발사" % (span, v))
@@ -289,7 +335,7 @@ def play(env, tpl, lead=LEAD0, max_sec=150, say=log, trace=None, calibrate=True)
             samples[-1][1], v, span, len(samples), t_cross - t_tap, lead))
     if calibrate:
         _save_speeds(hist)                           # patch165
-    return dict(result="done" if popup else "timeout", shots=shots, lead=lead, rounds=rounds, seen=seen)
+    return dict(result="done" if popup else "timeout", shots=shots, perfects=perfects, lead=lead, rounds=rounds, seen=seen)
 
 
 def _save_trace(trace, tag):
@@ -303,9 +349,58 @@ def _save_trace(trace, tag):
         pass
 
 
+def _find_arch_x(img):
+    """patch260: 양궁 화면 우상단 빨간 X 위치 반환 (기본 ARCH_X=(683, 181))"""
+    try:
+        import closer
+        pts = [p for p in closer.close_buttons(img) if p[1] < 240]
+        if pts:
+            pts.sort(key=lambda p: p[1])
+            return pts[0]
+    except Exception:
+        pass
+    return ARCH_X
+
+
+def _exit_and_reenter(env, say):
+    """patch260: 우상단 빨간 X 터치 -> 놀이터 화면으로 탈출 -> 다시 놀이터(BLD_PLAY) 터치하여 양궁 진입"""
+    g = env.grab(0.2)
+    pt_x = _find_arch_x(g[1]) if g is not None else ARCH_X
+    env.tap(pt_x)
+    say("우상단 X(%d, %d) 터치 -> 놀이터로 탈출" % pt_x)
+    t0 = env.now()
+    while env.now() - t0 < 2.5:
+        env.sleep(0.25)
+        g = env.grab(0.2)
+        if g is not None and title_score(g[1]) < 0.70:
+            break
+    env.sleep(0.25)
+    env.tap(BLD_PLAY)
+    say("놀이터(%d, %d) 터치 -> 양궁 재진입" % BLD_PLAY)
+    t1 = env.now()
+    retapped = False
+    while env.now() - t1 < 5.0:
+        env.sleep(0.3)
+        g = env.grab(0.2)
+        if g is None:
+            continue
+        img = g[1]
+        if done_today(img):
+            return "already"
+        if start_visible(img):
+            return "ready"
+        if not retapped and env.now() - t1 > 2.2 and title_score(img) < 0.70:
+            env.tap(TAB_B)
+            env.sleep(0.5)
+            env.tap(BLD_PLAY)
+            retapped = True
+    return "timeout"
+
+
 # ---------------------------------------------------------------- 실행
-def run(env=None, say=log):
-    """양궁 화면에서 한 판. 'done' / 'already'(시작 버튼 없음) / 'timeout' / 'nocam'(fastcam 실패)"""
+def run(env=None, say=log, perfect_only=True, max_tries=50):
+    """양궁 화면에서 70점 퍼펙트 달성까지 반복 실행.
+    반환: 'done' / 'already'(오늘 도전 끝 또는 시작 버튼 없음) / 'timeout' / 'nocam'(fastcam 실패)"""
     own = env is None
     if own:
         try:
@@ -320,31 +415,69 @@ def run(env=None, say=log):
             say("tpl\\arch_target.png 가 없습니다")
             return "notpl"
         g = env.grab()
-        if g is None or not start_visible(g[1]):
-            say("게임 시작 버튼이 안 보임 (오늘 이미 했거나 다른 화면)")
+        if g is None:
+            return "timeout"
+        if done_today(g[1]):
+            say("'오늘 도전 끝' 텍스트 확인 -> 양궁 종료")
             return "already"
-        env.tap(START)
-        say("게임 시작 버튼 클릭")
+        if not start_visible(g[1]):
+            # 놀이터(길드 건물 탭) 화면에서 바로 호출된 경우 놀이터 줄 한 번 터치 시도
+            if title_score(g[1]) < 0.70:
+                env.tap(BLD_PLAY)
+                env.sleep(1.2)
+                g = env.grab()
+            if g is None or done_today(g[1]):
+                say("'오늘 도전 끝' 확인 -> 양궁 종료")
+                return "already"
+            if not start_visible(g[1]):
+                say("게임 시작 버튼이 안 보임 (오늘 이미 했거나 다른 화면)")
+                return "already"
         lead0 = LEAD0
-        try:                                             # patch213: 지난 판 마지막 LEAD 부터 (1라운드가 첫 추정값 차이로 6점 나던 것)
+        try:                                             # patch213: 지난 판 마지막 LEAD 부터
             v = float(open(LEAD_F, encoding="utf-8").read().strip())
-            if 0.6 < v < 0.8:
+            if 0.67 <= v <= 0.74:
                 lead0 = v
         except Exception:
             pass
-        res = play(env, tpl, lead=lead0, say=say, trace=trace)
-        try:
-            if res.get("result") == "done" and 0.6 < res["lead"] < 0.8:
-                with open(LEAD_F, "w", encoding="utf-8") as f:
-                    f.write("%.3f" % res["lead"])
-        except Exception:
-            pass
-        say("결과: %s / 쏜 횟수 %d / 최종 LEAD %.3f / 라운드 %s" % (res["result"], res["shots"], res["lead"], res["rounds"]))
-        if res["result"] == "done":
-            env.sleep(0.8)
-            env.tap(RES_OK)
-            env.sleep(1.0)
-        return res["result"]
+        tries = max_tries if perfect_only else 1
+        for attempt in range(1, tries + 1):
+            g = env.grab(0.2)
+            if g is not None and done_today(g[1]):
+                say("'오늘 도전 끝' 확인 -> 루프 탈출")
+                return "already"
+            env.tap(START)
+            say("게임 시작 버튼 클릭 (%d번째 도전, LEAD %.3f)" % (attempt, lead0))
+            res = play(env, tpl, lead=lead0, say=say, trace=trace, perfect_only=perfect_only)
+            if 0.67 <= res["lead"] <= 0.74:
+                lead0 = res["lead"]
+                try:
+                    with open(LEAD_F, "w", encoding="utf-8") as f:
+                        f.write("%.3f" % lead0)
+                except Exception:
+                    pass
+            say("결과(%d회차): %s / 쏜 횟수 %d (PERFECT %d/7) / LEAD %.3f" % (
+                attempt, res["result"], res["shots"], res.get("perfects", 0), res["lead"]))
+            if res["result"] == "done":
+                say("★ 70점 만점(전탄 PERFECT) 달성! 보상 수령 후 종료")
+                env.sleep(0.8)
+                env.tap(RES_OK)
+                env.sleep(1.0)
+                return "done"
+            if res["result"] == "already":
+                say("'오늘 도전 끝' 감지 -> 루프 종료")
+                return "already"
+            if res["result"] == "retry":
+                st = _exit_and_reenter(env, say)
+                if st == "already":
+                    say("재진입 후 '오늘 도전 끝' 확인 -> 루프 종료")
+                    return "already"
+                if st != "ready":
+                    say("양궁 화면 재진입 실패(%s) -> 중단" % st)
+                    return "timeout"
+                continue
+            return res["result"]
+        say("최대 재도전 횟수(%d회) 초과 -> 중단" % tries)
+        return "timeout"
     finally:
         _save_trace(trace, time.strftime("%m%d_%H%M%S"))
         if own:
@@ -358,7 +491,7 @@ def replay(path):
     trace = []
     msgs = []
     res = play(env, tpl, say=lambda *a: msgs.append(" ".join(str(x) for x in a)), trace=trace,
-               calibrate=False)     # 영상 속 화살은 우리가 쏜 게 아니므로 보정하지 않음
+               calibrate=False, perfect_only=False)     # 영상 속 화살은 우리가 쏜 게 아니므로 보정·중도리셋 하지 않음
     env.close()
     for m in msgs:
         log("[영상] " + m)
@@ -390,8 +523,8 @@ def look():
         cv2.imwrite(os.path.join(SHOTS, "arch2_look.png"), img)
         tpl = _tpl("arch_target.png")
         x = find_target(img, tpl) if tpl is not None else None
-        log("양궁 제목 %.2f / 시작 버튼 %s / 결과 팝업 %s / 과녁 x=%s (shots\\arch2_look.png)" % (
-            title_score(img), start_visible(img), result_visible(img), x))
+        log("양궁 제목 %.2f / 시작 버튼 %s / 오늘도전끝 %s / 결과 팝업 %s / 과녁 x=%s (shots\\arch2_look.png)" % (
+            title_score(img), start_visible(img), done_today(img), result_visible(img), x))
     finally:
         env.close()
 

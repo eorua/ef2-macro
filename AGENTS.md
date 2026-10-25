@@ -10,10 +10,21 @@
    - 모든 화면 캡처와 입력은 ADB(`C:\platform-tools\adb.exe`) 또는 창 없는 `scrcpy-server` 직접 소켓 통신(`fastcam.py`)으로만 처리합니다.
    - 자식 프로세스 호출 시 콘솔 창이 깜빡이며 포커스를 빼앗지 않도록 주의합니다 (`CREATE_NO_WINDOW = 0x08000000` 활용).
 2. **타 BlueStacks 인스턴스 종료 절대 금지**: 오환2용 BlueStacks 인스턴스(`Pie64_3`, 창 제목에 `오환2` 포함) 외 **다른 BlueStacks 인스턴스는 절대 종료하거나 재시작하지 마세요.** (`taskkill /IM HD-Player.exe` 전체 종료 금지, 반드시 창 제목/인스턴스 확인 후 해당 PID만 제어)
-3. **ADB 포트 고정**: 오환2 BlueStacks(`Pie64_3`)의 ADB 포트는 **`5586` 고정**(`127.0.0.1:5586`)을 기본으로 사용합니다 (`adbport.py` 참조).
+3. **ADB 포트**: 오환2 BlueStacks(`Pie64_3`)의 ADB 포트는 `adbport.py`가 찾아서 씀 (2026-10-25 현재 **`5585`**, 대체값 `5586`). 포트를 코드에 직접 박지 말고 `adbport.py`를 거칩니다.
    - **에뮬레이터 선택 (patch250)**: `C:\macro\emu.json`의 `"emu"`가 `"bluestacks"`(기본, 파일 없을 때도 동일) 또는 `"mumu"`. 뮤뮤는 `mumu_port`(기본 `16384`, 인스턴스마다 +32)·`mumu_index`(기본 `0`) 사용, 재시작/종료는 `MuMuManager.exe control -v <번호>`로 해당 인스턴스만 제어. 롤백은 `"emu": "bluestacks"` 한 단어만 바꾸고 `main.py` 재시작. 단발 시험은 환경변수 `MACRO_EMU=mumu`.
 4. **통합 패널 위치**: 여러 프로젝트를 아우르는 통합 패널은 별도 폴더 `C:\pyokey`에 있습니다 (`C:\macro\panel.py`는 오환2 단독 조작 패널).
 5. **작업 종료 시 인수인계 및 커밋**: 작업을 마치면 반드시 `HANDOFF.md`를 최신 상태로 갱신("현재 상태 / 최근 작업 / 다음 할 일")하고 `git commit` 합니다.
+6. **검토용 diff 남기기 (Claude 검토 사용량 절약)**: 작업을 **시작할 때** 기준 커밋을 적어 두고, 커밋까지 **끝낸 뒤** 그 기준부터의 변경을 `C:\macro\review.diff` 한 파일로 남깁니다 (덮어쓰기, `.gitignore` 대상).
+   ```powershell
+   # 시작할 때
+   git -C C:\macro rev-parse HEAD > C:\macro\review.base
+   # 끝낸 뒤 (커밋 후)
+   $b = (Get-Content C:\macro\review.base).Trim()
+   git -C C:\macro log --oneline "$b..HEAD" > C:\macro\review.diff
+   git -C C:\macro diff --stat $b HEAD >> C:\macro\review.diff
+   git -C C:\macro diff $b HEAD -- . ":(exclude)*.exe" ":(exclude)*.bin" ":(exclude)*.npz" >> C:\macro\review.diff
+   ```
+   - `HANDOFF.md`의 해당 작업 항목에 **근거**(벤치 판수·결과 수치, 회귀 테스트 장수 등)와 **미검증/미빌드 항목**(예: `.c`는 고쳤지만 `.exe` 미빌드)을 반드시 적습니다. 근거 없는 실전 설정 변경(`hexa_cfg.json`, `settings.json` 등)은 하지 않고 "제안"으로만 남깁니다.
 
 ---
 

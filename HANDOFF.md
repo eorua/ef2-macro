@@ -24,6 +24,25 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-25 (Antigravity, patch272) 텔레그램 환생 알림 내용 확장 (소요 시간 + 획득 훈장 추가)** (`rebirth.py`, `main.py`):
+  - 사용자 요청: 환생할 때마다 텔레그램 알림에 '이번 환생에 걸린 시간'과 '이번 환생을 통해 얻은 훈장' 2개 항목 추가.
+  - 소요 시간 계산:
+    - 직전 환생 기록(`lst[-1]["t"]`)과의 차이 `now - prev_t`를 초 단위로 계산 (`54분 0초`, 1시간 이상 시 `1시간 2분 15초`).
+    - 직전 기록이 없는 예외 상황에서는 성 함락 창의 게임 내 표시(`마지막 환생 이후 지난 시간 : 53M`) OCR 판독값(`53분`)을 fallback으로 활용.
+  - 획득 훈장 판독:
+    - 환생결과 팝업(`title_result.png`, `btn_confirm.png`)에서 `ocrx`로 최종 획득 훈장(`3.12c (x3)` 또는 `2.89c (x2)`) 정밀 판독 (`rebirth.parse_result_medal`).
+    - 성 함락/환생하기 창에서도 `17.2b + 1.03c` 공식 및 지난 시간을 fallback 판독 (`rebirth.parse_fall_info`).
+    - `rebirth.after_click(st)`에서 결과 팝업 확인 클릭 직전에 화면 저장(`snap_reward`)과 훈장 판독을 함께 수행하도록 개선.
+  - 텔레그램 메시지 포맷:
+    ```
+    🔄 [오늘도환생2] 환생
+    • 층수: 8001층
+    • 종류: 환생(💎x2)
+    • 걸린 시간: 54분 0초
+    • 획득 훈장: 3.12c (x3)
+    • 시각: 10-25 22:20:28
+    ```
+  - `st["rebirths"]` 항목에도 `"dur"`, `"medal"` 함께 기록되어 패널/로그에서도 확인 가능.
 - **2026-10-25 (Claude, patch271) 텔레그램 무음 알림 연동** (`telegram_bot.py`, `notify.py`, `main.py`, `hexa.py`, `.gitignore`):
   - 토큰·chat_id 를 코드에서 빼서 `telegram.json`(새 파일, `.gitignore` 추가)으로 분리. `send_telegram(msg, silent=True, block=False)` = 무음(`disable_notification`) + 백그라운드 스레드 전송, `esc()` 로 HTML 이스케이프.
   - `main.py` `record_rebirth()` 에서 환생 기록 직후 알림(층수·종류·시각) — 환생 경로 4곳(성 함락/💎x2/정체/감지)이 모두 여기를 지남.

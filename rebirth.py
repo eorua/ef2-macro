@@ -62,7 +62,69 @@ def wait_fall():
         time.sleep(1)
 
 
-def after_click():
+def snap_reward(img, kind, st=None):
+    """patch272: 환생 보상(훈장) 분석용 - 성 함락/환생결과 창을 shots\\reward 에 jpg 로 저장 (화면 가운데만)"""
+    try:
+        if img is None:
+            return
+        d = os.path.join(BASE, "shots", "reward")
+        os.makedirs(d, exist_ok=True)
+        w = int((st or {}).get("peak_wave") or 0)
+        n = time.strftime("%m%d_%H%M%S") + "_%s_w%d.jpg" % (kind, w)
+        h = img.shape[0]
+        crop = img[150:1130] if h >= 1200 else img
+        cv2.imwrite(os.path.join(d, n), crop, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    except Exception as e:
+        print("[rebirth] 보상 화면 저장 실패: %r" % (e,))
+
+
+def parse_result_medal(img):
+    """patch272: 환생결과 팝업에서 획득한 최종 훈장 수량 판독 (예: '3.12c (x3)' 또는 '2.89c (x2)')"""
+    if img is None:
+        return None
+    try:
+        import ocrx, re
+        h = img.shape[0]
+        crop = img[400:850, 100:620] if h >= 1200 else img
+        ws = ocrx.words(crop) or []
+        line = " ".join(w[0] for w in ws)
+        m = re.search(r"훈장\s*(?:\((x\d+)\))?\s*[:：]?\s*([0-9.]+\s*[a-zA-Z]+)", line)
+        if m:
+            mult, amt = m.group(1), m.group(2).replace(" ", "")
+            return f"{amt} ({mult})" if mult else amt
+        for w in ws:
+            m2 = re.match(r"^[+~]?([0-9.]+[a-zA-Z]+)$", w[0].strip())
+            if m2 and not m2.group(1).lower().endswith("m") and not m2.group(1).lower().endswith("h"):
+                return m2.group(1)
+    except Exception as e:
+        print("[rebirth] 훈장 판독 오류: %r" % (e,))
+    return None
+
+
+def parse_fall_info(img):
+    """patch272: 성 함락 / 환생하기 창에서 훈장 공식 및 지난 시간 판독
+    반환: (medal_formula, time_str) - 예: ('17.2b + 1.03c', '53분')
+    """
+    if img is None:
+        return None, None
+    try:
+        import ocrx, re
+        ws = ocrx.words(img) or []
+        line = " ".join(w[0] for w in ws)
+        m_medal = re.search(r"([0-9.]+\s*[a-zA-Z]+)\s*\+\s*([0-9.]+\s*[a-zA-Z]+)", line)
+        medal = ("%s + %s" % (m_medal.group(1).replace(" ", ""), m_medal.group(2).replace(" ", ""))) if m_medal else None
+        m_time = re.search(r"시간\s*[:：]?\s*(\d+)\s*([MmHh])", line)
+        t_str = None
+        if m_time:
+            num, unit = m_time.group(1), m_time.group(2).upper()
+            t_str = f"{num}분" if unit == "M" else f"{num}시간"
+        return medal, t_str
+    except Exception as e:
+        print("[rebirth] 함락 정보 판독 오류: %r" % (e,))
+        return None, None
+
+
+def after_click(st=None):
     ready = has("title_result.png") and has("btn_confirm.png")
     if not ready:
         print("환생결과 템플릿이 아직 없음 -> 화면을 shots\\after_XX.png 로 저장합니다")
@@ -78,6 +140,14 @@ def after_click():
         bs, (bx, by) = match(s, "btn_confirm.png", RES_CONFIRM)
         print(f"title_result={ts:.2f}  confirm={bs:.2f}  pos=({bx},{by})")
         if ts >= 0.85 and bs >= 0.90:
+            if st is not None:
+                try:
+                    snap_reward(s, "result", st)
+                    m = parse_result_medal(s)
+                    if m:
+                        st["last_medal"] = m
+                except Exception as e:
+                    print("[rebirth] 환생결과 처리 오류: %r" % (e,))
             tap(bx, by)
             print("환생결과 '확인' 클릭 완료")
             return True

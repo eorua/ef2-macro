@@ -176,18 +176,54 @@ def record_rebirth(st, why=""):
     st["relic_basic"] = False                  # patch129
     try:
         w = int(st.get("peak_wave") or 0)
-        if w > 0:
-            lst = list(st.get("rebirths") or [])
-            lst.append({"wave": w, "t": int(time.time()), "why": why})
-            st["rebirths"] = lst[-10:]
-            log("환생 기록: %d층 (%s)" % (w, why))
-        try:                                    # patch271: 텔레그램 무음 알림 (백그라운드 전송)
+        now = int(time.time())
+        lst = list(st.get("rebirths") or [])
+
+        # patch272: 이번 환생에 걸린 시간 계산 (직전 환생 시각 기준)
+        dur_str = None
+        if lst and lst[-1].get("t"):
+            prev_t = int(lst[-1]["t"])
+            dt = now - prev_t
+            if 0 < dt < 86400 * 2:               # 48시간 이내 정상 환생 사이클
+                m, s = dt // 60, dt % 60
+                dur_str = ("%d시간 %d분 %d초" % (m // 60, m % 60, s)) if m >= 60 else ("%d분 %d초" % (m, s))
+        if not dur_str and st.get("fall_time"):
+            dur_str = st.get("fall_time")        # OCR 게임 표시 fallback
+
+        # patch272: 이번 환생으로 얻은 훈장 (환생결과 창 우선, 성 함락 창 fallback)
+        medal_str = st.get("last_medal")
+        if not medal_str and st.get("fall_medal"):
+            fm = st.get("fall_medal")
+            medal_str = ("%s (💎x2)" % fm) if ("💎x2" in why or "x2" in why) else fm
+
+        rec = {"wave": w, "t": now, "why": why}
+        if dur_str:
+            rec["dur"] = dur_str
+        if medal_str:
+            rec["medal"] = medal_str
+
+        lst.append(rec)
+        st["rebirths"] = lst[-10:]
+        log("환생 기록: %s층 (%s) - 소요: %s / 훈장: %s" % (
+            str(w) if w > 0 else "?", why, dur_str or "-", medal_str or "-"))
+
+        try:                                    # patch271, patch272: 텔레그램 무음 알림 (소요시간, 훈장 포함)
             from telegram_bot import send_telegram, esc
-            send_telegram("🔄 <b>[오늘도환생2] 환생</b>\n• 층수: %s\n• 종류: %s\n• 시각: %s" % (
-                ("%d층" % w) if w > 0 else "?", esc(why or "-"), time.strftime("%m-%d %H:%M:%S")))
+            lines = [
+                "🔄 <b>[오늘도환생2] 환생</b>",
+                "• 층수: %s" % (("%d층" % w) if w > 0 else "?"),
+                "• 종류: %s" % esc(why or "-"),
+                "• 걸린 시간: %s" % esc(dur_str or "-"),
+                "• 획득 훈장: %s" % esc(medal_str or "-"),
+                "• 시각: %s" % time.strftime("%m-%d %H:%M:%S")
+            ]
+            send_telegram("\n".join(lines))
         except Exception as e:
             log("텔레그램 환생 알림 오류: %r" % (e,))
         st["peak_wave"] = 0
+        st.pop("last_medal", None)
+        st.pop("fall_medal", None)
+        st.pop("fall_time", None)
     except Exception as e:
         log("환생 기록 오류: %r" % (e,))
 
@@ -1048,6 +1084,12 @@ def rebirth_now(st=None):
         if ts >= 0.85 and gs >= 0.90 and gx < 0.42 * img.shape[1]:
             if st is not None:
                 exact_wave(st, img)                       # patch213
+                try:                                      # patch272
+                    fm, ft = rebirth.parse_fall_info(img)
+                    if fm: st["fall_medal"] = fm
+                    if ft: st["fall_time"] = ft
+                except Exception:
+                    pass
             log("환생하기 창 확인 → 초록 '환생' 클릭")
             rebirth.tap(gx, gy)
             time.sleep(4)
@@ -1717,6 +1759,12 @@ def main():
             if ok:
                 log("성 함락 감지 → 환생 클릭")
                 snap_reward(img, "fall", st)            # patch160
+                try:                                    # patch272: 성 함락 창 정보(훈장/지난시간) 판독
+                    fm, ft = rebirth.parse_fall_info(img)
+                    if fm: st["fall_medal"] = fm
+                    if ft: st["fall_time"] = ft
+                except Exception:
+                    pass
                 if GO:
                     _wk = wkx2_try(st, img, (gx, gy))   # patch235: 주말 +50% 이벤트면 💎500 빨간 환생
                     if _wk == "wait":
@@ -1737,7 +1785,7 @@ def main():
                         log("환생 클릭이 안 먹힌 것 같음 → 다시 클릭 (%d/2)" % (_try + 1))
                         rebirth.tap(_gx2, _gy2)
                         time.sleep(2.5)
-                    rebirth.after_click()
+                    rebirth.after_click(st)              # patch272
                     _chk = cap()
                     if _chk is not None and fall_popup(_chk)[0] and not result_popup(_chk)[0]:
                         log("성 함락 팝업이 그대로 남아 있음 → 환생 기록 없이 다음 루프에서 재시도")
@@ -1752,6 +1800,11 @@ def main():
             if ok:
                 log("환생결과 팝업 감지 → 확인 클릭")
                 snap_reward(img, "result", st)          # patch160
+                try:                                    # patch272: 환생결과 훈장 판독
+                    m = rebirth.parse_result_medal(img)
+                    if m: st["last_medal"] = m
+                except Exception:
+                    pass
                 if GO:
                     rebirth.tap(bx, by)
                     record_rebirth(st, "환생"); st.update(need_low=True, high_done=False, high_fails=0, mid_done=False, mid_fails=0, cont_used=0)

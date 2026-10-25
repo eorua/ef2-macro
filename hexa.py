@@ -72,6 +72,7 @@ def spawn_new_game(kind):
     SPAWN["gid"] = datetime.datetime.now().strftime("%m%d_%H%M%S")
     SPAWN["last"] = None
     EXPECT[:] = [[0] * E.N] if kind in ("start", "again") else []     # patch257: 새 판은 빈 판
+    LAST.clear()                 # patch267: 칸별 마지막으로 확인된 등급 기억도 새로
     try:
         with open(SPAWN_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps({"kind": "start", "gid": SPAWN["gid"], "how": kind, "t": time.time()}) + "\n")
@@ -350,7 +351,12 @@ def read_all(im):
     # 9·10등급: 색으로 읽은 값은 믿지 않고, 우리가 만든 자리(기억)만 인정
     for i in range(E.N):
         if b[i] >= 9 and i not in HI:
-            b[i] = -1
+            # patch267: ★9 도끼 그림이 확실히 맞으면(hi_art) 우리가 안 만든 자리여도 ★9 로 인정하고 기억에 넣음
+            #   (이어 하기·예상 빗나감 뒤 ★9 를 벽으로 두어 ★10 합성 기회를 놓치던 문제)
+            if b[i] == 9 and V.hi_art(im, i) == 9:
+                HI[i] = 9
+            else:
+                b[i] = -1
     for i, t in list(HI.items()):
         if b[i] == 0:
             del HI[i]          # 칸이 비었으면(합쳐져 사라짐) 기억 지움
@@ -498,6 +504,7 @@ def _vote(hist, since, need_tray):
 STATS = dict(moves=0, fails=0, best=0)
 META = {}
 NEXT = {}        # patch245: 놓은 뒤 확인한 판(멈춘 판)을 다음 수에 그대로 씀 -> 같은 확인을 두 번 안 함
+LAST = {}        # patch267: 칸별 마지막으로 확인된 등급(1~8). 화면에서 못 읽은 칸을 채울 때 씀
 TM = dict(n=0, plan=0.0, rot=0.0, drag=0.0, after=0.0, other=0.0, total=0.0, last=None)
 
 
@@ -679,15 +686,26 @@ def do_move(im, r):
             b[i] = t
     # patch266: 화면에서 못 읽은 칸(-1)은 맞아떨어진 예상 판 값으로 채움 (읽은 칸이 전부 예상과 같을 때만).
     #   실전 로그 재현: 엔진 예상이 실제 판과 97.8% 일치 -> 못 읽은 ★8 을 벽(-1)으로 두고 합칠 기회를 놓치던 문제
-    if hit is not None:
-        pb = preds[hit][0]
-        filled = []
-        for i in range(E.N):
-            if b[i] < 0 and 0 < pb[i] < 9:
-                b[i] = pb[i]
-                filled.append(i)
-        if filled:
-            STATS["filled"] = STATS.get("filled", 0) + len(filled)
+    pb = preds[hit][0] if hit is not None else None
+    filled = []
+    for i in range(E.N):
+        if b[i] >= 0:
+            continue
+        if pb is not None and 0 < pb[i] < 9:
+            b[i] = pb[i]
+            filled.append(i)
+        # patch267: 예상에서도 모르는 칸(벽)이거나 예상이 빗나간 수면, 그 칸에서 마지막으로 확인된 등급으로
+        #   로그 재현: -1 86 -> 60칸, 채운 값이 뒤에 실제로 읽혔을 때 167/167 일치
+        elif (pb is None or pb[i] < 0) and i in LAST:
+            b[i] = LAST[i]
+            filled.append(i)
+    if filled:
+        STATS["filled"] = STATS.get("filled", 0) + len(filled)
+    for i in range(E.N):         # patch267: 칸별 마지막 확인 등급 갱신 (빈칸이면 지움)
+        if 0 < b[i] < 9:
+            LAST[i] = b[i]
+        elif b[i] == 0:
+            LAST.pop(i, None)
     nr = dict(r3)
     nr["board"] = b
     nr["unk"] = [i for i in range(E.N) if b[i] < 0]

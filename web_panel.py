@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""web_panel.py - 오환2 & 표키2 통합 웹 대시보드 및 원격 제어 서버
+"""web_panel.py - 오환2 & 표키2 통합 웹 대시보드 및 원격 제어 서버 (고도화 버전)
 사용법:
   py web_panel.py             (기본 포트: 5000)
   py web_panel.py --port 8080 (포트 지정)
 브라우저 접속:
   http://localhost:5000
 """
-import os, sys, json, time, glob, socket, subprocess, ctypes
+import os, sys, json, time, glob, socket, subprocess, ctypes, threading
 from flask import Flask, render_template, jsonify, request
 
 BASE_OHWAN = r"C:\macro"
@@ -17,7 +17,7 @@ app = Flask(__name__, template_folder=os.path.join(BASE_OHWAN, "templates"))
 
 
 def is_pid_alive(pid):
-    """Windows API로 콘솔 창 없이 PID 생존 여부 확인"""
+    """Windows API로 콘솔 창 깜빡임 없이 프로세스 생존 여부 확인"""
     try:
         pid = int(pid)
         k = ctypes.windll.kernel32
@@ -56,6 +56,27 @@ def get_pid_from_file(path):
     return None
 
 
+def read_json_file(path, default=None):
+    if default is None:
+        default = {}
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return default
+
+
+def write_json_file(path, data):
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -63,19 +84,31 @@ def index():
 
 @app.route("/api/status")
 def get_status():
-    # 1. 오환2 상태 판독
+    # ---------------- 1. 에뮬레이터 연결 상태 ----------------
+    ohwan_emu_online = check_tcp_port(5585)
+    pyokey_emu_online = check_tcp_port(5595)
+
+    # ---------------- 2. 오환2 상태 및 정밀 진단 ----------------
     ohwan_pid = get_pid_from_file(os.path.join(BASE_OHWAN, "main.pid"))
     ohwan_running = is_pid_alive(ohwan_pid) if ohwan_pid else False
     ohwan_paused = os.path.exists(os.path.join(BASE_OHWAN, "PAUSE")) or os.path.exists(os.path.join(BASE_OHWAN, "PAUSED"))
+    state_ohwan = read_json_file(os.path.join(BASE_OHWAN, "state.json"))
+    settings_ohwan = read_json_file(os.path.join(BASE_OHWAN, "settings.json"))
 
-    state_ohwan = {}
-    state_file = os.path.join(BASE_OHWAN, "state.json")
-    if os.path.exists(state_file):
-        try:
-            with open(state_file, "r", encoding="utf-8") as f:
-                state_ohwan = json.load(f)
-        except Exception:
-            pass
+    # 진단 상태 결정
+    if not ohwan_emu_online:
+        ohwan_state = "emu_offline"
+        ohwan_diag = "BlueStacks 에뮬레이터(127.0.0.1:5585)가 꺼져 있습니다. BlueStacks(오환2)를 실행해 주세요."
+    elif not ohwan_running:
+        ohwan_state = "stopped"
+        ohwan_diag = "에뮬레이터 정상 연결됨. 오환2 매크로 프로세스가 중지 상태입니다. ▶ [시작] 버튼을 눌러주세요."
+    elif ohwan_paused:
+        ohwan_state = "paused"
+        ohwan_diag = "매크로가 안전 지점에서 일시정지(PAUSED) 상태입니다. ⏸ [재개]를 누르면 이어서 진행됩니다."
+    else:
+        ohwan_state = "running"
+        ohwan_diag = "오환2 매크로가 정상 실행 중입니다 (PID: %d, 최고 %s층)." % (
+            ohwan_pid, state_ohwan.get("peak_wave") or "측정중")
 
     # 종족 한글 변환
     tr = state_ohwan.get("reborn_tribe")
@@ -95,7 +128,11 @@ def get_status():
         else:
             rec_st = "영입 가능 상태"
 
-    # 환생 목록 시간 가공
+    # 보석 영입 남은 영웅
+    gem_hero_data = read_json_file(os.path.join(BASE_OHWAN, "recruit_left.json"))
+    gem_hero = gem_hero_data.get("name") if gem_hero_data else None
+
+    # 환생 기록
     rebirths = []
     for r in state_ohwan.get("rebirths") or []:
         r_copy = dict(r)
@@ -104,65 +141,99 @@ def get_status():
         rebirths.append(r_copy)
 
     # 녹화 설정 판독
-    rec_cfg = {}
-    rec_cfg_file = os.path.join(BASE_OHWAN, "rec_cfg.json")
-    if os.path.exists(rec_cfg_file):
-        try:
-            with open(rec_cfg_file, "r", encoding="utf-8") as f:
-                rec_cfg = json.load(f)
-        except Exception:
-            pass
-
-    # 최신 녹화 파일
+    rec_cfg = read_json_file(os.path.join(BASE_OHWAN, "rec_cfg.json"))
     rec_files = sorted(glob.glob(os.path.join(BASE_OHWAN, "shots", "rec", "*.mp4")), key=os.path.getmtime)
     latest_rec = os.path.basename(rec_files[-1]) if rec_files else "녹화 파일 없음"
 
-    # 2. 표키2 상태 판독
-    pyokey_pid = get_pid_from_file(os.path.join(BASE_PYOKEY, "main.pid"))
-    pyokey_running = is_pid_alive(pyokey_pid) if pyokey_pid else False
-
-    # 3. 에뮬레이터 포트 판독
-    ohwan_emu_online = check_tcp_port(5585)
-    pyokey_emu_online = check_tcp_port(5595)
-
-    # 4. 실시간 로그 (최근 35줄)
-    log_lines = []
+    # 오환2 실시간 로그 (최근 40줄)
+    ohwan_logs = []
     log_path = os.path.join(BASE_OHWAN, "macro.log")
     if os.path.exists(log_path):
         try:
             with open(log_path, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
-                log_lines = [l.rstrip("\r\n") for l in lines[-35:]]
+                ohwan_logs = [l.rstrip("\r\n") for l in lines[-40:]]
+        except Exception:
+            pass
+
+    # ---------------- 3. 표키2 상태 및 정밀 진단 ----------------
+    pyokey_pid = get_pid_from_file(os.path.join(BASE_PYOKEY, "main.pid"))
+    pyokey_running = is_pid_alive(pyokey_pid) if pyokey_pid else False
+    pyokey_paused = os.path.exists(os.path.join(BASE_PYOKEY, "PAUSE"))
+    state_pyokey = read_json_file(os.path.join(BASE_PYOKEY, "state.json"))
+    settings_pyokey = read_json_file(os.path.join(BASE_PYOKEY, "settings.json"))
+
+    if not pyokey_emu_online:
+        pyokey_state = "emu_offline"
+        pyokey_diag = "BlueStacks 에뮬레이터(127.0.0.1:5595)가 꺼져 있습니다. BlueStacks(표키)를 실행해 주세요."
+    elif not pyokey_running:
+        pyokey_state = "stopped"
+        pyokey_diag = "에뮬레이터 정상 연결됨. 표키2 매크로가 중지 상태입니다. ▶ [시작] 버튼을 눌러주세요."
+    elif pyokey_paused:
+        pyokey_state = "paused"
+        pyokey_diag = "표키2 매크로가 일시정지 중입니다."
+    else:
+        pyokey_state = "running"
+        pyokey_diag = "표키2 매크로가 정상 실행 중입니다 (PID: %d)." % pyokey_pid
+
+    # 루비 쿨타임
+    ruby_next = state_pyokey.get("ruby_next")
+    ruby_st = "-"
+    if ruby_next:
+        diff_r = int(ruby_next - time.time())
+        ruby_st = "쿨타임 대기 (%d분 %d초 뒤)" % (diff_r // 60, diff_r % 60) if diff_r > 0 else "루비 수령 가능"
+
+    # 표키2 실시간 로그 (최근 로그 파일 tail)
+    pyokey_logs = []
+    py_log_files = sorted(glob.glob(os.path.join(BASE_PYOKEY, "logs", "*.log")))
+    if py_log_files:
+        try:
+            with open(py_log_files[-1], "r", encoding="utf-8", errors="replace") as f:
+                lines = f.readlines()
+                pyokey_logs = [l.rstrip("\r\n") for l in lines[-40:]]
         except Exception:
             pass
 
     return jsonify({
         "ohwan": {
+            "state": ohwan_state,
+            "diag_msg": ohwan_diag,
             "running": ohwan_running,
             "pid": ohwan_pid if ohwan_running else None,
             "paused": ohwan_paused,
             "peak_wave": state_ohwan.get("peak_wave", 0),
             "tribe_text": tr_text,
             "cont_used": state_ohwan.get("cont_used", 0),
+            "cont_limit": settings_ohwan.get("fall_continue_n", 3),
             "recruit_status": rec_st,
-            "rebirths": rebirths
+            "gem_hero": gem_hero,
+            "rebirths": rebirths,
+            "settings": settings_ohwan,
+            "recording": {
+                "enabled": rec_cfg.get("enabled", False),
+                "remain_runs": rec_cfg.get("remain_runs", 0),
+                "start_wave": rec_cfg.get("start_wave", 7500),
+                "stop_wave": rec_cfg.get("stop_wave", 8050),
+                "latest_file": latest_rec
+            },
+            "logs": ohwan_logs
         },
         "pyokey": {
+            "state": pyokey_state,
+            "diag_msg": pyokey_diag,
             "running": pyokey_running,
-            "pid": pyokey_pid if pyokey_running else None
+            "pid": pyokey_pid if pyokey_running else None,
+            "paused": pyokey_paused,
+            "ruby_status": ruby_st,
+            "tickets": state_pyokey.get("tickets", {}),
+            "recharge": state_pyokey.get("recharge", {}).get("n", 0),
+            "settings": settings_pyokey,
+            "logs": pyokey_logs
         },
         "emulators": {
-            "ohwan_online": ohwan_emu_online,
-            "pyokey_online": pyokey_emu_online
-        },
-        "recording": {
-            "enabled": rec_cfg.get("enabled", False),
-            "remain_runs": rec_cfg.get("remain_runs", 0),
-            "start_wave": rec_cfg.get("start_wave", 7500),
-            "stop_wave": rec_cfg.get("stop_wave", 8050),
-            "latest_file": latest_rec
-        },
-        "logs": log_lines
+            "ohwan": {"port": 5585, "online": ohwan_emu_online, "pkg": "com.ekkorr.ef2"},
+            "pyokey": {"port": 5595, "online": pyokey_emu_online, "pkg": "com.mouseduck.boomerang"}
+        }
     })
 
 
@@ -171,16 +242,13 @@ def do_action():
     data = request.get_json() or {}
     action = data.get("action")
 
+    # ---------------- 오환2 매크로 제어 ----------------
     if action == "ohwan_start":
         pid = get_pid_from_file(os.path.join(BASE_OHWAN, "main.pid"))
         if pid and is_pid_alive(pid):
             return jsonify({"ok": True, "msg": "오환2가 이미 실행 중입니다 (PID: %d)" % pid})
         try:
-            p = subprocess.Popen(
-                [sys.executable, "main.py", "go"],
-                cwd=BASE_OHWAN,
-                creationflags=CREATE_NO_WINDOW
-            )
+            p = subprocess.Popen([sys.executable, "main.py", "go"], cwd=BASE_OHWAN, creationflags=CREATE_NO_WINDOW)
             with open(os.path.join(BASE_OHWAN, "main.pid"), "w", encoding="utf-8") as f:
                 f.write(str(p.pid))
             return jsonify({"ok": True, "msg": "오환2 매크로를 시작했습니다 (PID: %d)" % p.pid})
@@ -188,19 +256,18 @@ def do_action():
             return jsonify({"ok": False, "msg": "시작 실패: %r" % (e,)})
 
     elif action == "ohwan_restart":
-        # restart_main.req 요청 파일 생성 (패널/hub가 감지해 재시작)
         req_file = os.path.join(BASE_OHWAN, "restart_main.req")
         try:
             with open(req_file, "w", encoding="utf-8") as f:
                 f.write("restart")
-            return jsonify({"ok": True, "msg": "오환2 재시작을 요청했습니다 (restart_main.req)"})
+            return jsonify({"ok": True, "msg": "오환2 재시작 요청이 전달되었습니다 (restart_main.req)"})
         except Exception as e:
             return jsonify({"ok": False, "msg": "재시작 요청 실패: %r" % (e,)})
 
     elif action == "ohwan_stop":
         pid = get_pid_from_file(os.path.join(BASE_OHWAN, "main.pid"))
         if not pid or not is_pid_alive(pid):
-            return jsonify({"ok": True, "msg": "오환2가 실행 중이 아닙니다."})
+            return jsonify({"ok": True, "msg": "오환2가 이미 중지 상태입니다."})
         try:
             subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
             time.sleep(0.5)
@@ -213,30 +280,60 @@ def do_action():
             return jsonify({"ok": False, "msg": "중지 오류: %r" % (e,)})
 
     elif action == "ohwan_pause":
-        pause_file = os.path.join(BASE_OHWAN, "PAUSE")
-        paused_file = os.path.join(BASE_OHWAN, "PAUSED")
-        if os.path.exists(pause_file) or os.path.exists(paused_file):
-            try:
-                if os.path.exists(pause_file): os.remove(pause_file)
-                if os.path.exists(paused_file): os.remove(paused_file)
-                return jsonify({"ok": True, "msg": "일시정지를 해제하고 매크로를 재개했습니다."})
-            except Exception as e:
-                return jsonify({"ok": False, "msg": "일시정지 해제 오류: %r" % (e,)})
+        p_file = os.path.join(BASE_OHWAN, "PAUSE")
+        pd_file = os.path.join(BASE_OHWAN, "PAUSED")
+        if os.path.exists(p_file) or os.path.exists(pd_file):
+            if os.path.exists(p_file): os.remove(p_file)
+            if os.path.exists(pd_file): os.remove(pd_file)
+            return jsonify({"ok": True, "msg": "일시정지를 해제하고 매크로를 재개했습니다."})
         else:
-            try:
-                with open(pause_file, "w", encoding="utf-8") as f:
-                    f.write("pause")
-                return jsonify({"ok": True, "msg": "일시정지 신호를 보냈습니다 (안전 지점에서 정지)"})
-            except Exception as e:
-                return jsonify({"ok": False, "msg": "일시정지 설정 오류: %r" % (e,)})
+            with open(p_file, "w", encoding="utf-8") as f:
+                f.write("pause")
+            return jsonify({"ok": True, "msg": "일시정지 신호를 보냈습니다 (안전 지점에서 일시정지)"})
 
-    elif action == "telegram_test":
-        try:
-            from telegram_bot import send_telegram
-            ok = send_telegram("🔔 <b>[웹 패널]</b> 텔레그램 연동 테스트 알림입니다.", silent=False, block=True)
-            return jsonify({"ok": ok, "msg": "텔레그램 테스트 알림을 전송했습니다." if ok else "전송 실패 (telegram.json 확인)"})
-        except Exception as e:
-            return jsonify({"ok": False, "msg": "텔레그램 오류: %r" % (e,)})
+    elif action == "ohwan_opt_set":
+        key = data.get("key")
+        val = data.get("val")
+        st_path = os.path.join(BASE_OHWAN, "settings.json")
+        cfg = read_json_file(st_path)
+        cfg[key] = val
+        write_json_file(st_path, cfg)
+        return jsonify({"ok": True, "msg": "오환2 옵션 '%s'이(가) %s(으)로 변경되었습니다." % (key, val)})
+
+    elif action == "ohwan_bs_restart":
+        def run_bs():
+            subprocess.run([sys.executable, "bsrestart.py", "go"], cwd=BASE_OHWAN, creationflags=CREATE_NO_WINDOW)
+        threading.Thread(target=run_bs, daemon=True).start()
+        return jsonify({"ok": True, "msg": "BlueStacks(오환2) 단독 재시작 작업을 백그라운드에서 시작했습니다."})
+
+    elif action == "ohwan_oneshot":
+        job = data.get("job")
+        job_map = {
+            "daily": ("일일 작업", ["daily.py", "go"]),
+            "dungeon": ("던전 소탕", ["dungeon.py", "go"]),
+            "archery": ("양궁 1판", ["arch2.py", "play", "go"]),
+            "fossil": ("화석 발굴", ["fossil.py", "go"]),
+            "hexa": ("유물 공방 1판", ["hexa.py", "play", "go", "1"]),
+            "recruit": ("무료 영입", ["recruit.py", "go"]),
+            "cap": ("화면 캡처", ["cap.py"]),
+            "cleanup": ("임시파일 정리", ["cleanup.py", "go"])
+        }
+        if job in job_map:
+            label, cmd = job_map[job]
+            def run_job():
+                subprocess.run([sys.executable] + cmd, cwd=BASE_OHWAN, creationflags=CREATE_NO_WINDOW)
+            threading.Thread(target=run_job, daemon=True).start()
+            return jsonify({"ok": True, "msg": "'%s' 단발 실행을 시작했습니다." % label})
+        return jsonify({"ok": False, "msg": "알 수 없는 단발 작업입니다."})
+
+    elif action == "ohwan_rec_set":
+        runs = int(data.get("runs", 3))
+        cfg_path = os.path.join(BASE_OHWAN, "rec_cfg.json")
+        cfg = read_json_file(cfg_path, {"start_wave": 7500, "stop_wave": 8050, "fps": 15, "max_sec": 1800})
+        cfg["enabled"] = runs > 0
+        cfg["remain_runs"] = runs
+        write_json_file(cfg_path, cfg)
+        return jsonify({"ok": True, "msg": "고층 자동 녹화를 %d회분 설정했습니다." % runs})
 
     elif action == "open_recording":
         try:
@@ -249,40 +346,60 @@ def do_action():
         except Exception as e:
             return jsonify({"ok": False, "msg": "영상 열기 실패: %r" % (e,)})
 
-    elif action == "toggle_rec":
+    elif action == "telegram_test":
         try:
-            cfg_path = os.path.join(BASE_OHWAN, "rec_cfg.json")
-            cfg = {"enabled": True, "remain_runs": 3, "start_wave": 7500, "stop_wave": 8050, "fps": 15, "max_sec": 1800}
-            if os.path.exists(cfg_path):
-                try:
-                    with open(cfg_path, "r", encoding="utf-8") as f:
-                        cfg = json.load(f)
-                except Exception:
-                    pass
-            cfg["enabled"] = True
-            cfg["remain_runs"] = 3
-            with open(cfg_path, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, indent=2, ensure_ascii=False)
-            return jsonify({"ok": True, "msg": "앞으로 3회 환생 사이클 동안 7500~8050 구간 자동 녹화를 장전했습니다."})
+            from telegram_bot import send_telegram
+            ok = send_telegram("🔔 <b>[웹 대시보드]</b> 텔레그램 연동 정상 작동 테스트입니다.", silent=False, block=True)
+            return jsonify({"ok": ok, "msg": "텔레그램 테스트 알림을 발송했습니다." if ok else "전송 실패 (telegram.json 확인)"})
         except Exception as e:
-            return jsonify({"ok": False, "msg": "녹화 설정 변경 실패: %r" % (e,)})
+            return jsonify({"ok": False, "msg": "텔레그램 전송 오류: %r" % (e,)})
 
-    elif action == "pyokey_toggle":
+    # ---------------- 표키2 매크로 제어 ----------------
+    elif action == "pyokey_start":
         pid = get_pid_from_file(os.path.join(BASE_PYOKEY, "main.pid"))
         if pid and is_pid_alive(pid):
-            # 표키 재시작 요청
-            req = os.path.join(BASE_PYOKEY, "restart.req")
+            return jsonify({"ok": True, "msg": "표키2가 이미 실행 중입니다 (PID: %d)" % pid})
+        try:
+            p = subprocess.Popen([sys.executable, "main.py"], cwd=BASE_PYOKEY, creationflags=CREATE_NO_WINDOW)
+            with open(os.path.join(BASE_PYOKEY, "main.pid"), "w", encoding="utf-8") as f:
+                f.write(str(p.pid))
+            return jsonify({"ok": True, "msg": "표키2 매크로를 시작했습니다 (PID: %d)" % p.pid})
+        except Exception as e:
+            return jsonify({"ok": False, "msg": "표키2 시작 실패: %r" % (e,)})
+
+    elif action == "pyokey_restart":
+        req = os.path.join(BASE_PYOKEY, "restart.req")
+        try:
             with open(req, "w", encoding="utf-8") as f:
                 f.write("restart")
-            return jsonify({"ok": True, "msg": "표키2 매크로 재시작을 요청했습니다."})
-        else:
+            return jsonify({"ok": True, "msg": "표키2 재시작 요청이 전달되었습니다 (restart.req)"})
+        except Exception as e:
+            return jsonify({"ok": False, "msg": "표키2 재시작 요청 실패: %r" % (e,)})
+
+    elif action == "pyokey_stop":
+        pid = get_pid_from_file(os.path.join(BASE_PYOKEY, "main.pid"))
+        if not pid or not is_pid_alive(pid):
+            return jsonify({"ok": True, "msg": "표키2가 이미 중지 상태입니다."})
+        try:
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+            time.sleep(0.5)
             try:
-                p = subprocess.Popen([sys.executable, "main.py"], cwd=BASE_PYOKEY, creationflags=CREATE_NO_WINDOW)
-                with open(os.path.join(BASE_PYOKEY, "main.pid"), "w", encoding="utf-8") as f:
-                    f.write(str(p.pid))
-                return jsonify({"ok": True, "msg": "표키2 매크로를 시작했습니다 (PID: %d)" % p.pid})
-            except Exception as e:
-                return jsonify({"ok": False, "msg": "표키2 시작 실패: %r" % (e,)})
+                os.remove(os.path.join(BASE_PYOKEY, "main.pid"))
+            except Exception:
+                pass
+            return jsonify({"ok": True, "msg": "표키2 매크로(PID %d)를 안전하게 중지했습니다." % pid})
+        except Exception as e:
+            return jsonify({"ok": False, "msg": "표키2 중지 오류: %r" % (e,)})
+
+    elif action == "pyokey_pause":
+        pause_f = os.path.join(BASE_PYOKEY, "PAUSE")
+        if os.path.exists(pause_f):
+            os.remove(pause_f)
+            return jsonify({"ok": True, "msg": "표키2 일시정지를 해제하고 재개했습니다."})
+        else:
+            with open(pause_f, "w", encoding="utf-8") as f:
+                f.write("pause")
+            return jsonify({"ok": True, "msg": "표키2 일시정지 신호를 보냈습니다."})
 
     return jsonify({"ok": False, "msg": "알 수 없는 작업 요청입니다."})
 
@@ -293,8 +410,8 @@ if __name__ == "__main__":
         if arg in ("--port", "-p") and i + 1 < len(sys.argv):
             port = int(sys.argv[i + 1])
     print(f"==================================================")
-    print(f"  오환2 & 표키2 통합 웹 대시보드 서버 시작")
+    print(f"  오환2 & 표키2 통합 웹 대시보드 서버 (고도화 버전)")
     print(f"  브라우저 접속 주소: http://localhost:{port}")
-    print(f"  중지하려면 Ctrl + C 를 누르세요.")
+    print(f"  종료하려면 Ctrl + C 를 누르세요.")
     print(f"==================================================")
     app.run(host="0.0.0.0", port=port, debug=False)

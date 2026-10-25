@@ -126,19 +126,21 @@ def get_status():
     if sc is not None:
         tr_text += " (%.2f)" % float(sc)
 
-    # 영입 상태
-    rec_st = "-"
+    # 보석 영입 남은 영웅 및 무료 영입 쿨타임 통합
+    gem_hero_data = read_json_file(os.path.join(BASE_OHWAN, "recruit_left.json"))
+    gem_hero = gem_hero_data.get("name") if gem_hero_data else None
+
     next_rec = state_ohwan.get("next_recruit")
+    rec_time_str = "무료 영입 가능"
     if next_rec:
         diff = int(next_rec - time.time())
         if diff > 0:
-            rec_st = "쿨타임 대기 (%d분 %d초 뒤)" % (diff // 60, diff % 60)
-        else:
-            rec_st = "영입 가능 상태"
+            rec_time_str = "%d분 %d초 뒤" % (diff // 60, diff % 60)
 
-    # 보석 영입 남은 영웅
-    gem_hero_data = read_json_file(os.path.join(BASE_OHWAN, "recruit_left.json"))
-    gem_hero = gem_hero_data.get("name") if gem_hero_data else None
+    if gem_hero:
+        recruit_summary = "%s (보석) · 무료: %s" % (gem_hero, rec_time_str)
+    else:
+        recruit_summary = "무료 영입: %s" % rec_time_str
 
     # 환생 기록
     rebirths = []
@@ -213,7 +215,7 @@ def get_status():
             "tribe_text": tr_text,
             "cont_used": state_ohwan.get("cont_used", 0),
             "cont_limit": settings_ohwan.get("fall_continue_n", 3),
-            "recruit_status": rec_st,
+            "recruit_summary": recruit_summary,
             "gem_hero": gem_hero,
             "rebirths": rebirths,
             "settings": settings_ohwan,

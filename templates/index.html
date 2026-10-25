@@ -217,12 +217,35 @@
       font-size: 13px;
     }
 
-    /* Buttons */
+    /* Button Grids */
     .btn-group {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 14px;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .util-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 600px) {
+      .control-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .util-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     button {
@@ -454,10 +477,6 @@
           </div>
           <div class="status-list">
             <div class="status-row">
-              <span class="status-label">매크로 프로세스 (PID)</span>
-              <span id="ohwanPid" class="status-value">-</span>
-            </div>
-            <div class="status-row">
               <span class="status-label">현재 최고 층수 (Peak Wave)</span>
               <span id="ohwanWave" class="status-value" style="color: var(--accent); font-size: 15px;">-</span>
             </div>
@@ -470,18 +489,17 @@
               <span id="ohwanCont" class="status-value">-</span>
             </div>
             <div class="status-row">
-              <span class="status-label">영입 상태 / 다음 쿨타임</span>
-              <span id="ohwanRecruit" class="status-value">-</span>
-            </div>
-            <div class="status-row">
-              <span class="status-label">보석 영입 남은 영웅</span>
-              <span id="ohwanGemHero" class="status-value" style="color: #7fc8ff;">-</span>
+              <span class="status-label">영웅 영입 (무료 / 보석)</span>
+              <span id="ohwanRecruitSummary" class="status-value" style="color: #7fc8ff;">-</span>
             </div>
           </div>
-          <div class="btn-group">
-            <button class="btn-primary" onclick="doAction('ohwan_restart')">🔄 오환2 재시작</button>
-            <button class="btn-danger" onclick="doAction('ohwan_stop')">🛑 매크로 중지</button>
+          <div class="control-grid">
+            <button id="btnOhwanStart" class="btn-success" onclick="doAction('ohwan_start')">▶ 시작</button>
+            <button id="btnOhwanStop" class="btn-danger" onclick="doAction('ohwan_stop')">🛑 중지</button>
             <button id="btnOhwanPause" class="btn-warning" onclick="doAction('ohwan_pause')">⏸️ 일시정지</button>
+            <button id="btnOhwanRestart" class="btn-primary" onclick="doAction('ohwan_restart')">🔄 재시작</button>
+          </div>
+          <div class="util-grid">
             <button class="btn-secondary" onclick="doAction('ohwan_bs_restart')">📱 BlueStacks 단독 재시작</button>
             <button class="btn-secondary" onclick="doAction('telegram_test')">🔔 텔레그램 테스트</button>
           </div>
@@ -640,10 +658,6 @@
           </div>
           <div class="status-list">
             <div class="status-row">
-              <span class="status-label">매크로 프로세스 (PID)</span>
-              <span id="pyokeyPid" class="status-value">-</span>
-            </div>
-            <div class="status-row">
               <span class="status-label">루비 수령 상태 / 쿨타임</span>
               <span id="pyokeyRuby" class="status-value" style="color: #ff7675;">-</span>
             </div>
@@ -656,11 +670,11 @@
               <span id="pyokeyTickets" class="status-value" style="font-size: 12px;">-</span>
             </div>
           </div>
-          <div class="btn-group">
-            <button class="btn-primary" onclick="doAction('pyokey_start')">▶ 표키2 시작</button>
-            <button class="btn-danger" onclick="doAction('pyokey_stop')">🛑 매크로 중지</button>
-            <button class="btn-primary" onclick="doAction('pyokey_restart')">🔄 표키2 재시작</button>
-            <button class="btn-warning" onclick="doAction('pyokey_pause')">⏸️ 일시정지</button>
+          <div class="control-grid">
+            <button id="btnPyokeyStart" class="btn-success" onclick="doAction('pyokey_start')">▶ 시작</button>
+            <button id="btnPyokeyStop" class="btn-danger" onclick="doAction('pyokey_stop')">🛑 중지</button>
+            <button id="btnPyokeyPause" class="btn-warning" onclick="doAction('pyokey_pause')">⏸️ 일시정지</button>
+            <button id="btnPyokeyRestart" class="btn-primary" onclick="doAction('pyokey_restart')">🔄 재시작</button>
           </div>
         </div>
 
@@ -818,16 +832,24 @@
       }
 
       // 세부 수치
-      document.getElementById('ohwanPid').innerText = oh.pid ? `${oh.pid}` : '중지됨';
       document.getElementById('ohwanWave').innerText = (oh.peak_wave && oh.peak_wave > 0) ? `${oh.peak_wave}층` : '측정 대기';
       document.getElementById('ohwanTribe').innerText = oh.tribe_text || '미인식';
       document.getElementById('ohwanCont').innerText = `${oh.cont_used || 0} / ${oh.cont_limit || 3}회`;
-      document.getElementById('ohwanRecruit').innerText = oh.recruit_status || '-';
-      document.getElementById('ohwanGemHero').innerText = oh.gem_hero ? `${oh.gem_hero}` : '-';
+      document.getElementById('ohwanRecruitSummary').innerText = oh.recruit_summary || '-';
 
-      // 일시정지 버튼 텍스트
-      const pBtn = document.getElementById('btnOhwanPause');
-      pBtn.innerText = oh.paused ? '▶️ 일시정지 해제' : '⏸️ 일시정지';
+      // 버튼 활성/비활성 및 텍스트 갱신
+      const btnStart = document.getElementById('btnOhwanStart');
+      const btnStop = document.getElementById('btnOhwanStop');
+      const btnPause = document.getElementById('btnOhwanPause');
+      const btnRestart = document.getElementById('btnOhwanRestart');
+
+      if (btnStart) btnStart.disabled = oh.running;
+      if (btnStop) btnStop.disabled = !oh.running;
+      if (btnPause) {
+        btnPause.disabled = !oh.running;
+        btnPause.innerText = oh.paused ? '▶️ 재개' : '⏸️ 일시정지';
+      }
+      if (btnRestart) btnRestart.disabled = !oh.running;
 
       // 녹화 상태
       const rec = oh.recording || {};
@@ -924,9 +946,22 @@
         emuBadge.innerText = '127.0.0.1:5595 (오프라인)';
       }
 
-      document.getElementById('pyokeyPid').innerText = pk.pid ? `${pk.pid}` : '중지됨';
       document.getElementById('pyokeyRuby').innerText = pk.ruby_status || '-';
       document.getElementById('pyokeyRecharge').innerText = `${pk.recharge || 0}회`;
+
+      // 버튼 활성/비활성 및 텍스트 갱신
+      const btnPyStart = document.getElementById('btnPyokeyStart');
+      const btnPyStop = document.getElementById('btnPyokeyStop');
+      const btnPyPause = document.getElementById('btnPyokeyPause');
+      const btnPyRestart = document.getElementById('btnPyokeyRestart');
+
+      if (btnPyStart) btnPyStart.disabled = pk.running;
+      if (btnPyStop) btnPyStop.disabled = !pk.running;
+      if (btnPyPause) {
+        btnPyPause.disabled = !pk.running;
+        btnPyPause.innerText = pk.paused ? '▶️ 재개' : '⏸️ 일시정지';
+      }
+      if (btnPyRestart) btnPyRestart.disabled = !pk.running;
 
       const tks = pk.tickets || {};
       const tkSummary = Object.keys(tks).map(k => `${k}: ${tks[k].left ?? '-'}`).slice(0, 4).join(' | ');

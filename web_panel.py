@@ -16,6 +16,14 @@ CREATE_NO_WINDOW = 0x08000000
 app = Flask(__name__, template_folder=os.path.join(BASE_OHWAN, "templates"))
 
 
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
+
+
 def is_pid_alive(pid):
     """Windows API로 콘솔 창 깜빡임 없이 프로세스 생존 여부 확인"""
     try:

@@ -742,13 +742,15 @@
       }, 200);
     }
 
+    const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+
     // ---------------- 상태 폴링 및 렌더링 ----------------
     async function fetchStatus() {
       if (isFetching) return;
       isFetching = true;
       try {
-        const res = await fetch('/api/status');
-        if (!res.ok) throw new Error('서버 통신 실패');
+        const res = await fetch(API_BASE + '/api/status');
+        if (!res.ok) throw new Error('서버 통신 실패 (' + res.status + ')');
         const data = await res.json();
         renderOhwan(data);
         renderPyokey(data);
@@ -942,7 +944,7 @@
     // ---------------- 작업 요청 ----------------
     async function doAction(action, payload = {}) {
       try {
-        const res = await fetch('/api/action', {
+        const res = await fetch(API_BASE + '/api/action', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: action, ...payload })

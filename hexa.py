@@ -71,6 +71,7 @@ def spawn_new_game(kind):
     """patch246: 새 판(또는 이어 하기) 시작 표시"""
     SPAWN["gid"] = datetime.datetime.now().strftime("%m%d_%H%M%S")
     SPAWN["last"] = None
+    EXPECT[:] = [[0] * E.N] if kind in ("start", "again") else []     # patch257: 새 판은 빈 판
     try:
         with open(SPAWN_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps({"kind": "start", "gid": SPAWN["gid"], "how": kind, "t": time.time()}) + "\n")
@@ -400,20 +401,97 @@ def wait_settle(timeout=12.0, need_tray=True, hold=None):
     last = None
     since = 0.0
     im = None
+    hist = []                    # patch257: (시각, 판, 조각키, r, im) - 판이 계속 흔들릴 때 다수결용
     while time.time() - t0 < timeout:
         im = capture()
         st = V.state(im)
         if st != "game":
             return st, im, None
         r = read_all(im)
-        key = (tuple(r["board"]), r["tray"] and norm_piece(r["tray"]), r["prev"] and norm_piece(r["prev"]))
+        pk = (r["tray"] and norm_piece(r["tray"]), r["prev"] and norm_piece(r["prev"]))
+        key = (tuple(r["board"]),) + pk
         now = time.time()
+        hist.append((now, tuple(r["board"]), pk, r, im))
         if key != last:
             last, since = key, now
         elif (not need_tray or r["tray"]) and now - since >= hold:
             return "game", im, r
+        # patch257: 전투 쪽 알림 배너('엘프의 비술 발동! Wave N 스킵' 등)가 판 가운데를 계속 덮어
+        #   판이 한 번도 안정되지 않으면 영원히 기다리던 문제 -> 3초 넘게 흔들리면 최근 3초 칸별 다수결로 진행
+        if now - t0 >= 3.0 and len(hist) >= 6:
+            v = _vote(hist, now - 3.0, need_tray)
+            if v is not None:
+                return "game", v[1], v[0]
         time.sleep(0.05 if fast else 0.25)
+    _diag(hist)
     return "timeout", im, None
+
+
+_DIAG = [0]
+
+
+def _diag(hist):
+    """patch258: 시간초과 때 왜 안정이 안 됐는지 로그 (조각 흔들림/흔들린 칸 위치) + 처음 2번은 화면 저장"""
+    try:
+        from collections import Counter
+        rec = hist[-80:]
+        if not rec:
+            return
+        pc = Counter(h[2] for h in rec)
+        pk, npk = pc.most_common(1)[0]
+        sh = []
+        for i in range(len(rec[0][1])):
+            c = Counter(h[1][i] for h in rec)
+            if c.most_common(1)[0][1] < len(rec):
+                sh.append("%d@y%d:%s" % (i, E.pix(i)[1], dict(c.most_common(3))))
+        log("안정 안 됨 진단: %d장, 조각 같음 %d/%d (조각 있음 %s), 흔들린 칸 %s" % (
+            len(rec), npk, len(rec), bool(pk[0]), "; ".join(sh) or "없음"))
+        if _DIAG[0] < 2:
+            _DIAG[0] += 1
+            for k, h in enumerate((rec[0], rec[len(rec) // 2], rec[-1])):
+                if h[4] is not None:
+                    save_shot(h[4], "hexa_shaky_%d_%d.png" % (_DIAG[0], k))
+    except Exception as e:
+        log("진단 오류 %r" % (e,))
+
+
+_VOTE_LOG = [0.0]
+EXPECT = []          # patch257: 우리가 둔 수로 예상한 판 후보들 (조각이 새로 나와도 판은 우리 수로만 바뀜). 새 판이면 빈 판
+
+
+def _vote(hist, since, need_tray):
+    """patch257: since 이후 읽은 판들에서 칸마다 가장 많이 나온 값, 조각도 가장 많이 나온 것. (r, im) 또는 None"""
+    from collections import Counter
+    rec = [h for h in hist if h[0] >= since]
+    if len(rec) < 6:
+        return None
+    pk, n_pk = Counter(h[2] for h in rec).most_common(1)[0]
+    if n_pk < len(rec) * 0.6 or (need_tray and not pk[0]):
+        return None                          # 조각까지 흔들리면 진짜로 바뀌는 중 -> 기다림
+    rec = [h for h in rec if h[2] == pk]
+    board = [Counter(h[1][i] for h in rec).most_common(1)[0][0] for i in range(len(rec[0][1]))]
+    shaky = [i for i in range(len(board)) if Counter(h[1][i] for h in rec).most_common(1)[0][1] < len(rec)]
+    # 예상 판이 있으면: 흔들리지 않은 칸이 예상과 모두 맞는 후보로 흔들린 칸을 채움 (배너가 거의 늘 떠 있어도 정확)
+    src = "다수결"
+    for cand in EXPECT:
+        if len(cand) == len(board) and all(board[i] < 0 or cand[i] < 0 or board[i] == cand[i]
+                                             for i in range(len(board)) if i not in shaky):
+            for i in shaky:
+                if cand[i] >= 0:
+                    board[i] = cand[i]
+            src = "예상 판"
+            break
+    # 배너가 덮는 가운데 띠(y 540~710 칸)만 흔들릴 때만 다수결. 다른 칸이 흔들리면 합치기 연출 중일 수 있어 기다림
+    if any(not (540 <= E.pix(i)[1] <= 710) for i in shaky):
+        return None
+    best = max(rec, key=lambda h: sum(1 for i in range(len(board)) if h[1][i] == board[i]))
+    r = dict(best[3])
+    r["board"] = list(board)
+    r["unk"] = [i for i in range(len(board)) if board[i] < 0]
+    if time.time() - _VOTE_LOG[0] > 30:
+        _VOTE_LOG[0] = time.time()
+        log("판이 계속 흔들림(알림 배너?) -> 최근 3초 %d장, 흔들린 칸 %s 은 %s 값으로 진행" % (len(rec), shaky, src))
+    return r, best[4]
 
 
 # ---------------- 한 수 ----------------
@@ -498,7 +576,11 @@ def do_move(im, r):
     META.update(spawn=[[list(o), t] for o, t in cur], taps=0)
     spawn_log(r)                 # patch246
     _t = time.time()
+    if STATS["moves"] < 2:                                   # patch258: 첫 수 진단
+        log("수 %d 계산 시작 (조각 %s, 빈칸 %d)" % (STATS["moves"] + 1, norm_piece(cur), sum(1 for x in b0 if x == 0)))
     mv = plan(r)
+    if time.time() - _t > 3 or STATS["moves"] < 2:
+        log("수 %d 계산 %.1f초 -> %s" % (STATS["moves"] + 1, time.time() - _t, "둘 곳 없음" if mv is None else "칸 %s" % (mv[1],)))
     tm_add(plan=time.time() - _t)
     _t_rot = time.time()
     if mv is None:
@@ -566,6 +648,7 @@ def do_move(im, r):
         nb, made, nbr = E.apply(bp, cells, ts, ch)
         preds.append((nb, made))
         ch += 1
+    EXPECT[:] = [list(nb) for nb, made in preds]      # patch257
     # 드래그
     xs = [E.pix(c)[0] for c in cells]
     ys = [E.pix(c)[1] for c in cells]
@@ -585,7 +668,7 @@ def do_move(im, r):
         p = save_shot(im3, "hexa_after_%03d.png" % STATS["moves"]) if im3 is not None else ""
         log("수 %d: 놓은 뒤 상태 %s %s" % (STATS["moves"], st, p))
         return st in ("over", "popup")
-    check_result(r, r3, cells, ts, preds, cx, cy, im3)
+    hit = check_result(r, r3, cells, ts, preds, cx, cy, im3)
     for nb, made in preds:
         for t, n, nt in made:
             STATS["best"] = max(STATS["best"], nt)
@@ -594,6 +677,17 @@ def do_move(im, r):
     for i, t in HI.items():
         if b[i] != 0:
             b[i] = t
+    # patch266: 화면에서 못 읽은 칸(-1)은 맞아떨어진 예상 판 값으로 채움 (읽은 칸이 전부 예상과 같을 때만).
+    #   실전 로그 재현: 엔진 예상이 실제 판과 97.8% 일치 -> 못 읽은 ★8 을 벽(-1)으로 두고 합칠 기회를 놓치던 문제
+    if hit is not None:
+        pb = preds[hit][0]
+        filled = []
+        for i in range(E.N):
+            if b[i] < 0 and 0 < pb[i] < 9:
+                b[i] = pb[i]
+                filled.append(i)
+        if filled:
+            STATS["filled"] = STATS.get("filled", 0) + len(filled)
     nr = dict(r3)
     nr["board"] = b
     nr["unk"] = [i for i in range(E.N) if b[i] < 0]
@@ -637,7 +731,7 @@ def check_result(r, r3, cells, ts, preds, cx, cy, im3):
                        n=len(preds), made=preds[hit][1]))
         if preds[hit][1]:
             log("수 %d: %s -> 합침 %s" % (STATS["moves"], list(zip(cells, ts)), preds[hit][1]))
-        return
+        return hit                 # patch266: 맞은 예상 번호 (못 읽은 칸 채우기용)
     STATS["fails"] += 1
     new = [i for i in range(E.N) if b0[i] == 0 and b1[i] > 0]
     learn(dict(kind="mismatch", board=b0, after=b1, cells=list(cells), ts=list(ts),
@@ -729,6 +823,7 @@ def play(n_games):
     unknown_since = None
     in_game = False
     need_hi = False              # patch243
+    stall = None                 # patch257
     NEXT.clear()
     TM.update(n=0, last=None)
     _cam()                       # patch245: 빠른 화면 준비 (안 되면 ADB)
@@ -771,7 +866,7 @@ def play(n_games):
             btn = lobby_button(im)          # patch243
             tap(*BTN_START)
             started += 1
-            STATS.update(moves=0, fails=0, best=0)
+            STATS.update(moves=0, fails=0, best=0, filled=0)
             HI.clear()
             NEXT.clear()
             TM["last"] = None
@@ -785,8 +880,9 @@ def play(n_games):
             time.sleep(2.5)
             continue
         if st == "over":
-            log("게임 끝: %d수, 최고 등급 %d, 예상 빗나감 %d, 한 수 계산 평균 %.2f초" % (
-                STATS["moves"], STATS["best"], STATS["fails"], STATS.get("think", 0) / max(1, STATS.get("plans", 0))))
+            log("게임 끝: %d수, 최고 등급 %d, 예상 빗나감 %d, 못 읽은 칸 예상으로 채움 %d, 한 수 계산 평균 %.2f초" % (   # patch266
+                STATS["moves"], STATS["best"], STATS["fails"], STATS.get("filled", 0),
+                STATS.get("think", 0) / max(1, STATS.get("plans", 0))))
             save_shot(im, "hexa_over_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M"))
             tap(*BTN_RESULT)
             time.sleep(2)
@@ -800,7 +896,7 @@ def play(n_games):
             if finished < n_games:
                 tap(BTN_AGAIN[0], V.POPUP_Y[0])
                 started += 1
-                STATS.update(moves=0, fails=0, best=0)
+                STATS.update(moves=0, fails=0, best=0, filled=0)
                 HI.clear()
                 hi_save([])
                 NEXT.clear()
@@ -828,7 +924,16 @@ def play(n_games):
             st2, im2, r = wait_settle(12)
             if st2 != "game" or not r:
                 TM["last"] = None
+                # patch257: 게임 화면인데 수를 못 두는 상태가 이어지면 로그 + 3분이면 멈춤 (조용히 영원히 도는 것 방지)
+                if st2 == "timeout":
+                    stall = stall or time.time()
+                    if time.time() - stall > 180:
+                        p = save_shot(im2, "hexa_stall.png")
+                        log("게임 화면인데 3분 동안 판을 못 읽음 -> 멈춤", p)
+                        break
+                    log("판이 12초 동안 안정되지 않음 -> 다시 읽기")
                 continue
+        stall = None
         do_move(im2, r)
     return finished              # patch243: 끝낸 판 수 (0 = 중간에 끊김)
 

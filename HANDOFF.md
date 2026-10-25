@@ -24,6 +24,14 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-25 (Claude, patch266) 유물 공방 ★8·★9 판독 + 못 읽은 칸 예상 채우기**:
+  - **근거(로그 실증, `shots/hexa_spawn.jsonl` 2323수)**: 엔진(`E.moves`/`E.apply`) 재현 일치율 엄격 81.4% → `-1` 무시 97.8%. 직후 판 `-1` 592칸 중 직전 값이 ★8 인 경우 196. 합성 규칙 확정: 결과 칸은 놓은 칸 중 하나(어느 칸인지는 위치·이웃 6개 기준 모두 50% 미만 → 랜덤 취급), 3~4개 +1 / 5개 이상 +2 / 결과 1개, ★4 이상도 같음.
+  - `hexa_vision.py`: `hi_art()` 추가 — 그림 가운데 색 + 칸 왼쪽 위 모서리 색이 모두 맞으면 ★8(루비)/★9(도끼)로 확정해 색 판독보다 우선. BlueStacks 캡처 15장 실측 마진: 같은 등급 가운데 ≤7 / 모서리 ≤16, 다른 등급 가운데 ≥25 또는 모서리 ≥52 (기준 15/35). 회귀: ★9 를 8(5칸)·3·1·-1 로 읽던 것과 ★8 을 -1 로 읽던 것만 바뀜, 나머지 칸 변화 0.
+  - `hexa.py`: `check_result()`가 맞은 예상 번호를 돌려주고, `do_move()`가 그 예상 판으로 화면의 `-1` 칸(1~8등급)을 채움(읽은 칸이 전부 예상과 같을 때만). 로그 재현: `-1` 592 → 86칸, 채운 값이 뒤에 실제로 읽혔을 때 159/159 일치. 판 끝 로그에 "못 읽은 칸 예상으로 채움 N" 추가.
+  - **바꾸지 않은 것**: 결과 칸 기댓값 평가는 이미 구현돼 있음(C `search10.c` 203~229행 `tot / nbr`, Python `_outs` 평균). 로그 시점 보정도 불필요 — 남은 불일치 50수 중 시점 문제 0, 드래그 실패 5, 직전 판 -1 18, 연쇄 순서 차이 등 27.
+  - **참고(미적용 제안)**: 두 그룹이 한 번에 합쳐질 때 낮은 등급 그룹을 먼저 처리하고 그 결과가 높은 그룹에 이어 붙는 것으로 보이는 사례(줄 402·615 등)가 있음 → 엔진 `resolve()` 처리 순서 검토 거리 (C 재빌드 필요).
+  - 백업 `hexa.py.bak266`, `hexa_vision.py.bak266`. 검증 스크립트 `tools/hexa_merge_verify266.py`. **git 커밋은 아직 안 함** (Claude 쪽에서 PC 명령 실행 불가).
+
 - **2026-10-24 (Antigravity CLI) 인간 종족 보너스 판에서만 30퀘 루틴 분기 구현**:
   - **[설계 요약]**:
     - **기존 루틴 100% 재사용**: 30퀘 상태 머신(`pre` → `collect` → `open` → `restore` → `done`), 환생 조건(정체 감지·성 함락·주말 500다이아 환생), 6500 고레벨 병영 편성 사이클은 일절 변경하지 않고 `q30.on(st)` 분기 조건만 확장.
@@ -144,11 +152,22 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
     - 문법 및 리플레이 검증: `py -m py_compile arch.py arch2.py guild.py` 통과. `py arch2.py replay shots\rec\arch_rec_1020_115024.mp4` (`perfect_only=False`) 결과 기존 대비 변화 없음 — **R1: `-41ms (-8px)`, R2: `-9ms (-2px)`, R3: `-15ms (-4px)`, R4: `+23ms (+6px)`, R5: `+6ms (+1px)`, R6: `-7ms (-2px)`, R7: `-16ms (-4px)`** (R2~R6 5개 라운드 모두 `★ PERFECT` 판정 확인).
     - **미검증(실전)**: 금일 양궁 도전은 이미 완료되었고 패널 `archery` 옵션이 꺼져 있어 실전 X 리셋 및 재진입 루프는 내일 오전 9시 이후 실전 시험 예정. 백업 `arch.py.bak263`, `arch2.py.bak263`.
 
+- **2026-10-25 (Claude, patch262 적용 + patch264) ★10 올인 - 허브 보너스 실전 적용**:
+  - `bench_hub_result.txt`(600판): A 기준 ★10 8.5%/169.7수, B HUB5 10.7%, C HUB15 14.7%/167.8수, **D HUB30 20.3%/161.8수**(★10 123회 중 ★8×5 경로 108회), E HUB15+HUB7 5 9.8%, F CLUST1.0 1.2%/149.5수(CLUST 폐기).
+  - 사용자 결정: ★9까지 보상은 다 받아서 ★10 외엔 의미 없음 → 판 길이 손해 감수하고 D(HUB 30) 적용, ★10 완전 올인.
+  - 변경: `hexa_search_v7.exe`(= hexa_train/search10.exe, zig cc 빌드, `_exe_path` 최우선), `hexa_nt.py` c_hub/c_hub7 → 환경변수 HUB/HUB7 전달, `hexa_cfg.json` `c_hub: 30`. 백업 `hexa_nt.py.bak262`, `hexa_cfg.json.bak262`. 롤백: v7 삭제 또는 c_hub 0.
+  - 메인 재시작 불필요 (판마다 hexa.py 새로 실행).
+  - patch264: `hexa_train/bench_hub2.py`/`.bat` - HUB 30/45/60/80/120, HUB60+TENB50 × 600판, ★10 달성률만으로 판정(오차 약 ±3.3%p), 자동 적용 없음.
+
+- **2026-10-25 (Claude, patch265) HUB x TENB 조합 실험**:
+  - `bench_hub2_result.txt`(600판): HUB 30 20.3% / 45 10.7% / 60 6.3% / 80 4.5% / 120 3.0% (HUB 단독은 30이 최고, 넘으면 ★8만 쌓다 죽음), **HUB 60 + TENB 50 = 23.0%** → TENB 가 과한 HUB 를 보정.
+  - 신규 `hexa_train/bench_hub3.py`/`.bat`: A HUB30/TENB10(실전) / B 30·50 / C 30·100 / D 20·50 / E 40·50 / F 45·100 / G 60·100 × 600판. ★10 이 A 보다 ±3.3%p 넘게 높은 최고 설정을 `hexa_cfg.json`(c_hub, c_tenb)에 자동 적용, 백업 `hexa_cfg.json.bak265`. bat 끝에 notify.py 알림.
+
 ## 다음 할 일
 
 0-A. **(patch263) 내일 오전 9시 이후 양궁 실전 시험**: 사용자가 `py guild.py arch go` 로 직접 실행 예정 (패널 `archery` 옵션은 건드리지 않음). **중점 확인 사항**: 첫 미스 발생 시 우상단 X 탈출 후 놀이터 재진입했을 때 오늘 도전 기회가 차감 없이 남아 있는지 확인.
 
-0. **(patch262) `hexa_train\bench_hub.bat` PC 실행** → `bench_hub_result.txt` 요약에 "합격"(★10 오차 초과 상승 + 판 길이 -3% 이내) 후보가 있으면 search10.c 로 `hexa_search_v6.exe` 빌드 + `hexa_nt.py` 에 HUB 전달 후 실전 적용.
+0. **(patch265) `hexa_train\bench_hub3.bat` PC 실행** → 합격 설정은 자동 적용됨. 결과만 확인.
 
 0-0. (patch262 의 F 로 대체됨) **(patch260) `hexa_train\bench_clust.bat` PC 실행** → `bench_clust_result.txt`에서 A(CLUST 0) 대비 B/C 가 판 길이·★10 둘 다 낫거나, ★10 이 오차(약 ±2.3%p) 넘게 나을 때만 search9.c 로 `hexa_search_v6.exe` 빌드 후 `c_clust` 적용.
 

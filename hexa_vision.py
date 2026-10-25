@@ -35,11 +35,79 @@ def cell_color(im, i):
     return im[y - 12:y + 12, x - 40:x - 33].reshape(-1, 3).astype(float).mean(0)
 
 
+# ---- patch259: 뮤뮤에서는 1성 조각 배경이 회색이 아니라 거의 검게 그려져(21,22,27) 빈칸(0)으로 읽힘
+#   -> 칸 가운데 그림을 위쪽 해금 아이콘 줄(ICON_X)과 비교해 등급을 정함 (색과 무관)
+def _gray30(a):
+    import cv2
+    return cv2.cvtColor(cv2.resize(a, (30, 30)), cv2.COLOR_RGB2GRAY).astype(np.float32)
+
+
+def _icons(im):
+    return [_gray30(im[265:295, x - 15:x + 15]) for x in ICON_X]
+
+
+def has_art(im, x, y, h):
+    """칸 가운데에 그림(무늬)이 있으면 True. 빈칸은 거의 단색"""
+    c = im[y - h // 2:y + h // 2, x - h // 2:x + h // 2].astype(float)
+    return c.size > 0 and float(c.std(axis=(0, 1)).mean()) > 18
+
+
+def icon_tier(im, x, y, h, icons=None, n=10):
+    """칸(중심 x,y, 반폭 h) 그림과 가장 닮은 해금 아이콘 등급(1~n). 0.6 미만이면 None"""
+    import cv2
+    t = im[y - h:y + h, x - h:x + h]
+    if t.shape[0] < 6 or t.shape[1] < 6:
+        return None
+    t = _gray30(t)
+    icons = icons or _icons(im)
+    best, bk = -1.0, None
+    for i, ic in enumerate(icons[:n]):
+        sc = float(cv2.matchTemplate(t, ic, cv2.TM_CCOEFF_NORMED).max())
+        if sc > best:
+            best, bk = sc, i + 1
+    return bk if best >= 0.6 else None
+
+
+# ---- patch266: ★8(붉은 루비)·★9(금 도끼)는 배경이 빛살/무지개라 칸 왼쪽 띠 색(cell_color)이 자주 빗나감
+#   (실전 로그: ★8 -> -1 196번, ★8 -> 1, ★9 -> 8·3 오인식) -> 그림 가운데 색 + 칸 왼쪽 위 모서리 색 두 곳이 모두 맞으면 확정
+#   BlueStacks 캡처 15장 실측: 루비 가운데 ±7 / 모서리 ±16, 도끼 가운데 ±2 / 모서리 ±16.
+#   가장 가까운 다른 등급은 가운데 25 이상 또는 모서리 52 이상 떨어져 있음 (기준 15 / 35 로 여유 있게)
+HI_ART = {8: ((174, 65, 42), (148, 131, 163)),     # (그림 가운데, 왼쪽 위 모서리)
+          9: ((138, 100, 63), (88, 129, 131))}
+HI_ART_TOL = (15.0, 35.0)
+
+
+def hi_art(im, i):
+    """칸 i 가 ★8/★9 그림이면 그 등급, 아니면 None"""
+    x, y = pix(i)
+    c = im[y - 14:y + 6, x - 10:x + 10].reshape(-1, 3).astype(float)
+    k = im[y - 40:y - 34, x - 40:x - 34].reshape(-1, 3).astype(float)
+    if len(c) == 0 or len(k) == 0:
+        return None
+    c, k = c.mean(0), k.mean(0)
+    for t, (rc, rk) in HI_ART.items():
+        if (np.sqrt(((c - rc) ** 2).sum()) <= HI_ART_TOL[0]
+                and np.sqrt(((k - rk) ** 2).sum()) <= HI_ART_TOL[1]):
+            return t
+    return None
+
+
 def read_board(im):
     """반환 (board list, 모르는 칸 index 목록)"""
     b, unk = [], []
+    icons = None
     for i in range(N):
         k, d = classify(cell_color(im, i))
+        if k == 0:                                         # patch259: 빈칸 색인데 그림이 있으면 아이콘으로
+            x, y = pix(i)
+            if has_art(im, x, y, 40):
+                icons = icons or _icons(im)
+                k2 = icon_tier(im, x, y, 30, icons, unlocked(im))
+                k = k2 if k2 else None
+        if k != 0:                                         # patch266: ★8·★9 그림이면 색 판독보다 우선
+            a = hi_art(im, i)
+            if a:
+                k = a
         if k is None:
             unk.append(i)
             b.append(-1)
@@ -102,6 +170,32 @@ def read_piece(im, C, P, bg=None, win=None):
     obs = np.sqrt(((sub - np.array(bg, float)) ** 2).sum(2)) > 40
     if obs.mean() < 0.02:
         return None
+    best = _fit(obs, C, P, x0, y0)
+    if best[0] < 0.5:                                      # patch259: 뮤뮤는 칸 속이 배경처럼 어두워 테두리만 잡힘 -> 속 채워 다시
+        import cv2
+        m = obs.astype(np.uint8) * 255
+        cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        f = np.zeros_like(m)
+        cv2.drawContours(f, cs, -1, 255, -1)
+        b2 = _fit(f > 0, C, P, x0, y0)
+        if b2[0] > best[0]:
+            best = b2
+    iou, s, cen = best
+    if iou < 0.5:
+        return None
+    res = []
+    for (q, r), (x, y) in zip(s, cen):
+        x, y = int(round(x)), int(round(y))
+        k = tile_tier(im, x, y, P)
+        if k is None:                                      # patch259: 색으로 못 읽으면 그림으로
+            k = icon_tier(im, x, y, int(0.36 * P[1]), None, unlocked(im))
+        if k is None:
+            return None
+        res.append(((q, r), k))
+    return res
+
+
+def _fit(obs, C, P, x0, y0):
     hs = 0.46 * P[1]
     best = None
     for s in SHAPES:
@@ -119,17 +213,7 @@ def read_piece(im, C, P, bg=None, win=None):
         iou = inter / max(1, uni)
         if best is None or iou > best[0]:
             best = (iou, s, cen)
-    iou, s, cen = best
-    if iou < 0.5:
-        return None
-    res = []
-    for (q, r), (x, y) in zip(s, cen):
-        x, y = int(round(x)), int(round(y))
-        k = tile_tier(im, x, y, P)
-        if k is None:
-            return None
-        res.append(((q, r), k))
-    return res
+    return best
 
 
 def tile_tier(im, x, y, P):

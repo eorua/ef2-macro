@@ -63,6 +63,20 @@ def swipe(x, y1, y2, ms=600):
         subprocess.run(preset.ADB + ["shell", "input", "swipe", str(x), str(y1), str(x), str(y2), str(ms)])
 
 
+def shot_fail(name="barracks_fail", img=None):
+    """patch267: 이상/실패 시점의 화면을 shots 폴더에 즉시 저장"""
+    try:
+        im = img if img is not None else capture()
+        if im is not None:
+            p = os.path.join(BASE, "shots", f"{name}_{time.strftime('%m%d_%H%M%S')}.png")
+            cv2.imwrite(p, im)
+            log(f"이상 화면 저장: shots\\{os.path.basename(p)}")
+            return p
+    except Exception:
+        pass
+    return None
+
+
 def tap_multi(pts, label="", gap=0.12):
     """여러 곳을 adb 한 번으로 연달아 누름 (adb 호출 1번 = 프로세스 1번이라 훨씬 빠름)"""
     log(("클릭 " if GO else "[시험] 클릭할 곳 ") + f"{label} {pts}")
@@ -457,6 +471,7 @@ def release_top_fast(keep=KEEP, total=10):
         time.sleep(0.15)
         img = fc_wait(lambda im: not detail_open(im), 1.5)
         if img is None:
+            shot_fail("barracks_detail_not_closed")
             log("상세창이 닫히지 않음 -> 중단"); return False
         if not all(_name_filled(img, rows[j]) for j in range(keep)):
             log("맨 위 %d줄이 안 보임 -> 예전 방식으로" % keep)
@@ -467,6 +482,7 @@ def release_top_fast(keep=KEEP, total=10):
         t0 = cam.tap(HERO_ROW_X, y + 10)
         img = fc_wait(detail_open, 2.5, after=t0 + 0.03)
         if img is None:
+            shot_fail("barracks_detail_not_open")
             log("상세창이 안 열림 -> 중단"); return False
         if red(img, BTN_RELEASE) <= 0.5:
             img = fc_wait(lambda im: red(im, BTN_RELEASE) > 0.5, 0.6, after=t0 + 0.03)   # 창이 펼쳐지는 중일 수 있음
@@ -475,10 +491,12 @@ def release_top_fast(keep=KEEP, total=10):
             t1 = cam.tap(*TAB_DETAIL)
             img = fc_wait(lambda im: red(im, BTN_RELEASE) > 0.5, 2.0, after=t1 + 0.03)
             if img is None:
+                shot_fail("barracks_release_btn_not_found")
                 log("해제 버튼을 못 찾음 -> 중단"); return False
         t2 = cam.tap(*BTN_RELEASE)
         img = fc_wait(lambda im: not detail_open(im), 2.5, after=t2 + 0.03)
         if img is None:
+            shot_fail("barracks_still_open_after_release")
             log("해제 후에도 상세창이 열려 있음 -> 중단"); return False
         done += 1
     log(f"해제 완료 ({done}명 해제, 빠른 방식)")
@@ -562,13 +580,16 @@ def release_rest(start=KEEP + 1, cap=10):
             if img is not None and not hero_row_filled(img, start):
                 log(f"{start}번째 줄이 비었음 -> 해제 완료 ({k}명 해제)")
                 return True
+            shot_fail("barracks_detail_not_open", img)
             log("상세창이 안 열림 -> 중단"); return False
         img = ensure_release_btn(img)
         if img is None or red(img, BTN_RELEASE) <= 0.5:
+            shot_fail("barracks_release_btn_not_found", img)
             log("해제 버튼을 못 찾음 -> 중단"); return False
         tap(BTN_RELEASE, "해제")
         img = preset.wait_for(lambda im: not detail_open(im), 3.0, first=0.25, step=0.15)
         if img is None or detail_open(img):
+            shot_fail("barracks_still_open_after_release", img)
             log("해제 후에도 상세창이 열려 있음 -> 중단"); return False
     log("해제를 너무 많이 반복해 중단")
     return False
@@ -689,13 +710,16 @@ def release_top(keep=KEEP, total=10):
         tap((HERO_ROW_X, y + 10), "%d번째 영웅" % (keep + 1))
         img = preset.wait_for(detail_open, 3.0, first=0.12, step=0.1)
         if img is None or not detail_open(img):
+            shot_fail("barracks_detail_not_open", img)
             log("상세창이 안 열림 -> 중단"); return False
         img = ensure_release_btn(img)                     # patch120: 상세 탭 확인
         if img is None or red(img, BTN_RELEASE) <= 0.5:
+            shot_fail("barracks_release_btn_not_found", img)
             log("해제 버튼을 못 찾음 -> 중단"); return False
         tap(BTN_RELEASE, "해제")
         img = preset.wait_for(lambda im: not detail_open(im), 3.0, first=0.12, step=0.1)
         if img is None or detail_open(img):
+            shot_fail("barracks_still_open_after_release", img)
             log("해제 후에도 상세창이 열려 있음 -> 중단"); return False
         done += 1
     log(f"해제 완료 ({done}명 해제)")
@@ -758,13 +782,16 @@ def _release_tail_old(keep=KEEP, total=10):
         tap((HERO_ROW_X, hero_row_y(row)), "맨 아래 영웅")
         img = preset.wait_for(detail_open, 3.0, first=0.12, step=0.1)
         if img is None or not detail_open(img):
+            shot_fail("barracks_detail_not_open", img)
             log("상세창이 안 열림 -> 중단"); return False
         img = ensure_release_btn(img)                     # patch120: 상세 탭 확인
         if img is None or red(img, BTN_RELEASE) <= 0.5:
+            shot_fail("barracks_release_btn_not_found", img)
             log("해제 버튼을 못 찾음 -> 중단"); return False
         tap(BTN_RELEASE, "해제")
         img = preset.wait_for(lambda im: not detail_open(im), 3.0, first=0.12, step=0.1)
         if img is None or detail_open(img):
+            shot_fail("barracks_still_open_after_release", img)
             log("해제 후에도 상세창이 열려 있음 -> 중단"); return False
         done += 1
     log(f"해제 완료 ({done}명 해제)")
@@ -807,6 +834,7 @@ def phase1(after_release=None):
     img = snap(0.3)
     ok = img is not None and not barracks_open(img)
     if got == 0:                                          # patch102: 한 명도 못 넣었으면 실패
+        shot_fail("barracks_phase1_no_units", img)
         log("phase1: 골렘/죽음의 손을 한 명도 배치하지 못함 -> 실패")
         return False
     log("phase1 끝 (배치 시도 %d명)" % got, "OK" if ok else "병영이 안 닫힘")

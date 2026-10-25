@@ -199,6 +199,11 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
   - **ocrx 폴백 및 다중 패턴 지원**: Tesseract 실패 시 2배 확대(`fx=2`) 기반 `ocrx` 폴백 및 `[0-5]/[S$]`, `[0-5]5` 등 오인식 보정 패턴 추가.
   - **로비 렌더링 지연 재시도**: `auto()`에서 로비 진입 직후 애니메이션 지연 대비 최대 3회(0.7초 간격) 재시도 및 실패 시 `shots/hexa_ticket_none.png` 디버그 저장. 백업 `hexa.py.bak264`.
 
+- **2026-10-25 (Antigravity CLI, patch267) 병영 및 고레벨 단계 실패 시 즉시 화면 캡처 저장 보강 (`barracks.py`, `main.py`)**:
+  - **문제점**: 6500층 고레벨 편성 중 UI 프리징/글리치(예: 상세창 미오픈, 해제 버튼 미노출 등) 발생 시 복구 루틴(`closer.close_all()`, `_barracks_fallback()`)이 창을 모두 닫은 뒤에야 실패 스크린샷(`high_fail_N.png`)을 저장하여, 정작 문제 발생 순간의 글리치 UI가 사진에 남지 않던 문제 해결.
+  - **`main.py` 창 닫기 직전 캡처**: `_retry_step()`(단계 실패 시 창 닫기 전 `step_fail_<단계이름>.png` 즉시 캡처) 및 `_barracks_fallback()`(기본 프리셋 복구 전 `barracks_fallback_<이유>.png` 즉시 캡처) 추가.
+  - **`barracks.py` 세부 실패 캡처**: 상세창 미오픈(`barracks_detail_not_open`), 해제 버튼 미노출(`barracks_release_btn_not_found`), 해제 후 창 잔존(`barracks_still_open_after_release`), 배치 실패(`barracks_phase1_no_units`) 등 이상 발생 즉시 타임스탬프 스크린샷 자동 저장. 백업 `main.py.bak267`, `barracks.py.bak267`.
+
 ## 다음 할 일
 
 0-A. **(patch263) 내일 오전 9시 이후 양궁 실전 시험**: 사용자가 `py guild.py arch go` 로 직접 실행 예정 (패널 `archery` 옵션은 건드리지 않음). **중점 확인 사항**: 첫 미스 발생 시 우상단 X 탈출 후 놀이터 재진입했을 때 오늘 도전 기회가 차감 없이 남아 있는지 확인.

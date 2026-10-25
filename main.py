@@ -522,7 +522,12 @@ def run_cycle_mid(back_pet="팅키"):
 
 
 def _barracks_fallback(why):
-    """병영 편성이 중간에 실패하면 영웅 기본 프리셋으로 되돌림 (편성이 어중간하게 남지 않게)"""
+    """patch267: 병영 편성이 중간에 실패하면 복구 직전 화면을 저장하고 영웅 기본 프리셋으로 되돌림"""
+    try:
+        tag = "barracks_fallback_" + re.sub(r"[^\w]+", "_", str(why)).strip("_")
+        snap_fail(tag)
+    except Exception:
+        pass
     log("병영 편성 실패: %s -> 영웅 기본 프리셋으로 복구" % why)
     try:
         preset.set_presets("기본", "시간")       # patch129: 7000 전까지 유물은 시간
@@ -534,10 +539,15 @@ def _barracks_fallback(why):
 
 
 def _retry_step(name, fn, *a, **k):
-    """한 단계를 실행하고, 실패하면 열려 있는 창을 닫은 뒤 한 번 더 시도"""
+    """patch267: 한 단계를 실행하고, 실패하면 창 닫기 직전 화면을 저장한 뒤 창을 닫고 한 번 더 시도"""
     import closer
     if fn(*a, **k):
         return True
+    try:
+        tag = "step_fail_" + re.sub(r"[^\w]+", "_", str(name)).strip("_")
+        snap_fail(tag)
+    except Exception:
+        pass
     n = closer.close_all()
     log("%s 실패 -> 열린 창 %d개 닫고 한 번 더 시도" % (name, n))
     return bool(fn(*a, **k))

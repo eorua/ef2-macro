@@ -1421,6 +1421,7 @@ def _soul_back(_sm, _sd):
         __import__("closer").close_all(3)
         daily.tap(daily.TAB_BATTLE, 1.0)
     _sd["no_tasks"] = True
+    _sd["no_tasks_at"] = time.time()          # patch270: 30분 뒤 휴식 화면이 다시 보이면 재개
     _sm.shot("soul_after_task_%d" % int(time.time()))
     log("작업 후 휴식 화면이 안 보임 -> 이번 휴식 동안은 작업 중단 (shots 확인)")
     return False
@@ -1776,6 +1777,14 @@ def main():
                     try:                                 # patch233: 휴식 중에도 던전 소탕 / 정령의 고원 / 무한랭킹전
                         import soul as _sm
                         _sd = st["soul"]
+                        # patch270: '휴식 화면이 안 보임'으로 작업을 멈춘 뒤 휴식이 끝날 때까지 영입·던전 등이 영영 안 돌던 문제
+                        #   (10-25 14:56 유물 공방 '공방 마감' 창이 덮고 있어서 멈춤 -> 그 뒤 2시간 넘게 작업 없음)
+                        #   -> 30분 지난 뒤 지금 화면에 휴식 표시가 보이면 다시 켬
+                        if (_sd.get("no_tasks") and time.time() - _sd.get("no_tasks_at", 0) >= 1800
+                                and img is not None and _sm.running_view(img)):
+                            _sd["no_tasks"] = False
+                            log("휴식 화면이 다시 보임 -> 휴식 중 작업(영입·던전 등) 재개")
+                            save_state(st)
                         if (not _sd.get("no_tasks") and time.time() < _sm.end_time(_sd) - 600
                                 and time.time() >= st["next_recruit"]):           # patch236: 휴식 중에도 영입
                             log("영혼의 휴식 중 영입 시도")
@@ -1832,6 +1841,7 @@ def main():
                                     log("작업 후 휴식 상태 유지 확인")
                                 else:
                                     _sd["no_tasks"] = True
+                                    _sd["no_tasks_at"] = time.time()          # patch270
                                     _sm.shot("soul_after_task_%d" % int(time.time()))
                                     log("작업 후 휴식 화면이 안 보임 -> 이번 휴식 동안은 작업 중단 (shots 확인)")
                             else:

@@ -683,13 +683,10 @@
             <div class="card-title">⚡ 단발 작업 & 설정</div>
             <span style="font-size: 11px; color: var(--text-muted);">실행 시 다음 루프에서 즉시 처리</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'oneday'})">📮 일퀘 묶음 실행</button>
-            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'ruby'})">💎 무료 루비 수령</button>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
+            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'pass'})">🎫 패스 보상 수령</button>
             <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'weekly'})">📜 주간 미션</button>
-            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'guild'})">🏰 길드 출석/상점</button>
-            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'starshop'})">⭐ 별빛 교환소</button>
-            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'burning'})">🔥 버닝 모드</button>
+            <button class="btn-secondary" onclick="doAction('pyokey_oneshot', {job: 'cap'})">📸 화면 캡처 저장</button>
           </div>
 
           <label class="opt-item" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--card-border);">

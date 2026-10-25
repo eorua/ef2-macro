@@ -413,13 +413,20 @@ def do_action():
             return jsonify({"ok": False, "msg": "표키2 시작 실패: %r" % (e,)})
 
     elif action == "pyokey_restart":
-        req = os.path.join(BASE_PYOKEY, "restart.req")
-        try:
-            with open(req, "w", encoding="utf-8") as f:
-                f.write("restart")
-            return jsonify({"ok": True, "msg": "표키2 재시작 요청이 전달되었습니다 (restart.req)"})
-        except Exception as e:
-            return jsonify({"ok": False, "msg": "표키2 재시작 요청 실패: %r" % (e,)})
+        pid = get_pid_from_file(os.path.join(BASE_PYOKEY, "main.pid"))
+        def do_py_restart():
+            if pid and is_pid_alive(pid):
+                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+                time.sleep(1.5)
+            p = subprocess.Popen([sys.executable, "main.py", "go"], cwd=BASE_PYOKEY, creationflags=CREATE_NO_WINDOW)
+            with open(os.path.join(BASE_PYOKEY, "main.pid"), "w", encoding="utf-8") as f:
+                f.write(str(p.pid))
+            req_file = os.path.join(BASE_PYOKEY, "restart.req")
+            if os.path.exists(req_file):
+                try: os.remove(req_file)
+                except Exception: pass
+        threading.Thread(target=do_py_restart, daemon=True).start()
+        return jsonify({"ok": True, "msg": "표키2 매크로 재시작을 진행 중입니다."})
 
     elif action == "pyokey_stop":
         pid = get_pid_from_file(os.path.join(BASE_PYOKEY, "main.pid"))
@@ -449,9 +456,10 @@ def do_action():
     elif action == "pyokey_run_now":
         key = data.get("key", "")
         names = {
+            "pass": "패스 보상 수령",
+            "weekly": "주간 미션",
             "oneday": "일퀘 묶음 (우편/이벤트/일일미션)",
             "ruby": "무료 루비/광고",
-            "weekly": "주간 미션",
             "guild": "길드 출석/상점",
             "starshop": "별빛 교환소",
             "burning": "버닝 모드"
@@ -463,6 +471,16 @@ def do_action():
             return jsonify({"ok": True, "msg": "표키2 [%s] 작업을 즉시 실행하도록 요청했습니다." % name})
         except Exception as e:
             return jsonify({"ok": False, "msg": "즉시 실행 요청 실패: %r" % (e,)})
+
+    elif action == "pyokey_oneshot":
+        job = data.get("job")
+        if job == "cap":
+            try:
+                subprocess.run([sys.executable, "cap.py"], cwd=BASE_PYOKEY, creationflags=CREATE_NO_WINDOW)
+                return jsonify({"ok": True, "msg": "표키2 화면 캡처 저장: C:\\pyokey\\shots"})
+            except Exception as e:
+                return jsonify({"ok": False, "msg": "표키2 캡처 실패: %r" % (e,)})
+        return jsonify({"ok": False, "msg": "알 수 없는 작업입니다."})
 
     elif action == "pyokey_opt_set":
         key = data.get("key")

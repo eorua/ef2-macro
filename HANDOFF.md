@@ -24,6 +24,17 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-26 (Antigravity, patch278) 표키2 로젠가의 영애 패스 일일 보상 자동화 신설, 웹 대시보드 버튼 정리 및 권한 설정** (`pass_quest.py`, `C:\pyokey\main.py`, `C:\pyokey\settings.json`, `web_panel.py`, `templates/index.html`, `.claude/settings.local.json`, `.gitignore`):
+  - 1) **표키2 로젠가 영애 패스 일일 수령 자동화 (`pass_quest.py`)**:
+    - 홈 화면 `패스` 아이콘 진입 → `[패스 미션]` 탭 전환 → 일일 미션 6종 보상 수령 → `[패스 보상]` 탭 전환(달성 레벨 위치 자동 스크롤) → 최상단 무료 보상 2회 탭 수령 → 다이아몬드 X 닫기 복귀.
+    - `C:\pyokey\main.py`의 `TASKS`에 `"pass"`를 등록하여 매일 오전 6시 이후 다른 일퀘들과 함께 자동 실행되도록 연계 (`state.json`에 `pass_day` 성공 기록 확인).
+  - 2) **표키2 단발 화면 캡처 도구 (`cap.py`) 추가**:
+    - `C:\pyokey\cap.py` 신설하여 오환2처럼 표키2 화면도 즉시 캡처 저장(`C:\pyokey\shots\`) 지원.
+  - 3) **웹 패널 표키 대시보드 단발 버튼 정리**:
+    - 요청에 따라 불필요한 `루비`, `길드`, `버닝`, `일퀘 묶음`, `별빛교환소` 버튼 제거.
+    - `🎫 패스 보상 수령`, `📜 주간 미션`, `📸 화면 캡처 저장`으로 핵심 제어 정돈.
+  - 4) **Claude 권한(permissions.allow) 구성**:
+    - `C:\macro\.claude\settings.local.json` 및 `C:\Users\admin\.claude\settings.json`에 Bash(py, python, git, taskkill, adb), Read/Edit(C:/pyokey/**) 등록 완료.
 - **2026-10-26 (Antigravity, patch277) 보석 영웅 이름 판독 로직 전면 개선 및 웹 패널 재시작 자립화** (`recruit.py`, `recruit_left.json`, `web_panel.py`):
   - 1) **보석 영웅 OCR 오인식·미인식 근본 원인 해결**:
     - **행 간격 오차 수정**: 고용 목록 줄 간격 `GEM_ROW_DY`가 기존 `107px`로 잘못 설정되어 있어 2~4행의 보석 비율 및 이름 ROI가 최대 51px 밀려나던 문제를 실제 UI 규격인 `90px`(`GEM_ROW_DY = 90`)로 정확히 수정.

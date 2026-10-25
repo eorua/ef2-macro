@@ -266,7 +266,9 @@ def popup_y(im):
     hits = []
     for y in range(770, 940, 3):
         a, b = px(im, 470, y, 3), px(im, 211, y, 3)
-        if (_near(a, (81, 48, 32), 16) or _near(a, (112, 59, 36), 16)) and _near(b, (45, 35, 28), 12):
+        # patch268: 티켓이 없으면 '다시 하기' 버튼이 회색(56,50,43)이라 창을 못 알아보고 멈추던 문제 -> 회색도 인정
+        if (_near(a, (81, 48, 32), 16) or _near(a, (112, 59, 36), 16) or _near(a, (56, 50, 43), 8)) \
+                and _near(b, (45, 35, 28), 12):
             hits.append(y)
     runs, cur = [], []
     for y in hits:

@@ -511,13 +511,10 @@
             <div class="card-title">⚡ 단발 작업 즉시 실행</div>
             <span style="font-size: 11px; color: var(--text-muted);">실행 시 메인은 안전하게 잠시 정지 후 재개</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-            <button class="btn-secondary" onclick="doAction('ohwan_oneshot', {job: 'daily'})">📋 일일 숙제 전체</button>
-            <button class="btn-secondary" onclick="doAction('ohwan_oneshot', {job: 'dungeon'})">⚔️ 던전 즉시 소탕</button>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
             <button class="btn-secondary" onclick="doAction('ohwan_oneshot', {job: 'archery'})">🏹 양궁 1판</button>
             <button class="btn-secondary" onclick="doAction('ohwan_oneshot', {job: 'fossil'})">⛏️ 화석 발굴</button>
             <button class="btn-secondary" onclick="doAction('ohwan_oneshot', {job: 'hexa'})">⚗️ 유물 공방 1판</button>
-            <button class="btn-secondary" onclick="doAction('ohwan_oneshot', {job: 'recruit'})">👤 무료 영웅 영입</button>
             <button class="btn-secondary" onclick="doAction('ohwan_oneshot', {job: 'cap'})">📸 화면 캡처 저장</button>
             <button class="btn-secondary" onclick="doAction('ohwan_oneshot', {job: 'cleanup'})">🧹 임시파일 정리</button>
           </div>
@@ -550,20 +547,19 @@
               <span class="opt-desc">토·일 이벤트 배지 감지 시 하루 5회 다이아 2배 환생</span>
             </div>
           </label>
-          <label class="opt-item">
-            <input type="checkbox" id="opt_hexa_auto" onchange="setOption('hexa_auto', this.checked)">
-            <div class="opt-label-group">
-              <span class="opt-title">유물 공방 티켓 꽉 차면(5/5) 자동</span>
-              <span class="opt-desc">환생 3분 뒤 티켓이 가득 찼으면 자동으로 1판 수행</span>
+          <div class="opt-item" style="cursor: default;">
+            <div class="opt-label-group" style="width: 100%;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="opt-title">유물 공방 자동 플레이</span>
+                <select id="opt_hexa_mode" onchange="doAction('ohwan_hexa_mode_set', {mode: this.value})" style="background: #0d1117; color: #fff; border: 1px solid var(--card-border); border-radius: 4px; padding: 2px 6px;">
+                  <option value="off">사용 안 함</option>
+                  <option value="full">티켓 꽉 차면 (5/5)</option>
+                  <option value="every">환생마다 (1장 이상)</option>
+                </select>
+              </div>
+              <span class="opt-desc">환생 주기 중 유물 공방 미니게임 자동 실행 조건</span>
             </div>
-          </label>
-          <label class="opt-item">
-            <input type="checkbox" id="opt_hexa_every" onchange="setOption('hexa_every', this.checked)">
-            <div class="opt-label-group">
-              <span class="opt-title">유물 공방 환생마다 자동 플레이</span>
-              <span class="opt-desc">티켓이 1장 이상이면 환생마다 1판 플레이</span>
-            </div>
-          </label>
+          </div>
           <label class="opt-item">
             <input type="checkbox" id="opt_q30_human_only" onchange="setOption('q30_human_only', this.checked)">
             <div class="opt-label-group">
@@ -665,9 +661,12 @@
               <span class="status-label">오늘 무료 재충전 사용 횟수</span>
               <span id="pyokeyRecharge" class="status-value">-</span>
             </div>
-            <div class="status-row">
-              <span class="status-label">던전 티켓 현황</span>
-              <span id="pyokeyTickets" class="status-value" style="font-size: 12px;">-</span>
+            <div class="status-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+              <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span class="status-label">던전 티켓 현황</span>
+                <span style="font-size: 11px; color: var(--text-muted);">실시간 잔여량</span>
+              </div>
+              <div id="pyokeyTickets" style="display: flex; flex-wrap: wrap; gap: 4px; width: 100%; margin-top: 2px;"></div>
             </div>
           </div>
           <div class="control-grid">
@@ -678,15 +677,31 @@
           </div>
         </div>
 
-        <!-- 표키2 자동화 안내 카드 -->
+        <!-- 표키2 단발 작업 & 옵션 설정 -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">ℹ️ 표키2 자동화 작업 안내</div>
+            <div class="card-title">⚡ 단발 작업 & 설정</div>
+            <span style="font-size: 11px; color: var(--text-muted);">실행 시 다음 루프에서 즉시 처리</span>
           </div>
-          <div style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-            <p>• <b>주기적 작업</b>: 우편함 수령, 이벤트 보상, 일일 퀘스트, 길드 출석 및 상점, 버닝 타임, 별빛 상점, 루비 광고 수령 자동 수행</p>
-            <p style="margin-top: 8px;">• <b>자동 합성</b>: 표창 자동 합성(Merge)을 백그라운드로 안전하게 지속 수행</p>
-            <p style="margin-top: 8px;">• <b>프로세스 보호</b>: 오환2 매크로 재시작이나 블루스택 재시작 시 표키2 인스턴스는 절대 방해받지 않습니다.</p>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'oneday'})">📮 일퀘 묶음 실행</button>
+            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'ruby'})">💎 무료 루비 수령</button>
+            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'weekly'})">📜 주간 미션</button>
+            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'guild'})">🏰 길드 출석/상점</button>
+            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'starshop'})">⭐ 별빛 교환소</button>
+            <button class="btn-secondary" onclick="doAction('pyokey_run_now', {key: 'burning'})">🔥 버닝 모드</button>
+          </div>
+
+          <label class="opt-item" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--card-border);">
+            <input type="checkbox" id="opt_pyokey_merge" onchange="doAction('pyokey_opt_set', {key: 'merge', val: this.checked})">
+            <div class="opt-label-group">
+              <span class="opt-title">표창 자동 합성 (상시)</span>
+              <span class="opt-desc">백그라운드에서 최적 속도로 표창을 자동 합성</span>
+            </div>
+          </label>
+
+          <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+            <button class="btn-danger btn-sm" onclick="if(confirm('오늘 완료한 작업 기록을 초기화하시겠습니까?\n매크로가 오늘 숙제를 처음부터 다시 실행합니다.')) doAction('pyokey_reset_day')">⚠️ 오늘 완료 기록 초기화</button>
           </div>
         </div>
       </div>
@@ -855,14 +870,18 @@
       const rec = oh.recording || {};
       document.getElementById('ohwanRecStatus').innerText = rec.enabled ? `활성 (${rec.remain_runs}회 남음, ${rec.start_wave}~${rec.stop_wave}층)` : '비활성';
 
-      // 옵션 체크박스 동기화 (사용자가 건드리지 않는 동안)
+      // 옵션 동기화 (사용자가 건드리지 않는 동안)
       const st = oh.settings || {};
-      ['wk_x2', 'hexa_auto', 'hexa_every', 'q30_human_only', 'cont_skip'].forEach(key => {
+      ['wk_x2', 'q30_human_only', 'cont_skip'].forEach(key => {
         const el = document.getElementById('opt_' + key);
         if (el && document.activeElement !== el) {
           el.checked = !!st[key];
         }
       });
+      const selHexa = document.getElementById('opt_hexa_mode');
+      if (selHexa && document.activeElement !== selHexa) {
+        selHexa.value = oh.hexa_mode || (st.hexa_every ? 'every' : (st.hexa_auto ?? true ? 'full' : 'off'));
+      }
       const selCont = document.getElementById('opt_fall_continue_n');
       if (selCont && document.activeElement !== selCont) {
         selCont.value = String(st.fall_continue_n ?? 3);
@@ -963,9 +982,28 @@
       }
       if (btnPyRestart) btnPyRestart.disabled = !pk.running;
 
+      // 표키2 전체 던전 티켓 렌더링 (총력전 등 누락 없이 표시)
       const tks = pk.tickets || {};
-      const tkSummary = Object.keys(tks).map(k => `${k}: ${tks[k].left ?? '-'}`).slice(0, 4).join(' | ');
-      document.getElementById('pyokeyTickets').innerText = tkSummary || '티켓 정보 없음';
+      const tkContainer = document.getElementById('pyokeyTickets');
+      const tkKeys = Object.keys(tks);
+      if (tkKeys.length === 0) {
+        tkContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 12px;">티켓 정보 없음</span>';
+      } else {
+        tkContainer.innerHTML = tkKeys.map(k => {
+          const left = tks[k].left ?? '-';
+          const isAvail = typeof left === 'number' && left > 0;
+          const bg = isAvail ? 'rgba(63, 185, 80, 0.15)' : 'rgba(110, 118, 129, 0.15)';
+          const color = isAvail ? '#3fb950' : '#8b949e';
+          const border = isAvail ? 'rgba(63, 185, 80, 0.35)' : 'rgba(110, 118, 129, 0.25)';
+          return `<span style="padding: 2px 7px; border-radius: 4px; font-size: 11px; background: ${bg}; color: ${color}; border: 1px solid ${border}; display: inline-flex; align-items: center; gap: 4px;">${k} <b style="font-size: 12px;">${left}</b></span>`;
+        }).join('');
+      }
+
+      // 표키2 옵션 동기화
+      const optMerge = document.getElementById('opt_pyokey_merge');
+      if (optMerge && document.activeElement !== optMerge && pk.settings && pk.settings.merge) {
+        optMerge.checked = !!pk.settings.merge.on;
+      }
 
       // 표키2 로그
       const logBox = document.getElementById('pyokeyLogBox');

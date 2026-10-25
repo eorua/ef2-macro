@@ -138,9 +138,9 @@ def get_status():
             rec_time_str = "%d분 %d초 뒤" % (diff // 60, diff % 60)
 
     if gem_hero:
-        recruit_summary = "%s (보석) · 무료: %s" % (gem_hero, rec_time_str)
+        recruit_summary = "%s (보석) · %s" % (gem_hero, rec_time_str)
     else:
-        recruit_summary = "무료 영입: %s" % rec_time_str
+        recruit_summary = rec_time_str
 
     # 환생 기록
     rebirths = []
@@ -149,6 +149,14 @@ def get_status():
         if "t" in r_copy:
             r_copy["time_str"] = time.strftime("%m-%d %H:%M:%S", time.localtime(r_copy["t"]))
         rebirths.append(r_copy)
+
+    # 유물 공방 모드 판정
+    if settings_ohwan.get("hexa_every", False):
+        hexa_mode = "every"
+    elif settings_ohwan.get("hexa_auto", True):
+        hexa_mode = "full"
+    else:
+        hexa_mode = "off"
 
     # 녹화 설정 판독
     rec_cfg = read_json_file(os.path.join(BASE_OHWAN, "rec_cfg.json"))
@@ -215,6 +223,7 @@ def get_status():
             "tribe_text": tr_text,
             "cont_used": state_ohwan.get("cont_used", 0),
             "cont_limit": settings_ohwan.get("fall_continue_n", 3),
+            "hexa_mode": hexa_mode,
             "recruit_summary": recruit_summary,
             "gem_hero": gem_hero,
             "rebirths": rebirths,
@@ -309,6 +318,25 @@ def do_action():
         cfg[key] = val
         write_json_file(st_path, cfg)
         return jsonify({"ok": True, "msg": "오환2 옵션 '%s'이(가) %s(으)로 변경되었습니다." % (key, val)})
+
+    elif action == "ohwan_hexa_mode_set":
+        mode = data.get("mode", "full")
+        st_path = os.path.join(BASE_OHWAN, "settings.json")
+        cfg = read_json_file(st_path)
+        if mode == "off":
+            cfg["hexa_auto"] = False
+            cfg["hexa_every"] = False
+            msg = "유물 공방 자동 플레이를 [사용 안 함]으로 설정했습니다."
+        elif mode == "every":
+            cfg["hexa_auto"] = True
+            cfg["hexa_every"] = True
+            msg = "유물 공방을 [환생마다 (1장 이상)] 자동 플레이하도록 설정했습니다."
+        else:
+            cfg["hexa_auto"] = True
+            cfg["hexa_every"] = False
+            msg = "유물 공방을 [티켓 꽉 차면 (5/5)] 자동 플레이하도록 설정했습니다."
+        write_json_file(st_path, cfg)
+        return jsonify({"ok": True, "msg": msg})
 
     elif action == "ohwan_bs_restart":
         def run_bs():
@@ -410,6 +438,52 @@ def do_action():
             with open(pause_f, "w", encoding="utf-8") as f:
                 f.write("pause")
             return jsonify({"ok": True, "msg": "표키2 일시정지 신호를 보냈습니다."})
+
+    elif action == "pyokey_run_now":
+        key = data.get("key", "")
+        names = {
+            "oneday": "일퀘 묶음 (우편/이벤트/일일미션)",
+            "ruby": "무료 루비/광고",
+            "weekly": "주간 미션",
+            "guild": "길드 출석/상점",
+            "starshop": "별빛 교환소",
+            "burning": "버닝 모드"
+        }
+        name = names.get(key, key)
+        try:
+            with open(os.path.join(BASE_PYOKEY, "RUN_NOW"), "w", encoding="utf-8") as f:
+                f.write(key)
+            return jsonify({"ok": True, "msg": "표키2 [%s] 작업을 즉시 실행하도록 요청했습니다." % name})
+        except Exception as e:
+            return jsonify({"ok": False, "msg": "즉시 실행 요청 실패: %r" % (e,)})
+
+    elif action == "pyokey_opt_set":
+        key = data.get("key")
+        val = data.get("val")
+        st_path = os.path.join(BASE_PYOKEY, "settings.json")
+        cfg = read_json_file(st_path)
+        if key == "merge":
+            if "merge" not in cfg or not isinstance(cfg["merge"], dict):
+                cfg["merge"] = {}
+            cfg["merge"]["on"] = bool(val)
+        else:
+            if key in cfg and isinstance(cfg[key], dict):
+                cfg[key]["on"] = bool(val)
+        write_json_file(st_path, cfg)
+        return jsonify({"ok": True, "msg": "표키2 설정 [%s]이(가) 변경되었습니다." % key})
+
+    elif action == "pyokey_reset_day":
+        st_path = os.path.join(BASE_PYOKEY, "state.json")
+        try:
+            st = read_json_file(st_path)
+            keep = ("ev_G_day", "ev_P_day")
+            for k in list(st.keys()):
+                if (k.endswith("_day") or k.endswith("_ok")) and k not in keep:
+                    st.pop(k, None)
+            write_json_file(st_path, st)
+            return jsonify({"ok": True, "msg": "표키2 오늘 완료 기록을 초기화했습니다 (다음 루프부터 오늘 숙제를 다시 수행합니다)."})
+        except Exception as e:
+            return jsonify({"ok": False, "msg": "기록 초기화 실패: %r" % (e,)})
 
     return jsonify({"ok": False, "msg": "알 수 없는 작업 요청입니다."})
 

@@ -204,6 +204,11 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
   - **`main.py` 창 닫기 직전 캡처**: `_retry_step()`(단계 실패 시 창 닫기 전 `step_fail_<단계이름>.png` 즉시 캡처) 및 `_barracks_fallback()`(기본 프리셋 복구 전 `barracks_fallback_<이유>.png` 즉시 캡처) 추가.
   - **`barracks.py` 세부 실패 캡처**: 상세창 미오픈(`barracks_detail_not_open`), 해제 버튼 미노출(`barracks_release_btn_not_found`), 해제 후 창 잔존(`barracks_still_open_after_release`), 배치 실패(`barracks_phase1_no_units`) 등 이상 발생 즉시 타임스탬프 스크린샷 자동 저장. 백업 `main.py.bak267`, `barracks.py.bak267`.
 
+- **2026-10-25 (Antigravity CLI, patch268) 7500~8000 고층 구간 자동 녹화 제어 및 관리 도구 (`rec.py`, `skillctl.py`)**:
+  - **배경**: 7500~8000층 등반 중 충분한 딜량에도 불구하고 간혹 발생하는 조기 성 함락 원인을 정밀 분석하기 위해 고층 구간 화면 자동 녹화 기능 제공.
+  - **도구 (`rec.py`)**: `py rec.py on [N]`(N판 녹화 예약), `py rec.py off`(끄기), `py rec.py set [시작] [종료]`, `py rec.py list`(영상 목록), `py rec.py open [번호]`(영상 재생) CLI 제공.
+  - **엔진 (`skillctl.py`)**: `fastcam` 프레임을 PC에서 비동기로 15fps MP4(360x640) 인코딩하여 블루스택 부하 0. 화면 좌하단에 `HH:MM:SS | W[현재웨이브]` 실시간 오버레이를 각인하여 사고 순간의 정확한 시간과 웨이브 파악 용이. 8050층 정상 도달 시 또는 환생 시 자동 저장 및 남은 횟수 차감. 백업 `skillctl.py.bak268`.
+
 ## 다음 할 일
 
 0-A. **(patch263) 내일 오전 9시 이후 양궁 실전 시험**: 사용자가 `py guild.py arch go` 로 직접 실행 예정 (패널 `archery` 옵션은 건드리지 않음). **중점 확인 사항**: 첫 미스 발생 시 우상단 X 탈출 후 놀이터 재진입했을 때 오늘 도전 기회가 차감 없이 남아 있는지 확인.

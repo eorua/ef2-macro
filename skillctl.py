@@ -93,16 +93,44 @@ def _night_want(t, nready):
 
 SWORD_SHOTS = 0              # patch182: 15초마다 저장하던 화면 (WAVE 숫자·화살 때문에 의미 없음) -> 끔
 
-# ---------------------------------------------------------------- patch182: 7500 이후 화면 녹화 (하늘의 검 기준 정하기용, 1회성)
+# ---------------------------------------------------------------- patch182/patch268: 7500~8000 고층 화면 녹화
 # 스킬 직접 굴리기로 이미 받고 있는 실시간 화면(fastcam)을 PC 에서 mp4 로 저장 -> 블루스택 쪽 추가 부담 없음
-# 웨이브 3번 연속 7500 이상이면 시작, 환생(AUTO 복구)·화면 받기 끊김·25분이면 끝. 하루 REC_MAX_DAY 판까지
+# rec_cfg.json 설정(시작/종료 웨이브, 남은 횟수)에 따라 동작. rec.py 로 제어 가능
 REC_WAVE = 7500
 REC_FPS = 15
 REC_SIZE = (360, 640)
 REC_MAX_DAY = 4
 REC_MAX_SEC = 25 * 60
 REC_DIR = os.path.join(r"C:\macro\shots", "rec")
-_rec = {"thr": None, "run": False}
+REC_CFG_F = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rec_cfg.json")
+_rec = {"thr": None, "run": False, "wave": 0}
+
+
+def _get_rec_cfg():
+    cfg = {"enabled": True, "start_wave": REC_WAVE, "stop_wave": 8050, "remain_runs": 0, "fps": REC_FPS, "max_sec": REC_MAX_SEC}
+    if os.path.exists(REC_CFG_F):
+        try:
+            with open(REC_CFG_F, "r", encoding="utf-8") as f:
+                cfg.update(json.load(f))
+        except Exception:
+            pass
+    return cfg
+
+
+def _consume_run():
+    if os.path.exists(REC_CFG_F):
+        try:
+            with open(REC_CFG_F, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            runs = cfg.get("remain_runs", 0)
+            if runs > 0:
+                cfg["remain_runs"] = runs - 1
+                if cfg["remain_runs"] <= 0:
+                    cfg["enabled"] = False
+                with open(REC_CFG_F, "w", encoding="utf-8") as f:
+                    json.dump(cfg, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
 
 
 def _rec_today():
@@ -114,16 +142,38 @@ def _rec_today():
 
 
 def note_wave(hist):
-    """메인 루프에서 웨이브를 읽을 때마다 호출. 조건이 되면 녹화 시작"""
+    """메인 루프에서 웨이브를 읽을 때마다 호출. 조건이 되면 녹화 시작/종료"""
     try:
-        if _rec["run"] or _cam is None or len(hist) < 3 or min(hist) < REC_WAVE:
+        cfg = _get_rec_cfg()
+        w_now = min(hist) if hist else 0
+        if _rec["run"]:
+            _rec["wave"] = w_now
+            stop_w = cfg.get("stop_wave", 8050)
+            if w_now >= stop_w:
+                log("웨이브 %d (목표 %d 이상) 도달 -> 고층 녹화 완료" % (w_now, stop_w))
+                rec_stop()
             return
-        if _rec_today() >= REC_MAX_DAY:
+
+        if _cam is None or len(hist) < 3:
             return
+
+        start_w = cfg.get("start_wave", REC_WAVE)
+        if w_now < start_w:
+            return
+
+        # rec_cfg.json 설정이 있으면 그 설정 우선, 없으면 레거시 일일 제한(_rec_today < REC_MAX_DAY)
+        if os.path.exists(REC_CFG_F):
+            if not cfg.get("enabled") or cfg.get("remain_runs", 0) <= 0:
+                return
+        else:
+            if _rec_today() >= REC_MAX_DAY:
+                return
+
         import threading
         os.makedirs(REC_DIR, exist_ok=True)
-        path = os.path.join(REC_DIR, "%s_%d.mp4" % (time.strftime("%m%d_%H%M%S"), min(hist)))
+        path = os.path.join(REC_DIR, "%s_%d.mp4" % (time.strftime("%m%d_%H%M%S"), w_now))
         _rec["run"] = True
+        _rec["wave"] = w_now
         _rec["thr"] = threading.Thread(target=_rec_loop, args=(path,), daemon=True)
         _rec["thr"].start()
     except Exception as e:
@@ -135,14 +185,17 @@ def _rec_loop(path):
     vw = None
     n_fr = 0
     t0 = time.perf_counter()
+    cfg = _get_rec_cfg()
+    fps = cfg.get("fps", REC_FPS)
+    max_sec = cfg.get("max_sec", REC_MAX_SEC)
     try:
-        vw = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), REC_FPS, REC_SIZE)
+        vw = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, REC_SIZE)
         if not vw.isOpened():
             log("녹화 파일을 못 엶: %s" % path)
             return
         log("화면 녹화 시작 -> %s" % path)
         last = None
-        while _rec["run"] and time.perf_counter() - t0 < REC_MAX_SEC:
+        while _rec["run"] and time.perf_counter() - t0 < max_sec:
             cam = _cam
             if cam is None:
                 break
@@ -151,22 +204,25 @@ def _rec_loop(path):
                 last = img
             if last is not None:                     # 새 화면이 없어도 같은 화면을 넣어 영상 시간 = 실제 시간
                 fr = cv2.resize(last, REC_SIZE, interpolation=cv2.INTER_AREA)
-                cv2.putText(fr, time.strftime("%H:%M:%S"), (6, 632), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3)
-                cv2.putText(fr, time.strftime("%H:%M:%S"), (6, 632), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                w_disp = _rec.get("wave", 0)
+                txt = "%s | W%d" % (time.strftime("%H:%M:%S"), w_disp)
+                cv2.putText(fr, txt, (6, 632), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 3)
+                cv2.putText(fr, txt, (6, 632), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
                 vw.write(fr)
                 n_fr += 1
-            nxt = t0 + n_fr / REC_FPS
+            nxt = t0 + n_fr / fps
             d = nxt - time.perf_counter()
             if d > 0:
                 time.sleep(d)
             elif d < -2.0:                           # 많이 밀렸으면 (PC 가 바쁨) 따라잡지 않고 기준만 옮김
-                t0 = time.perf_counter() - n_fr / REC_FPS
+                t0 = time.perf_counter() - n_fr / fps
     except Exception as e:
         log("녹화 오류: %r" % (e,))
     finally:
         if vw is not None:
             vw.release()
         _rec["run"] = False
+        _consume_run()
         log("화면 녹화 끝 (%.0f초, %d장) %s" % (time.perf_counter() - t0, n_fr, os.path.basename(path)))
 
 

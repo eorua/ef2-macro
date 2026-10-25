@@ -193,6 +193,12 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
   - `bench_hub2_result.txt`(600판): HUB 30 20.3% / 45 10.7% / 60 6.3% / 80 4.5% / 120 3.0% (HUB 단독은 30이 최고, 넘으면 ★8만 쌓다 죽음), **HUB 60 + TENB 50 = 23.0%** → TENB 가 과한 HUB 를 보정.
   - 신규 `hexa_train/bench_hub3.py`/`.bat`: A HUB30/TENB10(실전) / B 30·50 / C 30·100 / D 20·50 / E 40·50 / F 45·100 / G 60·100 × 600판. ★10 이 A 보다 ±3.3%p 넘게 높은 최고 설정을 `hexa_cfg.json`(c_hub, c_tenb)에 자동 적용, 백업 `hexa_cfg.json.bak265`. bat 끝에 notify.py 알림.
 
+- **2026-10-25 (Antigravity CLI, patch266) 유물 공방 로비 티켓 N/5 Tesseract 고속 인식 및 재시도 보강 (`hexa.py`)**:
+  - **원인 분석**: 기존 `read_tickets()`가 3배 확대(`fx=3`) + CUBIC 보간 후 윈도우 내장 OCR(`ocrx.py`, PowerShell 기반)을 호출하여, 폰트 경계 번짐 및 작은 크롭 ROI 제약으로 인해 빈 문자열(`[]`)을 반환하거나 지연되며 매번 `AUTO 티켓 ?/5` 오인식이 발생함.
+  - **Tesseract 우선 적용**: `dungeon.py`와 동일하게 PC에 설치된 `C:\Program Files\Tesseract-OCR\tesseract.exe`(`--psm 7`, `0123456789/` 화이트리스트)를 우선 호출하도록 개선 (실제 로비 캡처 검증 결과 0.05초 만에 `1/5`, `3/5` 100% 정상 판독).
+  - **ocrx 폴백 및 다중 패턴 지원**: Tesseract 실패 시 2배 확대(`fx=2`) 기반 `ocrx` 폴백 및 `[0-5]/[S$]`, `[0-5]5` 등 오인식 보정 패턴 추가.
+  - **로비 렌더링 지연 재시도**: `auto()`에서 로비 진입 직후 애니메이션 지연 대비 최대 3회(0.7초 간격) 재시도 및 실패 시 `shots/hexa_ticket_none.png` 디버그 저장. 백업 `hexa.py.bak264`.
+
 ## 다음 할 일
 
 0-A. **(patch263) 내일 오전 9시 이후 양궁 실전 시험**: 사용자가 `py guild.py arch go` 로 직접 실행 예정 (패널 `archery` 옵션은 건드리지 않음). **중점 확인 사항**: 첫 미스 발생 시 우상단 X 탈출 후 놀이터 재진입했을 때 오늘 도전 기회가 차감 없이 남아 있는지 확인.

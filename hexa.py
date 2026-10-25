@@ -1030,22 +1030,52 @@ def icon_score(im):
     return float(mv), (x0 + ml[0] + w // 2, y0 + ml[1] + h // 2)
 
 
+TESS = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+
 def read_tickets(im):
-    """로비 왼쪽 티켓 'N/5' 의 N (못 읽으면 None)"""
+    """patch264: 로비 왼쪽 티켓 'N/5' 의 N (Tesseract 우선 + ocrx 폴백, 못 읽으면 None)"""
+    crop = im[392:448, 135:280]
+    bgr = cv2.cvtColor(crop, cv2.COLOR_RGB2BGR) if im.shape[2] == 3 else crop
+
+    # 1) Tesseract 고속 정밀 인식 (0123456789/ 화이트리스트)
+    if os.path.exists(TESS):
+        try:
+            import tempfile
+            gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+            _, bin1 = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+            tmp = os.path.join(tempfile.gettempdir(), "ef2_hexa_ticket.png")
+            cv2.imwrite(tmp, bin1)
+            r = subprocess.run([TESS, tmp, "-", "--psm", "7", "-c", "tessedit_char_whitelist=0123456789/"],
+                               capture_output=True, text=True, timeout=5)
+            txt = r.stdout.strip().replace(" ", "")
+            m = re.search(r"([0-5])/5", txt)
+            if m:
+                log("티켓 글자 '%s' (Tesseract)" % txt)
+                return int(m.group(1))
+        except Exception as e:
+            log("Tesseract 티켓 오류: %r" % (e,))
+
+    # 2) 윈도우 내장 OCR 폴백
     try:
         import ocrx
+        big = cv2.resize(bgr, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
+        big = cv2.copyMakeBorder(big, 20, 20, 20, 20, cv2.BORDER_REPLICATE)
+        ws = ocrx.words(big)
+        if ws:
+            txt = "".join(w[0] for w in ws).replace(" ", "").upper()
+            m = re.search(r"([0-5])/5", txt)
+            if m:
+                log("티켓 글자 '%s' (ocrx)" % txt)
+                return int(m.group(1))
+            m2 = re.search(r"([0-5])/[S$]", txt)
+            if m2:
+                log("티켓 글자 '%s' (ocrx 대체 매칭)" % txt)
+                return int(m2.group(1))
     except Exception:
-        return None
-    crop = im[392:448, 135:280]
-    big = cv2.resize(crop, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
-    big = cv2.copyMakeBorder(big, 30, 30, 30, 30, cv2.BORDER_REPLICATE)
-    ws = ocrx.words(cv2.cvtColor(big, cv2.COLOR_RGB2BGR))
-    if not ws:
-        return None
-    txt = "".join(w[0] for w in ws).replace(" ", "")
-    log("티켓 글자 '%s'" % txt)
-    m = re.search(r"([0-5])/5", txt)
-    return int(m.group(1)) if m else None
+        pass
+
+    return None
 
 
 _MENU_T = None
@@ -1130,8 +1160,18 @@ def auto(need=5, games=2):
         fin = play(1)
         _after_play(fin)
         return "resumed" if fin else "interrupted"
-    n = read_tickets(im)
+    # patch264: 로비 진입 직후 애니메이션 렌더링 지연 대비 최대 3회 재확인
+    n = None
+    for attempt in range(3):
+        n = read_tickets(im)
+        if n is not None:
+            break
+        if attempt < 2:
+            time.sleep(0.7)
+            im = _adb_capture()
     log("AUTO 티켓 %s/5" % ("?" if n is None else n))
+    if n is None:
+        save_shot(im, "hexa_ticket_none.png")
     if n is None or n < need:
         back = close_event()
         log("AUTO 티켓 %s장 < %d -> 창 닫음%s" % ("?" if n is None else n, need, "" if back else " (전투 화면 확인 못함)"))

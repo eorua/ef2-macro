@@ -181,6 +181,12 @@ def record_rebirth(st, why=""):
             lst.append({"wave": w, "t": int(time.time()), "why": why})
             st["rebirths"] = lst[-10:]
             log("환생 기록: %d층 (%s)" % (w, why))
+        try:                                    # patch271: 텔레그램 무음 알림 (백그라운드 전송)
+            from telegram_bot import send_telegram, esc
+            send_telegram("🔄 <b>[오늘도환생2] 환생</b>\n• 층수: %s\n• 종류: %s\n• 시각: %s" % (
+                ("%d층" % w) if w > 0 else "?", esc(why or "-"), time.strftime("%m-%d %H:%M:%S")))
+        except Exception as e:
+            log("텔레그램 환생 알림 오류: %r" % (e,))
         st["peak_wave"] = 0
     except Exception as e:
         log("환생 기록 오류: %r" % (e,))

@@ -749,6 +749,15 @@ def check_result(r, r3, cells, ts, preds, cx, cy, im3):
                        n=len(preds), made=preds[hit][1]))
         if preds[hit][1]:
             log("수 %d: %s -> 합침 %s" % (STATS["moves"], list(zip(cells, ts)), preds[hit][1]))
+            # patch271: 실제 판과 맞은 예상에서 ★10 이 만들어졌으면 텔레그램 무음 알림 (made = (원래 등급, 칸 수, 결과 등급))
+            if any(nt >= 10 for _t, _n, nt in preds[hit][1]):
+                log("★10 합성! (수 %d)" % STATS["moves"])
+                try:
+                    from telegram_bot import send_telegram
+                    send_telegram("🎉 <b>[유물 공방] ★10 달성!</b>\n• 수: %d\n• 시각: %s" % (
+                        STATS["moves"], time.strftime("%m-%d %H:%M:%S")))
+                except Exception as e:
+                    log("텔레그램 ★10 알림 오류: %r" % (e,))
         return hit                 # patch266: 맞은 예상 번호 (못 읽은 칸 채우기용)
     STATS["fails"] += 1
     new = [i for i in range(E.N) if b0[i] == 0 and b1[i] > 0]

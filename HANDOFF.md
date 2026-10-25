@@ -24,6 +24,12 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-25 (Claude, patch271) 텔레그램 무음 알림 연동** (`telegram_bot.py`, `notify.py`, `main.py`, `hexa.py`, `.gitignore`):
+  - 토큰·chat_id 를 코드에서 빼서 `telegram.json`(새 파일, `.gitignore` 추가)으로 분리. `send_telegram(msg, silent=True, block=False)` = 무음(`disable_notification`) + 백그라운드 스레드 전송, `esc()` 로 HTML 이스케이프.
+  - `main.py` `record_rebirth()` 에서 환생 기록 직후 알림(층수·종류·시각) — 환생 경로 4곳(성 함락/💎x2/정체/감지)이 모두 여기를 지남.
+  - `hexa.py` `check_result()` 에서 실제 판과 맞은 예상(`hit`)의 `made`(=(원래 등급, 칸 수, 결과 등급)) 결과 등급이 10 이상일 때만 ★10 알림.
+  - `notify.py`: 토스트 무음(`ToastAudio(silent=True)`) + 같은 내용 텔레그램 전송(`block=True`, 짧은 프로세스라 기다림).
+  - 미검증: 실제 텔레그램 수신(컨테이너에서 네트워크 불가, 문법 컴파일만 확인), ★10 알림은 실전 ★10 발생 전까지 미확인. git commit 은 Claude 쪽 셸이 없어 **아직 안 함** — 커밋 전 `telegram_bot.py` 예전 커밋에 토큰이 남아 있으면 BotFather `/revoke` 권장.
 - **2026-10-25 (Claude, patch270) 영혼의 휴식 중 작업이 휴식 끝까지 멈추던 문제** (`main.py`):
   - 원인: 14:56 유물 공방 '공방 마감' 창(patch268 이전엔 못 알아봄)이 화면을 덮은 채 영입 뒤 복귀 확인 실패 → `soul.no_tasks=True` → 그 휴식이 끝날 때까지(17:11) 영입·던전·고원 등 전부 건너뜀.
   - 수정: 멈출 때 `no_tasks_at` 기록, 30분 지난 뒤 지금 화면에 휴식 표시(`soul.running_view`)가 보이면 `no_tasks` 해제하고 재개. 예전 상태(시각 없음)는 바로 확인.

@@ -205,17 +205,35 @@ def _classify(g):
 
 
 def read_diamonds(img):
-    """HUD 다이아 개수 -> (값 또는 None, 정확한지). 아직 템플릿이 없는 숫자가 섞이면 자릿수로 하한만 알려줌
-    5자리 이상이면 10000 이상, 못 읽는 4자리 이하는 None"""
-    gl = _glyphs(img)
-    if not gl:
+    """HUD 다이아 개수 -> (값 또는 None, 정확한지).
+    1차: 글리프 템플릿 매칭
+    2차: ocrx (Windows OCR) 기반 정밀 인식"""
+    if img is None:
         return None, False
-    ds = [_classify(g)[0] for g in gl]
-    n = len(gl)
-    if all(d is not None for d in ds):
-        return int("".join(ds)), True
-    if n >= 5:
-        return 10 ** (n - 1), False          # 하한 (예: 5자리 -> 10000 이상)
+    gl = _glyphs(img)
+    if gl:
+        ds = [_classify(g)[0] for g in gl]
+        n = len(gl)
+        if all(d is not None for d in ds):
+            return int("".join(ds)), True
+        if n >= 5:
+            return 10 ** (n - 1), False          # 하한 (예: 5자리 -> 10000 이상)
+
+    # patch289: 글리프 템플릿이 미등록/인식실패일 때 ocrx 백업
+    try:
+        import ocrx, re
+        crop = img[715:755, 320:430]
+        padded = cv2.copyMakeBorder(crop, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+        padded = cv2.resize(padded, None, fx=2, fy=2)
+        words = ocrx.words(padded) or []
+        for w in words:
+            s = re.sub(r"[^\d]", "", w[0])
+            if s and s.isdigit() and len(s) >= 3:
+                val = int(s)
+                return val, True
+    except Exception:
+        pass
+
     try:
         os.makedirs(SHOTS, exist_ok=True)
         cv2.imwrite(os.path.join(SHOTS, "dia_unknown_%d.png" % int(time.time())), img[ROI_DIA[1]:ROI_DIA[3], ROI_DIA[0]:ROI_DIA[2]])

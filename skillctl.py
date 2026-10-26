@@ -141,23 +141,44 @@ def _rec_today():
         return 0
 
 
-def note_wave(hist):
-    """메인 루프에서 웨이브를 읽을 때마다 호출. 조건이 되면 녹화 시작/종료"""
+def note_wave(hist, st=None):
+    """메인 루프에서 웨이브를 읽을 때마다 호출. 조건이 되면 녹화 시작/종료
+    patch292: 환생 종족이 인간(HUMAN)일 경우 8000~8500 범위로 녹화 (죽으면 즉시 종료)"""
     try:
         cfg = _get_rec_cfg()
         w_now = min(hist) if hist else 0
+
+        # 종족 판별 (인간 판 여부)
+        if st is None:
+            try:
+                import json
+                with open(r"C:\macro\state.json", encoding="utf-8") as f:
+                    st = json.load(f)
+            except Exception:
+                st = {}
+        is_human = (st.get("reborn_tribe") == "HUMAN")
+
+        # 목표 시작/종료 웨이브 결정
+        if is_human:
+            start_w = 8000
+            stop_w = 8500
+            tag = "human"
+        else:
+            start_w = cfg.get("start_wave", REC_WAVE)
+            stop_w = cfg.get("stop_wave", 8050)
+            tag = "normal"
+
         if _rec["run"]:
             _rec["wave"] = w_now
-            stop_w = cfg.get("stop_wave", 8050)
-            if w_now >= stop_w:
-                log("웨이브 %d (목표 %d 이상) 도달 -> 고층 녹화 완료" % (w_now, stop_w))
+            cur_stop = _rec.get("stop_wave", stop_w)
+            if w_now >= cur_stop:
+                log("웨이브 %d (목표 %d 이상) 도달 -> 고층 녹화 완료" % (w_now, cur_stop))
                 rec_stop()
             return
 
         if _cam is None or len(hist) < 3:
             return
 
-        start_w = cfg.get("start_wave", REC_WAVE)
         if w_now < start_w:
             return
 
@@ -171,9 +192,12 @@ def note_wave(hist):
 
         import threading
         os.makedirs(REC_DIR, exist_ok=True)
-        path = os.path.join(REC_DIR, "%s_%d.mp4" % (time.strftime("%m%d_%H%M%S"), w_now))
+        fname = "%s_%s_%d.mp4" % (time.strftime("%m%d_%H%M%S"), tag, w_now)
+        path = os.path.join(REC_DIR, fname)
         _rec["run"] = True
         _rec["wave"] = w_now
+        _rec["stop_wave"] = stop_w
+        log("[고층 녹화 시작] %s (%s 판, %d~%d층 목표)" % (fname, "인간" if is_human else "일반", start_w, stop_w))
         _rec["thr"] = threading.Thread(target=_rec_loop, args=(path,), daemon=True)
         _rec["thr"].start()
     except Exception as e:

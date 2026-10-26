@@ -2053,9 +2053,9 @@ def main():
             if w is not None:
                 hist.append(w)
                 hist[:] = hist[-3:]
-                try:                                    # patch182: 7500 이후 화면 녹화 (스킬 직접 굴리기 중일 때만)
+                try:                                    # patch182/292: 고층 화면 녹화 (인간 8000~8500 / 일반 7500~8050)
                     import skillctl
-                    skillctl.note_wave(hist)
+                    skillctl.note_wave(hist, st=st)
                 except Exception as _e:
                     log("녹화 확인 오류: %r" % (_e,))
                 if GO:

@@ -1062,47 +1062,91 @@ def lobby_button(im):
     return "start" if n >= 150 else ("cont" if n <= 40 else None)
 
 
+def is_reward_claimable(im):
+    """로비 화면에서 주간/일일 등급 달성 보상 받기 버튼(BTN_CLAIM = 597, 647)이 활성 상태인지 확인"""
+    if im is None:
+        return False
+    try:
+        roi = im[635:660, 560:635]
+        hsv = cv2.cvtColor(np.ascontiguousarray(roi), cv2.COLOR_RGB2HSV)
+        # 활성 보상 버튼 (밝은 주황/노랑/갈색): 채도 > 100, 명도 > 140
+        act_cnt = int(((hsv[..., 1] > 100) & (hsv[..., 2] > 140)).sum())
+        return act_cnt >= 80
+    except Exception:
+        return False
+
+
+def is_reward_popup(im):
+    """보상 수령 후 나타나는 확인 팝업창인지 판별 (중앙 확인 버튼 등)"""
+    if im is None:
+        return False
+    if V.state(im) in ("game", "lobby", "over", "popup"):
+        return False
+    try:
+        # 중앙 확인 버튼 영역(x=300..420, y=730..770) 확인
+        roi = im[730:770, 300:420]
+        mean_v = float(roi.mean())
+        return 40.0 <= mean_v <= 240.0
+    except Exception:
+        return False
+
+
 def claim_and_close():
-    """patch227/patch294: 로비에서 '받기' -> (보상 창 뜨면 닫기) -> 오른쪽 위 X 로 공방 창 닫기 -> 전투 화면 복귀"""
-    # 이미 전투 화면이면 즉시 완료
+    """patch227/patch294/patch294d: 공방 정상 완료 후 단계별 처리:
+    1. 보상 확인 및 수령 (활성 보상 버튼 존재 시에만 탭)
+    2. 로비 창 닫기 (우상단 X 탭 후 로비 닫힘 확인)
+    3. 전투 화면 복귀 (icon_score >= 0.7 및 메뉴 닫힘 확인)
+    반환: bool (전투 화면 복귀 성공 여부)"""
     im0 = _adb_capture() if fast_on() else capture()
-    if icon_score(im0)[0] >= 0.7 and menu_forge(im0)[0] < 0.8:
-        log("끝. 이미 전투 화면임 -> 공방 창 닫힘 확인")
+    # 0. 이미 전투 화면이면 어떠한 닫기 터치도 하지 않고 즉시 완료
+    sc0, _ = icon_score(im0)
+    if sc0 >= 0.7 and menu_forge(im0)[0] < 0.8:
+        log("끝. 이미 전투 화면임 -> 추가 조작 없이 즉시 완료")
         return True
 
-    # 1. 로비에서 받기 버튼 시도
-    tap(*BTN_CLAIM)
-    time.sleep(1.5)
+    # 1. 보상 수령 (로비 화면이고 수령 가능한 보상이 있는 경우에만 탭)
+    st0 = V.state(im0)
+    if st0 == "lobby":
+        if is_reward_claimable(im0):
+            log("로비 보상 수령 버튼 활성 감지 -> 보상 받기 탭 %s" % (BTN_CLAIM,))
+            tap(*BTN_CLAIM)
+            time.sleep(1.2)
+            im_pop = capture()
+            if is_reward_popup(im_pop):
+                log("보상 획득 팝업 감지 -> 중앙 확인 탭 (360, 750)")
+                tap(360, 750)
+                time.sleep(1.0)
+        else:
+            log("로비 보상: 수령 가능한 활성 보상 없음(비활성) -> 보상 받기 건너뜀")
 
-    # 2. 팝업 또는 로비 닫기 시도 (최대 6회)
-    for n in range(6):
+    # 2. 로비 창 닫기 (최대 4회 시도)
+    for attempt in range(4):
         im = capture()
         st = V.state(im)
-        # 이미 공방 창이 닫혀서 전투 화면으로 나갔는지 확인
         sc, _ = icon_score(im)
         if sc >= 0.7 and menu_forge(im)[0] < 0.8:
-            log("끝. 공방 창 닫힘 -> 전투 화면 복귀 확인")
+            log("끝. 공방 창 닫힘 -> 전투 화면 복귀 확인 (시도 %d)" % (attempt + 1))
             return True
 
         if st == "lobby":
-            # 로비 우상단 빨간 X (638, 120) 탭
+            log("로비 우상단 X 탭 %s (시도 %d)" % (BTN_CLOSE, attempt + 1))
             tap(*BTN_CLOSE)
-            time.sleep(1.5)
-            continue
-        elif st is None:
-            # 보상 획득 확인 팝업 등: 중앙 확인 버튼 탭 및 닫기
+            time.sleep(1.2)
+        elif is_reward_popup(im):
+            log("남아있는 보상 팝업 닫기 탭 (360, 750)")
             tap(360, 750)
-            time.sleep(0.8)
-            tap(360, 1180)
             time.sleep(1.0)
-            continue
-        elif st in ("over", "popup"):
-            tap(360, 882)
-            time.sleep(1.0)
-            continue
+        else:
+            time.sleep(0.5)
 
-    # 최종 백업: close_event() 호출로 확실한 전투 화면 복귀 보장
-    return close_event()
+    # 3. 최종 백업: close_event() 호출로 이벤트 메뉴 닫기 및 최종 전투 화면 검증
+    ok_battle = close_event()
+    if ok_battle:
+        log("전투 화면 복귀 최종 확인 완료")
+    else:
+        p = save_shot(capture(), "hexa_close_fail_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
+        log("[경고] 전투 화면 복귀 실패 (증거 저장: %s)" % p)
+    return ok_battle
 
 
 def play(n_games):
@@ -1120,6 +1164,7 @@ def play(n_games):
     finished = 0
     unknown_since = None
     in_game = False
+    game_finished = False        # patch294d: 실제 게임오버(popup/over)가 확인된 정상 완료 플래그
     need_hi = False              # patch243
     stall = None                 # patch257
     NEXT.clear()
@@ -1129,9 +1174,6 @@ def play(n_games):
         if should_stop():
             log("[공방 중단] 작업 중단 요청 감지 -> 공방 플레이를 중단하고 종료합니다")
             claim_and_close()
-            if auto_opened:
-                time.sleep(1.0)
-                close_event()
             break
         if NEXT:                 # patch245: 놓은 뒤 확인한 판이 있으면 다시 찍지 않음
             im, r_next = NEXT["im"], NEXT["r"]
@@ -1151,17 +1193,23 @@ def play(n_games):
             log("[안전 중단] 화면 상태 판별 불가(None) 감지 -> 추가 입력 차단 및 즉시 중단 (저장: %s)" % p)
             break
         if st == "lobby":
-            # patch294: 목표 판수 완료 또는 정상 판 종료 후 로비 복귀 시 창 닫기 및 전투 화면 복귀
-            if finished >= n_games or (started >= n_games and in_game):
-                log("공방 완료 (finished=%d, started=%d) -> 보상 수령 및 창 닫기" % (finished, started))
-                claim_and_close()
-                if auto_opened:
+            # 1. 정상적으로 게임오버를 거쳐 로비로 돌아온 경우
+            if game_finished:
+                finished += 1
+                in_game = False
+                game_finished = False
+                log("공방 판 정상 완료 (완료: %d/%d)" % (finished, n_games))
+                if finished >= n_games:
+                    log("목표 판수(%d판) 달성 -> 보상 수령 및 창 닫기 진행" % n_games)
+                    claim_and_close()
+                    break
+                else:
+                    log("다음 판 시작 대기 (진행도: %d/%d)" % (finished, n_games))
                     time.sleep(1.0)
-                    close_event()
-                finished = max(finished, started)
-                break
-            # 최초 시작(started == 0)일 때만 정상 시작 허용
-            if started == 0 and not in_game:
+                    continue
+
+            # 2. 최초 시작(started == 0)일 때만 정상 시작 허용
+            elif started == 0 and not in_game:
                 btn = lobby_button(im)
                 tap(*BTN_START)
                 started += 1
@@ -1178,27 +1226,39 @@ def play(n_games):
                     log("판 시작 (%d/%d)" % (started, n_games))
                 time.sleep(2.5)
                 continue
+
+            # 3. 게임 진행 도중(in_game) 예기치 않게 로비로 이탈한 경우 (요구사항 A-2)
             else:
                 p = save_shot(im, "hexa_unexpected_lobby_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
-                log("[안전 중단] 예기치 않은 로비(lobby) 상태 감지 (in_game=%s, started=%d) -> 창 닫기 시도 후 중단 (저장: %s)" % (
-                    in_game, started, p))
-                claim_and_close()
-                if auto_opened:
-                    time.sleep(1.0)
-                    close_event()
+                log("[안전 중단] 게임 진행 도중 예기치 않은 로비(lobby) 이탈 감지 (in_game=%s, started=%d, finished=%d) -> 추가 입력 없이 즉시 안전 중단 (저장: %s)" % (
+                    in_game, started, finished, p))
                 break
-        if st == "over":
-            # patch294 (원칙 2): over 감지 시 임의로 결과 확인 버튼을 누르지 않고 증거 저장 후 안전 중단
-            p = save_shot(im, "hexa_over_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
-            log("[안전 중단] 결과 화면(over) 감지: %d수, 최고 등급 %d -> 임의 조작 없이 안전 중단 (저장: %s)" % (
-                STATS["moves"], STATS["best"], p))
-            break
+
         if st == "popup":
-            # patch294 (원칙 2): popup 감지 시 임의로 다시하기/나가기 버튼을 누르지 않고 증거 저장 후 안전 중단
-            p = save_shot(im, "hexa_popup_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
-            log("[안전 중단] 팝업 창(popup) 감지: %d수, 최고 등급 %d -> 임의 조작 없이 안전 중단 (저장: %s)" % (
+            # patch294d: '공방 마감' 오버레이 감지 시 정상 게임오버 처리 -> 나가기 버튼을 눌러 로비로 복귀
+            y_btn = V.popup_y(im)
+            if y_btn is not None:
+                p = save_shot(im, "hexa_gameover_popup_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
+                log("[게임오버] 공방 마감 팝업 감지: %d수, 최고 등급 %d -> 나가기 버튼(211, %d) 탭 (저장: %s)" % (
+                    STATS["moves"], STATS["best"], y_btn, p))
+                tap(211, y_btn)
+                time.sleep(1.5)
+                game_finished = True
+                continue
+            else:
+                p = save_shot(im, "hexa_popup_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
+                log("[안전 중단] 팝업 창(popup) 버튼 판별 불가 -> 임의 조작 없이 안전 중단 (저장: %s)" % p)
+                break
+
+        if st == "over":
+            # patch294d: 결과 화면(over) 감지 시 정상 게임오버 처리 -> 확인 버튼 탭 후 로비 복귀
+            p = save_shot(im, "hexa_gameover_over_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
+            log("[게임오버] 결과 화면(over) 감지: %d수, 최고 등급 %d -> 확인 탭 후 로비로 복귀합니다 (저장: %s)" % (
                 STATS["moves"], STATS["best"], p))
-            break
+            tap(360, 882)
+            time.sleep(1.5)
+            game_finished = True
+            continue
         # game
         if started == 0:
             started = 1          # 게임 화면에서 바로 시작한 경우

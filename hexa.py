@@ -38,14 +38,17 @@ LEARN_PATH = os.path.join(SHOTS, "hexa_learn.jsonl")
 SPAWN_PATH = os.path.join(SHOTS, "hexa_spawn.jsonl")   # patch246: 매 수 조각 기록(출현 규칙 분석용)
 SPAWN = {"gid": None, "last": None}
 
-STOP_REQ = os.path.join(BASE, "hexa_stop.req")
-CANCEL_REQ = os.path.join(BASE, "job_cancel.req")
+STOP_REQS = [
+    os.path.join(BASE, "stop_hexa.req"),
+    os.path.join(BASE, "hexa_stop.req"),
+    os.path.join(BASE, "job_cancel.req"),
+]
 PAUSE_FILE = os.path.join(BASE, "PAUSE")
 
 
 def should_stop():
-    """patch292b: 작업 중단 요청(hexa_stop.req, job_cancel.req, PAUSE) 확인"""
-    for req in (STOP_REQ, CANCEL_REQ):
+    """patch292b: 작업 중단 요청(stop_hexa.req, hexa_stop.req, job_cancel.req, PAUSE) 확인"""
+    for req in STOP_REQS:
         if os.path.exists(req):
             try:
                 os.remove(req)

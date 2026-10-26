@@ -575,6 +575,7 @@ class App:
 
     def cancel_job(self):
         try:
+            open(os.path.join(BASE, "stop_hexa.req"), "w").close()
             open(os.path.join(BASE, "hexa_stop.req"), "w").close()
             open(os.path.join(BASE, "job_cancel.req"), "w").close()
         except Exception:

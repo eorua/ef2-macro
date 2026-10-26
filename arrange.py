@@ -248,6 +248,7 @@ def run():
     last_src = None
     prev = None
     best = 0
+    rebalance_count = 0                          # patch292b: 12시 <-> 6시 NMS 겹침 무한 왕복 방지 카운터
     for mv in range(MAX_MOVES):
         time.sleep(0.4)
         img = capture()
@@ -272,8 +273,11 @@ def run():
         if total_ot >= 4 and (len(ot_12) < 2 or len(ot_6) < 2):
             is_balanced = False
 
-        if placed == len(T_SPIRIT) and not stray_ot and not stray_dm and not stray_sp and is_balanced:
-            log("배치 완료 -> 저장 (불정 %d, 12시 드루이드 %d, 6시 드루이드 %d, 북 제자리)" % (placed, len(ot_12), len(ot_6)))
+        # patch292b: 반반 분배 완료 또는 겹침 감안 균형 이동 한도(최대 3회) 도달 시 배치 완료 저장
+        is_done = is_balanced or (rebalance_count >= 3)
+        if placed == len(T_SPIRIT) and not stray_ot and not stray_dm and not stray_sp and is_done:
+            reason = "반반 분배 완료" if is_balanced else f"균형 이동 {rebalance_count}회 완료(NMS 겹침 감안)"
+            log("배치 완료 (%s) -> 저장 (불정 %d, 12시 드루이드 %d, 6시 드루이드 %d, 북 제자리)" % (reason, placed, len(ot_12), len(ot_6)))
             tap(BTN_SAVE, "저장")
             time.sleep(1.5)
             if dialog_open(capture()):
@@ -322,14 +326,19 @@ def run():
             tgt_ot = T12 if len(ot_12) <= len(ot_6) else T6
             cands.append(("ot", s, tgt_ot))
 
-        # patch292: stray_ot가 없지만 12시/6시 균형이 맞지 않는 경우 (예: 기존 12시 몰빵 상태에서 6시로 이전)
+        # patch292/patch292b: stray_ot가 없지만 12시/6시 균형이 맞지 않는 경우 (예: 기존 12시 몰빵 상태에서 6시로 이전)
+        # NMS 겹침으로 인한 12시 <-> 6시 무한 왕복 방지: rebalance_count 최대 3회 제한
+        is_rebalance = False
         if not stray_ot and not stray_sp and not stray_dm:
-            if len(ot_12) > len(ot_6) + 1:
-                for s in ot_12:
-                    cands.append(("ot", s, T6))
-            elif len(ot_6) > len(ot_12) + 1:
-                for s in ot_6:
-                    cands.append(("ot", s, T12))
+            if rebalance_count < 3:
+                if len(ot_12) > len(ot_6) + 1:
+                    for s in ot_12:
+                        cands.append(("ot", s, T6))
+                    is_rebalance = True
+                elif len(ot_6) > len(ot_12) + 1:
+                    for s in ot_6:
+                        cands.append(("ot", s, T12))
+                    is_rebalance = True
 
         cands = [c for c in cands if all(dist(c[1], b) > 25 for b in bad_pts)]     # patch124
 
@@ -355,6 +364,9 @@ def run():
 
         if cands:
             kind, src, tgt = max(cands, key=_cscore)
+            if is_rebalance and kind == "ot" and tgt in (T6, T12):
+                rebalance_count += 1
+                log("12시 <-> 6시 드루이드 균형 이동 (%d/3회)" % rebalance_count)
             tgt_name = "12시" if tgt == T12 else ("6시" if tgt == T6 else ("중앙 북" if tgt == T_DRUM else "불정 좌우"))
             log("옮길 아이콘: %s %s -> %s (목표: %s, 점수 %.0f)" % ({"sp": "불의정령", "ot": "드루이드 등", "dm": "북"}[kind], src, tgt, tgt_name, _cscore((kind, src, tgt))))
         last_src = src if cands else None

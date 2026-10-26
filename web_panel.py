@@ -386,6 +386,7 @@ def do_action():
     elif action == "ohwan_job_cancel":
         # patch292b: 단발 작업 중단 (플래그 파일 생성 및 프로세스 종료)
         try:
+            open(os.path.join(BASE_OHWAN, "stop_hexa.req"), "w").close()
             open(os.path.join(BASE_OHWAN, "hexa_stop.req"), "w").close()
             open(os.path.join(BASE_OHWAN, "job_cancel.req"), "w").close()
         except Exception:

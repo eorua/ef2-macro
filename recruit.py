@@ -142,10 +142,22 @@ def gem_left(img=None):
             except Exception as e:
                 print(f"보석 영웅 ({i}행) 글자 읽기 오류:", e)
 
-    # patch292: '전장의 북소리' 보석 영입 실행
+    # patch292/patch292b: '전장의 북소리' 보석 영입 실행 전 보유 다이아 2,000개 이상인지 사전 검증
     if drum_targets:
+        cur_dia = None
+        try:
+            import soul
+            d_val, _ = soul.read_diamonds(img)
+            cur_dia = d_val
+        except Exception as e:
+            print("[영입] 다이아 잔여량 판독 오류:", e)
+
         for idx, y, name in drum_targets:
-            print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견! 보석 2000 영입 진행")
+            if cur_dia is not None and cur_dia < 2000:
+                print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견되었으나, 보유 다이아({cur_dia}) 2,000개 미만 -> 영입 건너뜀")
+                continue
+            dia_str = f"{cur_dia}개" if cur_dia is not None else "확인불가"
+            print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견! (보유 다이아: {dia_str}) 보석 2000 영입 진행")
             btn_x = 625
             if GO:
                 subprocess.run(ADB + ["shell", "input", "tap", str(btn_x), str(y)])

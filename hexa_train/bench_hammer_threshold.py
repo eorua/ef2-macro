@@ -9,6 +9,10 @@
   6) hub_free2: 8성 허브 블로커 우선 파괴 + 빈칸 <= 2개 이하일 때
 """
 import os, sys, time, random, json
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except Exception:
+    pass
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import hexa_engine as E
 import hexa_nt as NT
@@ -220,8 +224,8 @@ def run_bench(n_games=60):
         log_msg(" [최종 분석 요약]")
         best_s10 = max(results.values(), key=lambda x: x["s10_rate"])
         best_score = max(results.values(), key=lambda x: x["score"])
-        log_msg(f" • ★10 달성률 1위: {best_s10['label']} ({best_s10['s10_rate']:.1f}%)")
-        log_msg(f" • 평균 득점 1위  : {best_score['label']} ({best_score['score']:.0f}점)")
+        log_msg(f"  - 10성 달성률 1위: {best_s10['label']} ({best_s10['s10_rate']:.1f}%)")
+        log_msg(f"  - 평균 득점 1위  : {best_score['label']} ({best_score['score']:.0f}점)")
         log_msg("=" * 75)
     print(f"\n결과가 저장되었습니다: {out_path}", flush=True)
     return results

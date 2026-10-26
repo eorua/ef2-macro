@@ -24,7 +24,9 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
-- **2026-10-27 (Antigravity, patch292) 기본 대기화면 퀘스트 탭 유지, 전장의 북소리 보석 영입, 패널 유물 공방 자동 진입 & 새 UI 좌표 갱신, UI 점검 투어 도구 추가** (`daily.py`, `pet.py`, `preset.py`, `main.py`, `recruit.py`, `hexa.py`, `hexa_vision.py`, `uitour.py`, `panel.py`, `web_panel.py`, `templates/index.html`):
+- **2026-10-27 (Antigravity, patch292) 기본 대기화면 퀘스트 탭 유지, 전장의 북소리 보석 영입, 패널 유물 공방 자동 진입 & 새 UI 좌표 갱신, UI 점검 투어 도구 추가, 성 영웅 배치 불의 정령 정확한 3시/9시 끝쪽 배치** (`arrange.py`, `daily.py`, `pet.py`, `preset.py`, `main.py`, `recruit.py`, `hexa.py`, `hexa_vision.py`, `uitour.py`, `panel.py`, `web_panel.py`, `templates/index.html`):
+  - **0) 성 영웅 배치 불의 정령(T_SPIRIT) 정확한 3시/9시 끝쪽 수평 배치 (`arrange.py`)**:
+    - 고층 녹화 영상 분석 결과 성 함락의 100%가 위쪽(11시~1시) 침투로 확인됨에 따라, 살짝 아래(y=368~372)에 치우쳐 있던 불의 정령을 성 중심(y=340)과 수평인 정확한 9시/3시 끝쪽으로 이동: `[(253, 368), (459, 372)]` -> `[(221, 343), (485, 346)]`. 성 위쪽 커버 범위 확대 및 좌우 완전 방어.
   - **1) 기본 대기화면을 퀘스트 탭으로 통일**:
     - 환생 직후, 일일 작업(던전·광고 등), 일괄 레벨업, 영입 등 모든 서브 루틴 완료 후 항상 하단 퀘스트 탭(`TAB_QUEST = (68, 1240)`)으로 복귀하도록 변경하여 골드 상승 및 퀘스트 레벨업/30퀘 오픈 상태를 지연 없이 상시 감지.
   - **2) 영입 시 '전장의 북소리' 보석 영입 자동화**:

@@ -42,6 +42,9 @@ foreach ($l in $res.Lines) { Write-Output $l.Text }
 '''
 
 
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
+
+
 def log(*a):
     print(time.strftime("[%H:%M:%S] maint:"), *a, flush=True)
 
@@ -56,7 +59,7 @@ def ocr_lines(img):
         with open(ps1, "w", encoding="utf-8-sig") as f:
             f.write(PS_SCRIPT)
         r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1, png],
-                           capture_output=True, timeout=60)
+                           capture_output=True, timeout=60, creationflags=NOWIN)
         out = r.stdout.decode("utf-8", errors="replace").splitlines()
         out = [x.strip() for x in out if x.strip()]
         if not out or out[0] != "OK":

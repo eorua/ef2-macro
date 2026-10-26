@@ -1370,7 +1370,8 @@ def read_tickets(im):
             tmp = os.path.join(tempfile.gettempdir(), "ef2_hexa_ticket.png")
             cv2.imwrite(tmp, bin1)
             r = subprocess.run([TESS, tmp, "-", "--psm", "7", "-c", "tessedit_char_whitelist=0123456789/"],
-                               capture_output=True, text=True, timeout=5)
+                               capture_output=True, text=True, timeout=5,
+                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             txt = r.stdout.strip().replace(" ", "")
             m = re.search(r"([0-5])/5", txt)
             if m:

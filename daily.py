@@ -73,12 +73,15 @@ def setting(key, default=False):
         return default
 
 
+NOWIN = 0x08000000
+
+
 def log(*a):
     print(time.strftime("[%H:%M:%S] daily:"), *a, flush=True)
 
 
 def adb(*args):
-    return subprocess.run([ADB, "-s", DEV] + list(args), capture_output=True)
+    return subprocess.run([ADB, "-s", DEV] + list(args), capture_output=True, creationflags=NOWIN)
 
 
 def cap():

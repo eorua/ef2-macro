@@ -60,7 +60,8 @@ def swipe(x, y1, y2, ms=600):
     log(("스와이프 " if GO else "[시험] 스와이프 ") + f"{x},{y1} -> {y2}")
     if GO:
         import subprocess
-        subprocess.run(preset.ADB + ["shell", "input", "swipe", str(x), str(y1), str(x), str(y2), str(ms)])
+        subprocess.run(preset.ADB + ["shell", "input", "swipe", str(x), str(y1), str(x), str(y2), str(ms)],
+                       creationflags=getattr(preset, "NOWIN", 0x08000000))
 
 
 def shot_fail(name="barracks_fail", img=None):
@@ -83,7 +84,7 @@ def tap_multi(pts, label="", gap=0.12):
     if GO and pts:
         import subprocess
         cmd = "; ".join(f"input tap {x} {y} & sleep {gap}" for x, y in pts) + "; wait"
-        subprocess.run(preset.ADB + ["shell", cmd])
+        subprocess.run(preset.ADB + ["shell", cmd], creationflags=getattr(preset, "NOWIN", 0x08000000))
 
 
 def same_view(a, b):

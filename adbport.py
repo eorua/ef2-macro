@@ -82,7 +82,7 @@ CANDS = MUMU_CANDS if IS_MUMU else BS_CANDS
 
 def _run(args, timeout=6):
     try:
-        r = subprocess.run([ADB_EXE] + args, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run([ADB_EXE] + args, capture_output=True, text=True, timeout=timeout, creationflags=NOWIN)
         return (r.stdout or "") + (r.stderr or "")
     except Exception:
         return ""

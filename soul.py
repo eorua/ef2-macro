@@ -61,7 +61,8 @@ def swipe(x1, y1, x2, y2, ms=600):
     import subprocess
     print(("스와이프 " if preset.GO else "[시험] 스와이프 ") + f"{(x1, y1)} -> {(x2, y2)}")
     if preset.GO:
-        subprocess.run(preset.ADB + ["shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), str(ms)])
+        subprocess.run(preset.ADB + ["shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), str(ms)],
+                       creationflags=getattr(preset, "NOWIN", 0x08000000))
     time.sleep(0.8)
 
 

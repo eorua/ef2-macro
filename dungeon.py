@@ -16,6 +16,8 @@ import cv2
 import daily
 from daily import log
 
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
+
 INTERVAL = 2400                       # 자동 실행 주기 (40분) - 티켓 10분에 1장, 최대 8장 - patch123
 _last_buy = [False]                   # patch123: 직전 소탕에서 구매 창(티켓 0)이 떴는지
 RETRY = 600                           # 실패 시 10분 뒤
@@ -57,7 +59,7 @@ def _ocr(crop, chars, thr):
         try:
             cv2.imwrite(TMP, img)
             r = subprocess.run([TESS, TMP, "-", "--psm", "7", "-c", "tessedit_char_whitelist=" + chars],
-                               capture_output=True, text=True, timeout=10)
+                               capture_output=True, text=True, timeout=10, creationflags=NOWIN)
             return r.stdout.strip().replace(" ", "")
         except Exception as e:
             log("Tesseract 오류: %r" % (e,))

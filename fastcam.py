@@ -21,8 +21,11 @@ TOUCH = 2                               # 제어 메시지 종류: 터치
 DOWN, UP, MOVE = 0, 1, 2
 
 
+NOWIN = 0x08000000
+
+
 def _adb(*a, timeout=15):
-    return subprocess.run([ADB_EXE, "-s", SERIAL, *a], capture_output=True, timeout=timeout)
+    return subprocess.run([ADB_EXE, "-s", SERIAL, *a], capture_output=True, timeout=timeout, creationflags=NOWIN)
 
 
 def _recv_exact(s, n):
@@ -63,7 +66,7 @@ class FastCam:
         os.makedirs(os.path.dirname(LOG), exist_ok=True)
         self._logf = open(LOG, "w", encoding="utf-8", errors="replace")
         self.proc = subprocess.Popen([ADB_EXE, "-s", SERIAL, "shell", cmd],
-                                     stdout=self._logf, stderr=subprocess.STDOUT)
+                                     stdout=self._logf, stderr=subprocess.STDOUT, creationflags=NOWIN)
         end = time.time() + timeout
         while True:                                     # 서버가 뜰 때까지 반복 연결 (첫 1바이트가 오면 성공)
             if self.proc.poll() is not None:

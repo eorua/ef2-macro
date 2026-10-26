@@ -8,10 +8,11 @@ PLAYER = r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"
 INSTANCE = "Pie64_3"              # 오환2 인스턴스 이름 (bluestacks.conf 에서 확인)
 TITLE = "오환2"                   # BlueStacks 창 제목에 들어 있는 글자
 GO = "go" in sys.argv[1:]
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 
 
 def ps(cmd):
-    r = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True)
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, creationflags=NOWIN)
     return r.stdout
 
 
@@ -26,7 +27,7 @@ def find_pids():
     try:
         cur_dev = adbport.DEV or "127.0.0.1:5585"
         port = int(cur_dev.split(":")[-1]) if ":" in cur_dev else 5585
-        r = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, timeout=5)
+        r = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, timeout=5, creationflags=NOWIN)
         for line in r.stdout.splitlines():
             parts = line.strip().split()
             if len(parts) >= 5 and parts[0] == "TCP":
@@ -49,7 +50,7 @@ def find_pids():
 
 def adb(args, timeout=20):
     try:
-        r = subprocess.run([ADB_EXE] + args, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run([ADB_EXE] + args, capture_output=True, text=True, timeout=timeout, creationflags=NOWIN)
         return r.stdout
     except Exception:
         return ""
@@ -146,7 +147,7 @@ def restart_bluestacks(force=False):
         return True
     if len(pids) == 1:
         print("BlueStacks(오환2) 종료 (PID %d)" % pids[0])
-        subprocess.run(["taskkill", "/PID", str(pids[0]), "/F"], capture_output=True)
+        subprocess.run(["taskkill", "/PID", str(pids[0]), "/F"], capture_output=True, creationflags=NOWIN)
         time.sleep(8)
     else:
         print("BlueStacks(오환2) 가 꺼져 있어 바로 실행합니다")

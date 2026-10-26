@@ -1,9 +1,10 @@
 import subprocess, sys, cv2, numpy as np, time
 
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 
 png = subprocess.run(ADB + ["exec-out", "screencap", "-p"],
-                     capture_output=True).stdout
+                     capture_output=True, creationflags=NOWIN).stdout
 img = cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR)
 
 tstr = time.strftime("%Y%m%d_%H%M%S")

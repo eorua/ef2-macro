@@ -8,6 +8,7 @@ import notice
 
 BASE = r"C:\macro"
 GO = "go" in sys.argv[1:]
+NOWIN = 0x08000000                                 # CREATE_NO_WINDOW (검은 콘솔 창 깜빡임 방지)
 STATE_FILE = os.path.join(BASE, "state.json")
 LOG_FILE = os.path.join(BASE, "macro.log")
 PAUSE_FILE = os.path.join(BASE, "PAUSE")      # 이 파일을 만들면 일시정지 (지우면 재개)
@@ -539,7 +540,7 @@ rebirth.capture = _cap_safe
 def adb_reconnect():
     log("ADB 재연결 시도")
     __import__("adbport").sync(log, scan=True)     # patch202: 포트가 바뀌었으면 따라감
-    subprocess.run([r"C:\platform-tools\adb.exe", "connect", __import__("adbport").DEV], capture_output=True)
+    subprocess.run([r"C:\platform-tools\adb.exe", "connect", __import__("adbport").DEV], capture_output=True, creationflags=NOWIN)
 
 
 def popup_open(img):
@@ -712,7 +713,7 @@ def run_cycle_high():
 
 def adb_out(args):
     try:
-        r = subprocess.run(ADB + args, capture_output=True, text=True, timeout=30)
+        r = subprocess.run(ADB + args, capture_output=True, text=True, timeout=30, creationflags=NOWIN)
         return r.stdout
     except Exception as e:
         log(f"ADB 오류: {e!r}")
@@ -834,9 +835,9 @@ def adb_alive(tries=1):
         try:
             __import__("adbport").sync(log)            # patch202
             c = subprocess.run([r"C:\platform-tools\adb.exe", "connect", __import__("adbport").DEV],
-                               capture_output=True, text=True, timeout=15)
+                               capture_output=True, text=True, timeout=15, creationflags=NOWIN)
             r = subprocess.run(ADB + ["shell", "getprop", "sys.boot_completed"],
-                               capture_output=True, text=True, timeout=15)
+                               capture_output=True, text=True, timeout=15, creationflags=NOWIN)
             if r.stdout.strip() == "1":
                 return True
             why = (c.stdout + c.stderr + r.stdout + r.stderr).strip().replace("\n", " ")[:120]
@@ -1310,7 +1311,7 @@ def bluestacks_running():
     try:
         r = subprocess.run(["powershell", "-NoProfile", "-Command",
                             "(Get-Process HD-Player -ErrorAction SilentlyContinue | Measure-Object).Count"],
-                           capture_output=True, text=True, timeout=30)
+                           capture_output=True, text=True, timeout=30, creationflags=NOWIN)
         out = r.stdout.strip()
         return not (out.isdigit() and int(out) == 0)
     except Exception:
@@ -1350,7 +1351,7 @@ def _kill_bluestacks():
         log("오환2 BlueStacks 가 2개 이상으로 보여 끄지 않음")
         return False
     for p in pids:
-        subprocess.run(["taskkill", "/PID", str(p), "/F"], capture_output=True)
+        subprocess.run(["taskkill", "/PID", str(p), "/F"], capture_output=True, creationflags=NOWIN)
     if pids:
         log("BlueStacks(오환2) 종료")
         time.sleep(8)
@@ -1404,7 +1405,7 @@ def handle_maintenance(st, info):
                 # (확인을 누르지 않으면 모달 팝업이 자동으로 닫히지 않아 블루스택 무한 재시작 루프에 빠짐)
                 b = info2.get("btn") or (360, 538)
                 log("점검 팝업 '확인' 버튼 클릭 시도 (%d, %d)" % b)
-                subprocess.run(ADB + ["shell", "input", "tap", str(b[0]), str(b[1])], capture_output=True)
+                subprocess.run(ADB + ["shell", "input", "tap", str(b[0]), str(b[1])], capture_output=True, creationflags=NOWIN)
                 time.sleep(8)
                 img_chk = cap()
                 info3 = maint_check(img_chk) if img_chk is not None else None
@@ -1718,7 +1719,7 @@ def main():
                 if _mt and _mt.get("update"):           # patch207: 데이터 업데이트 안내 -> 확인 누르고 계속 (BlueStacks 끄지 않음)
                     b = _mt.get("btn") or (360, 760)
                     log("데이터 업데이트 안내 -> 확인 (%d, %d)" % b)
-                    subprocess.run(ADB + ["shell", "input", "tap", str(b[0]), str(b[1])], capture_output=True)
+                    subprocess.run(ADB + ["shell", "input", "tap", str(b[0]), str(b[1])], capture_output=True, creationflags=NOWIN)
                     time.sleep(5)
                     hist.clear()
                     stuck.reset()
@@ -1731,7 +1732,7 @@ def main():
                         b = _mt.get("btn") or (360, 538)
                         log("점검 종료 시각(%s) 경과 상태에서 팝업 감지 -> 확인 버튼 우선 클릭 (%d, %d)" % (
                             time.strftime("%H:%M", time.localtime(end)), b[0], b[1]))
-                        subprocess.run(ADB + ["shell", "input", "tap", str(b[0]), str(b[1])], capture_output=True)
+                        subprocess.run(ADB + ["shell", "input", "tap", str(b[0]), str(b[1])], capture_output=True, creationflags=NOWIN)
                         time.sleep(8)
                         img2 = cap()
                         if img2 is not None and maint_check(img2) is None:

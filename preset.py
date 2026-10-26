@@ -1,5 +1,6 @@
 import subprocess, sys, time, os, cv2, numpy as np
 
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 BASE = r"C:\macro"
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 GO = "go" in sys.argv[1:]
@@ -29,7 +30,7 @@ LEVEL_ROI = (520, 600, 650, 1080)   # x1, y1, x2, y2 : 영웅 레벨(Lv.NNNN) �
 
 
 def capture():
-    png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True).stdout
+    png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True, creationflags=NOWIN).stdout
     if not png:
         return None
     return cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR)
@@ -38,7 +39,7 @@ def capture():
 def tap(pt, label=""):
     print(("클릭 " if GO else "[시험] 클릭할 곳 ") + f"{label} {pt}")
     if GO:
-        subprocess.run(ADB + ["shell", "input", "tap", str(pt[0]), str(pt[1])])
+        subprocess.run(ADB + ["shell", "input", "tap", str(pt[0]), str(pt[1])], creationflags=NOWIN)
 
 
 def red_ratio(img, c, r=14):
@@ -151,7 +152,7 @@ def exit_sleep(img=None):
     print("절전 화면 감지 → 스와이프로 복귀")
     if GO:
         x, y = SLEEP_KNOB
-        subprocess.run(ADB + ["shell", "input", "swipe", str(x), str(y), "620", str(y), "500"])
+        subprocess.run(ADB + ["shell", "input", "swipe", str(x), str(y), "620", str(y), "500"], creationflags=NOWIN)
     time.sleep(1.5)
     return True
 
@@ -266,7 +267,7 @@ def tap_burst(pt, label, n):
         x, y = pt
         one = f"input tap {x} {y} & sleep {BURST_GAP}"
         cmd = "; ".join([one] * n) + "; wait"
-        subprocess.run(ADB + ["shell", cmd])
+        subprocess.run(ADB + ["shell", cmd], creationflags=NOWIN)
 
 
 def _btn_x(i):

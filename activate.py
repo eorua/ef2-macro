@@ -5,6 +5,7 @@ import cv2
 ADB_EXE = r"C:\platform-tools\adb.exe"
 DEV = __import__("adbport").DEV
 GO = "go" in sys.argv[1:]
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 
 TAB_HERO = (185, 1240)
 TAB_RELIC = (418, 1240)
@@ -15,7 +16,7 @@ GREEN_THR = 0.30
 
 
 def adb(args, timeout=20, raw=False):
-    r = subprocess.run([ADB_EXE, "-s", DEV] + args, capture_output=True, timeout=timeout)
+    r = subprocess.run([ADB_EXE, "-s", DEV] + args, capture_output=True, timeout=timeout, creationflags=NOWIN)
     return r.stdout if raw else r.stdout.decode("utf-8", "ignore")
 
 

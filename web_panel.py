@@ -281,7 +281,7 @@ def do_action():
         pid = get_pid_from_file(os.path.join(BASE_OHWAN, "main.pid"))
         def do_restart():
             if pid and is_pid_alive(pid):
-                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, creationflags=CREATE_NO_WINDOW)
                 time.sleep(1.5)
             p = subprocess.Popen([sys.executable, "main.py", "go"], cwd=BASE_OHWAN, creationflags=CREATE_NO_WINDOW)
             with open(os.path.join(BASE_OHWAN, "main.pid"), "w", encoding="utf-8") as f:
@@ -298,7 +298,7 @@ def do_action():
         if not pid or not is_pid_alive(pid):
             return jsonify({"ok": True, "msg": "오환2가 이미 중지 상태입니다."})
         try:
-            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, creationflags=CREATE_NO_WINDOW)
             time.sleep(0.5)
             try:
                 os.remove(os.path.join(BASE_OHWAN, "main.pid"))
@@ -448,7 +448,7 @@ def do_action():
         pid = get_pid_from_file(os.path.join(BASE_PYOKEY, "main.pid"))
         def do_py_restart():
             if pid and is_pid_alive(pid):
-                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, creationflags=CREATE_NO_WINDOW)
                 time.sleep(1.5)
             p = subprocess.Popen([sys.executable, "main.py", "go"], cwd=BASE_PYOKEY, creationflags=CREATE_NO_WINDOW)
             with open(os.path.join(BASE_PYOKEY, "main.pid"), "w", encoding="utf-8") as f:
@@ -465,7 +465,7 @@ def do_action():
         if not pid or not is_pid_alive(pid):
             return jsonify({"ok": True, "msg": "표키2가 이미 중지 상태입니다."})
         try:
-            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, creationflags=CREATE_NO_WINDOW)
             time.sleep(0.5)
             try:
                 os.remove(os.path.join(BASE_PYOKEY, "main.pid"))

@@ -12,6 +12,7 @@ import cv2, numpy as np
 
 BASE = r"C:\macro"
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 TOUR_DIR = os.path.join(BASE, "shots", "uitour")
 GO = "go" in sys.argv[1:]
 
@@ -33,7 +34,7 @@ def log(*a):
 def capture():
     try:
         png = subprocess.run(ADB + ["exec-out", "screencap", "-p"],
-                             capture_output=True, timeout=10).stdout
+                             capture_output=True, timeout=10, creationflags=NOWIN).stdout
         if not png:
             return None
         return cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR)
@@ -46,7 +47,7 @@ def tap(pt, label=""):
     x, y = int(pt[0]), int(pt[1])
     log(("클릭 " if GO else "[시험] 클릭 ") + f"{label} ({x}, {y})")
     if GO:
-        subprocess.run(ADB + ["shell", "input", "tap", str(x), str(y)])
+        subprocess.run(ADB + ["shell", "input", "tap", str(x), str(y)], creationflags=NOWIN)
 
 
 def draw_target(img, pt, label="", color=(0, 255, 0), r=18):

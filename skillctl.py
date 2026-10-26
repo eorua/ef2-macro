@@ -11,6 +11,7 @@ import numpy as np
 import cv2
 
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 CIRCLES = [(260, 128), (327, 128), (392, 128)]     # 스킬 원 중심 (patch207: 10-21 업데이트로 오른쪽으로 약 12px 이동, 예전 250/315/381)
 AUTO_BTN = (460, 173)                              # 스킬 원 아래 'AUTO' (patch207: 448 -> 460)
 AUTO_ROI = (432, 160, 492, 186)
@@ -372,12 +373,12 @@ def auto_on(img):
 
 
 def _adb_cap():
-    png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True, timeout=15).stdout
+    png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True, timeout=15, creationflags=NOWIN).stdout
     return cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR) if png else None
 
 
 def _adb_tap(pt):
-    subprocess.run(ADB + ["shell", "input", "tap", str(pt[0]), str(pt[1])], capture_output=True, timeout=15)
+    subprocess.run(ADB + ["shell", "input", "tap", str(pt[0]), str(pt[1])], capture_output=True, timeout=15, creationflags=NOWIN)
 
 
 def set_auto(want):

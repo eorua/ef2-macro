@@ -9,6 +9,7 @@ import sys, os, time, subprocess
 import cv2, numpy as np
 
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 TPL = r"C:\macro\tpl"
 SHOTS = r"C:\macro\shots"
 W, H = 720, 1280
@@ -147,7 +148,7 @@ class RealEnv:
 
     def grab(self):
         t0 = time.perf_counter()
-        out = subprocess.run(ADB + ["exec-out", "screencap"], capture_output=True).stdout
+        out = subprocess.run(ADB + ["exec-out", "screencap"], capture_output=True, creationflags=NOWIN).stdout
         t1 = time.perf_counter()
         n = W * H * 4
         if len(out) < n:
@@ -159,7 +160,8 @@ class RealEnv:
     def tap(self, pt):
         if self.sh is None or self.sh.poll() is not None:
             self.sh = subprocess.Popen(ADB + ["shell"], stdin=subprocess.PIPE,
-                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                       creationflags=NOWIN)
             self.sh.stdin.write(b"echo ok\n")
             self.sh.stdin.flush()
             _sleep(0.3)
@@ -169,7 +171,7 @@ class RealEnv:
         return t
 
     def slow_tap(self, pt):
-        subprocess.run(ADB + ["shell", "input", "tap", str(pt[0]), str(pt[1])])
+        subprocess.run(ADB + ["shell", "input", "tap", str(pt[0]), str(pt[1])], creationflags=NOWIN)
 
     def close(self):
         try:

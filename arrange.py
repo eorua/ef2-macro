@@ -11,6 +11,7 @@ import os, sys, time, subprocess
 import cv2, numpy as np
 
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 TPL = r"C:\macro\tpl"
 SHOTS = r"C:\macro\shots"
 GO = "go" in sys.argv[1:]
@@ -48,7 +49,7 @@ def log(*a):
 
 def capture():
     try:
-        png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True, timeout=20).stdout
+        png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True, timeout=20, creationflags=NOWIN).stdout
         return cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR) if png else None
     except Exception:
         return None
@@ -59,7 +60,7 @@ def tap(pt, label=""):
         GUARD()
     log(("클릭 " if GO else "[시험] 클릭할 곳 ") + "%s %s" % (label, pt))
     if GO:
-        subprocess.run(ADB + ["shell", "input", "tap", str(int(pt[0])), str(int(pt[1]))])
+        subprocess.run(ADB + ["shell", "input", "tap", str(int(pt[0])), str(int(pt[1]))], creationflags=NOWIN)
 
 
 def drag(p, q, ms=700):
@@ -68,7 +69,7 @@ def drag(p, q, ms=700):
     log(("드래그 " if GO else "[시험] 드래그 ") + "%s -> %s (%s)" % (tuple(map(int, p)), tuple(map(int, q)), MODE))
     if GO:
         cmd = ["shell", "input", MODE, str(int(p[0])), str(int(p[1])), str(int(q[0])), str(int(q[1])), str(ms)]
-        subprocess.run(ADB + cmd)
+        subprocess.run(ADB + cmd, creationflags=NOWIN)
 
 
 _T = {}

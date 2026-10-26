@@ -1,5 +1,6 @@
 import subprocess, sys, time, os, cv2, numpy as np
 
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 BASE = r"C:\macro"
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 GO = "go" in sys.argv[1:]
@@ -25,7 +26,7 @@ DOT_THR = 0.06      # 이 비율 이상이면 점이 있다고 판단
 
 
 def capture():
-    png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True).stdout
+    png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True, creationflags=NOWIN).stdout
     if not png:
         return None
     return cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR)
@@ -34,7 +35,7 @@ def capture():
 def tap(name):
     x, y = P[name]
     if GO:
-        subprocess.run(ADB + ["shell", "input", "tap", str(x), str(y)])
+        subprocess.run(ADB + ["shell", "input", "tap", str(x), str(y)], creationflags=NOWIN)
     print(("클릭 " if GO else "[시험] 클릭할 곳 ") + f"{name} ({x},{y})")
 
 
@@ -181,11 +182,11 @@ def gem_left(img=None):
             print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견! (보유 다이아: {dia_str}) 보석 2000 영입 진행")
             btn_x = 625
             if GO:
-                subprocess.run(ADB + ["shell", "input", "tap", str(btn_x), str(y)])
+                subprocess.run(ADB + ["shell", "input", "tap", str(btn_x), str(y)], creationflags=NOWIN)
                 time.sleep(0.8)
                 # 확인 팝업 (266, 632)
                 print(f"[영입] 확인 팝업 클릭 ({P['확인'][0]}, {P['확인'][1]})")
-                subprocess.run(ADB + ["shell", "input", "tap", str(P["확인"][0]), str(P["확인"][1])])
+                subprocess.run(ADB + ["shell", "input", "tap", str(P["확인"][0]), str(P["확인"][1])], creationflags=NOWIN)
                 time.sleep(1.0)
             else:
                 print(f"[시험] 보석 영입 클릭: ({btn_x}, {y}) -> 확인 팝업 ({P['확인'][0]}, {P['확인'][1]})")

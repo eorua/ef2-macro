@@ -24,6 +24,16 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-27 (Antigravity, patch294g) Windows 콘솔 창 번쩍임/검은 창 깜빡임 원인 규명 및 전 코드베이스 `CREATE_NO_WINDOW = 0x08000000` 전면 적용** (`main.py`, `bsrestart.py`, `adbport.py`, `daily.py`, `fastcam.py`, `web_panel.py`, `preset.py`, `recruit.py`, `wave.py`, `rebirth.py`, `skillctl.py`, `soul.py`, `pet.py`, `arrange.py`, `barracks.py`, `activate.py`, `cap.py`, `uitour.py`, `maint.py`, `ocrx.py`, `dungeon.py`, `arch.py`, `hexa.py`):
+  - **원인 분석 ("검은색 창이 마구 뜨는데?")**:
+    - Windows 환경에서 백그라운드 프로세스가 `subprocess.run`이나 `subprocess.Popen`으로 콘솔 실행 파일(`adb.exe`, `powershell.exe`, `tesseract.exe`)을 호출할 때 `creationflags=0x08000000` (`CREATE_NO_WINDOW`) 플래그가 지정되어 있지 않으면, Windows 운영체제가 해당 자식 프로세스를 위해 순간적으로 새 콘솔 창(`conhost.exe`)을 생성했다가 닫으면서 화면에 검은 창이 번쩍거리고 포커스를 방해함.
+    - 특히 1초~수초 주기로 화면을 확인하는 `capture()`, `tap()`, `screencap`, OCR(`powershell`, `tesseract`) 호출 등 프로젝트 전반의 보조 모듈에 플래그가 누락되어 있어 번쩍거림이 수시로 발생했던 원인 규명.
+  - **수정 및 전면 차단**:
+    - 매크로 및 패널을 구성하는 23개 전체 Python 파일의 모든 `subprocess.run` 및 `subprocess.Popen` 호출부에 `NOWIN = 0x08000000` (`CREATE_NO_WINDOW`) 플래그를 예외 없이 전면 적용.
+    - `python -m py_compile`로 23개 전체 파일 문법 컴파일 검증 완료 (오류 0건).
+    - 오프라인 Mock 단위 테스트 14개 전수 통과 (`Ran 14 tests in 19.680s - OK`).
+    - `macro.log` 및 `bsrestart.py` 확인을 통해 오환2 BlueStacks PID(`145128`) 단독 식별 및 영혼의 휴식 오프라인 등반 취침 상태 정상 유지 확인.
+
 - **2026-10-27 (Antigravity, patch294f) 튕김/포커스/정기 재시작 시 BlueStacks 프로세스 미종료 버그 원인 규명 및 100% 에뮬레이터 재부팅 정상화, 렉 원천 해소** (`bsrestart.py`, `main.py`):
   - **원인 분석 ("왜 게임만 재시작하냐고 블루스택을 재시작해야지")**:
     - `bsrestart.py`의 `find_pids()`가 BlueStacks 창 제목(`MainWindowTitle`)에 `'오환2'`가 포함된 프로세스를 검색했으나, 백그라운드/최소화 상태에서는 `MainWindowTitle`이 빈 문자열(`""`)로 반환되어 `find_pids()`가 항상 빈 리스트(`[]`)를 반환함.

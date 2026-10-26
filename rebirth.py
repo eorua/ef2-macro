@@ -1,4 +1,5 @@
 import subprocess, sys, time, os, cv2, numpy as np
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 
 BASE = r"C:\macro"
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
@@ -13,12 +14,12 @@ RES_CONFIRM = (0.25, 0.45, 0.75, 0.75)   # 초록 '확인' 버튼 (patch208: 넓
 
 def capture():
     png = subprocess.run(ADB + ["exec-out", "screencap", "-p"],
-                         capture_output=True).stdout
+                         capture_output=True, creationflags=NOWIN).stdout
     return cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR)
 
 
 def tap(x, y):
-    subprocess.run(ADB + ["shell", "input", "tap", str(int(x)), str(int(y))])
+    subprocess.run(ADB + ["shell", "input", "tap", str(int(x)), str(int(y))], creationflags=NOWIN)
 
 
 def has(name):

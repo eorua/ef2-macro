@@ -13,6 +13,7 @@ BASE = r"C:\macro"
 TPL = os.path.join(BASE, "tpl")
 SHOTS = os.path.join(BASE, "shots")
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 
 NAMES = {"맘보": "mambo", "팅키": "tinky", "조커": "joker", "레오": "leo",
          "랩티": "rapty", "사르크": "sark", "백호": "baekho"}
@@ -121,7 +122,7 @@ def select(name, img=None):
 
 # ---------------------------------------------------------------- 퀘스트 29번 레벨
 def _adb(*a):
-    return subprocess.run(ADB + list(a), capture_output=True, timeout=15)
+    return subprocess.run(ADB + list(a), capture_output=True, timeout=15, creationflags=NOWIN)
 
 
 def _find_title(img, tpl):
@@ -144,7 +145,7 @@ def _ocr_level(crop):
     if os.path.exists(TESS):
         r = subprocess.run([TESS, p, "-", "--psm", "7", "-c",
                             "tessedit_char_whitelist=Lv.0123456789abcdefghijklmnopqrstuvwxyz"],
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, timeout=10, creationflags=NOWIN)
         return r.stdout.strip().replace(" ", "")
     try:
         import ocrx

@@ -43,6 +43,9 @@ OCR_COOLDOWN = 30            # 같은 화면이 계속 후보여도 이 초마�
 _state = {"t": 0.0, "btn": 0.0, "active": False}
 
 
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
+
+
 def log(*a):
     print(time.strftime("[%H:%M:%S] ocr:"), *a, flush=True)
 
@@ -57,7 +60,7 @@ def words(img):
         with open(ps1, "w", encoding="utf-8-sig") as f:
             f.write(PS_SCRIPT)
         r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1, png],
-                           capture_output=True, timeout=60)
+                           capture_output=True, timeout=60, creationflags=NOWIN)
         out = [x.strip() for x in r.stdout.decode("utf-8", errors="replace").splitlines() if x.strip()]
         if not out or out[0] != "OK":
             return None

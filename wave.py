@@ -1,6 +1,7 @@
 import subprocess, os, time, cv2, numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+NOWIN = 0x08000000                # CREATE_NO_WINDOW (검은 창 깜빡임 방지)
 BASE = r"C:\macro"
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 FONTS = [r"C:\Windows\Fonts\calibrib.ttf"]
@@ -9,7 +10,7 @@ _T = None
 
 
 def capture():
-    png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True).stdout
+    png = subprocess.run(ADB + ["exec-out", "screencap", "-p"], capture_output=True, creationflags=NOWIN).stdout
     if not png:
         return None
     return cv2.imdecode(np.frombuffer(png, np.uint8), cv2.IMREAD_COLOR)

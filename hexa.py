@@ -576,6 +576,37 @@ def plan(r, only_k0=False):
     return E.best_move(b, r["unlocked"], r["tray"], r["prev"])
 
 
+def pick_hammer_target(b, piece):
+    """현재 piece를 놓을 수 있게 만들어주는 칸 중 가장 낮은 등급 칸 선택 (patch283)"""
+    offs = [c for c, t in piece]
+    cands = []
+    for k in range(6):
+        ro = E.rot(offs, k)
+        for cells in E.placements(ro):
+            blocked = [c for c in cells if b[c] > 0]
+            if len(blocked) == 1:
+                cands.append((b[blocked[0]], blocked[0]))
+    if cands:
+        cands.sort(key=lambda x: x[0])  # lowest tier first
+        return cands[0][1]
+    lows = [(b[i], i) for i in range(E.N) if b[i] > 0]
+    if lows:
+        lows.sort(key=lambda x: x[0])
+        return lows[0][1]
+    return None
+
+
+def use_hammer(target_cell):
+    """망치를 터치하고 대상 칸을 터치하여 파괴 (patch283)"""
+    log("망치 버튼 탭: %s" % (V.HAMMER_BTN,))
+    tap(*V.HAMMER_BTN)
+    time.sleep(0.5)
+    tx, ty = E.pix(target_cell)
+    log("망치 대상 칸 %d 탭: (%d, %d)" % (target_cell, tx, ty))
+    tap(tx, ty)
+    time.sleep(0.8)
+
+
 def do_move(im, r):
     b0 = r["board"]
     cur = r["tray"]
@@ -585,12 +616,36 @@ def do_move(im, r):
     _t = time.time()
     if STATS["moves"] < 2:                                   # patch258: 첫 수 진단
         log("수 %d 계산 시작 (조각 %s, 빈칸 %d)" % (STATS["moves"] + 1, norm_piece(cur), sum(1 for x in b0 if x == 0)))
+    
+    # patch283: ★8 이상 필드에서 고립된 ★1~★3 발견 시 망치 선제 파괴
+    if V.hammer_available(im) and any(x >= 8 for x in b0):
+        for i in range(E.N):
+            if 1 <= b0[i] <= 3:
+                nb_tiers = [b0[n] for n in E.NB[i]]
+                if b0[i] not in nb_tiers:
+                    log("★8+ 필드에서 고립된 %d성 칸 %d 발견 ➜ 망치 선제 파괴!" % (b0[i], i))
+                    use_hammer(i)
+                    st, im2, r2 = wait_settle(6, hold=0.3)
+                    if st == "game" and r2:
+                        return do_move(im2, r2)
+                    break
+
     mv = plan(r)
     if time.time() - _t > 3 or STATS["moves"] < 2:
         log("수 %d 계산 %.1f초 -> %s" % (STATS["moves"] + 1, time.time() - _t, "둘 곳 없음" if mv is None else "칸 %s" % (mv[1],)))
     tm_add(plan=time.time() - _t)
     _t_rot = time.time()
     if mv is None:
+        # patch283: 둘 곳이 없을 때 망치가 남아있다면 긴급 파괴 발동!
+        if V.hammer_available(im):
+            log("둘 곳 없음 ➜ 망치 긴급 발동 시도")
+            target = pick_hammer_target(b0, cur)
+            if target is not None:
+                use_hammer(target)
+                st, im2, r2 = wait_settle(6, hold=0.3)
+                if st == "game" and r2:
+                    log("망치 파괴 후 판 재인식 성공 (칸 %d 빈칸화) -> 수 재계산" % target)
+                    return do_move(im2, r2)
         log("둘 곳 없음 (게임 끝 대기)")
         time.sleep(2)
         return False
@@ -647,12 +702,14 @@ def do_move(im, r):
                 return False
             r = r2
     tm_add(rot=time.time() - _t_rot if k else 0.0)
-    # 예상 결과(합쳐질 칸 후보 전부)
+    # 예상 결과(합쳐질 칸 후보 전부 - patch283: 점 찍힌 칸 우선 확정)
     bp = board_for_plan(r["board"])
     preds = []
     ch, nbr = 0, 1
+    dot_idx = getattr(r["tray"], "dot_idx", None)
+    dot_cell = cells[dot_idx] if dot_idx is not None and dot_idx < len(cells) else None
     while ch < nbr:
-        nb, made, nbr = E.apply(bp, cells, ts, ch)
+        nb, made, nbr = E.apply(bp, cells, ts, ch, dot_cell=dot_cell)
         preds.append((nb, made))
         ch += 1
     EXPECT[:] = [list(nb) for nb, made in preds]      # patch257

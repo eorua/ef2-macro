@@ -87,9 +87,10 @@ def gain(n):
     return 2 if n >= 5 else 1
 
 
-def resolve(b, placed, choice=0, info=None):
+def resolve(b, placed, choice=0, info=None, dot_cell=None):
     """b(list) 를 직접 바꿈. 반환: (만든 등급 목록, 갈림 수)
-    choice: 첫 '갈림'(합쳐질 칸 후보 여러 개)에서 고를 후보 번호"""
+    choice: 첫 '갈림'(합쳐질 칸 후보 여러 개)에서 고를 후보 번호
+    dot_cell: 조각에 찍힌 점(●)의 보드 칸 인덱스 (patch283: 점 찍힌 칸 우선 확정)"""
     made = []
     branches = 1
     front = list(placed)
@@ -114,8 +115,11 @@ def resolve(b, placed, choice=0, info=None):
         cands = [x for x in front if x in g]
         if chain is not None and chain in g:
             cands = [chain]
+        # patch283: 점 찍힌 카드(dot_cell)가 후보군에 있으면 그 칸으로 100% 확정 합성
+        elif dot_cell is not None and dot_cell in cands:
+            cands = [dot_cell]
         # patch230: 3칸 사슬(직선·휘어진) 조각이 셋 다 합쳐지면 결과는 항상 양 끝 중 하나(실전 12/12, 가운데 0)
-        if len(cands) == 3 and first_amb and len(placed) == 3:
+        elif len(cands) == 3 and first_amb and len(placed) == 3:
             deg = {c: sum(1 for d in cands if d != c and d in NB[c]) for c in cands}
             if sorted(deg.values()) == [1, 1, 2]:
                 cands = [c for c in cands if deg[c] == 1]
@@ -284,12 +288,19 @@ def moves(b, piece, only_k0=False):
     return out
 
 
-def apply(b, cells, ts, choice=0):
+def apply(b, cells, ts, choice=0, dot_cell=None):
     nb = list(b)
     for c, t in zip(cells, ts):
         nb[c] = t
-    made, br = resolve(nb, list(cells), choice)
+    made, br = resolve(nb, list(cells), choice, dot_cell=dot_cell)
     return nb, made, br
+
+
+def hammer(b, i):
+    """b(list)의 i번째 칸을 빈칸(0)으로 파괴 (patch283: 망치 기능)"""
+    nb = list(b)
+    nb[i] = 0
+    return nb
 
 
 def new_unlocked(unlocked, made):

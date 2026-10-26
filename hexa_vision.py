@@ -8,12 +8,14 @@ REF = {0: (19, 12, 10), 1: (77, 83, 86), 2: (50, 94, 53), 3: (43, 68, 108), 4: (
        5: (180, 75, 80), 6: (175, 130, 50), 7: (63, 160, 180), 8: (114, 81, 91)}
 TOL = 28
 
-TRAY_C = (359, 998)          # 아래 조각 무게중심
-TRAY_P = (84.0, 85.0)        # 조각 칸 간격 (가로 열간격, 세로 칸간격)
-PREV_C = (575, 997)          # 오른쪽 '다음' 칸
-PREV_P = (31.0, 31.5)
-ROT_BTN = (144, 997)
-ICON_X = [int(118 + 53.7 * i) for i in range(10)]
+TRAY_C = (358, 1030)         # 아래 조각 무게중심 (patch283: 10/26 UI 개편 반영)
+TRAY_P = (84.0, 88.0)        # 조각 칸 간격 (가로 열간격, 세로 칸간격)
+PREV_C = (575, 1030)         # 오른쪽 '다음' 칸
+PREV_P = (31.0, 32.0)
+HAMMER_BTN = (185, 1070)     # 망치 버튼 (patch283)
+ROT_BTN = (185, 780)         # 회전 버튼 (patch283: 망치 위 노란 회전 화살표)
+ICON_X = [int(137 + 53.6 * i) for i in range(10)]  # patch283: 해금 아이콘 가로 위치
+ICON_Y = (210, 240)          # patch283: 해금 아이콘 세로 범위 (기존 265:295)
 
 
 def set_colors(extra):
@@ -43,7 +45,7 @@ def _gray30(a):
 
 
 def _icons(im):
-    return [_gray30(im[265:295, x - 15:x + 15]) for x in ICON_X]
+    return [_gray30(im[ICON_Y[0]:ICON_Y[1], x - 15:x + 15]) for x in ICON_X]
 
 
 def has_art(im, x, y, h):
@@ -109,6 +111,14 @@ def read_board(im):
             if a:
                 k = a
         if k is None:
+            # patch283: 테두리가 빛나는 상태 등 색상 미인식 시 아이콘 매칭으로 재확인
+            x, y = pix(i)
+            if has_art(im, x, y, 35):
+                icons = icons or _icons(im)
+                k2 = icon_tier(im, x, y, 28, icons, 10)
+                if k2:
+                    k = k2
+        if k is None:
             unk.append(i)
             b.append(-1)
         else:
@@ -120,7 +130,7 @@ def unlocked(im):
     n = 1
     for i in range(1, 10):
         x = ICON_X[i]
-        p = im[268:292, x - 12:x + 12].reshape(-1, 3).astype(int)
+        p = im[ICON_Y[0] + 3:ICON_Y[1] - 3, x - 12:x + 12].reshape(-1, 3).astype(int)
         if (p.max(1) - p.min(1)).mean() > 40:
             n = i + 1
         else:
@@ -158,41 +168,30 @@ def _bg_frac(im, x, y, h, bg):
     return float((d > 40).mean())
 
 
-def read_piece(im, C, P, bg=None, win=None):
-    """반환 [((q,r),tier)...] 또는 None. 무게중심 C 기준, 모양 후보와 겹침(IoU)으로 고름"""
-    if bg is None:
-        bg = (68, 61, 45)
-    if win is None:
-        wx, wy = int(2.3 * P[0]), int(1.9 * P[1])
-        win = (int(C[0]) - wx, int(C[1]) - wy, int(C[0]) + wx, int(C[1]) + wy)
-    x0, y0, x1, y1 = win
-    sub = im[y0:y1, x0:x1].astype(float)
-    obs = np.sqrt(((sub - np.array(bg, float)) ** 2).sum(2)) > 40
-    if obs.mean() < 0.02:
-        return None
-    best = _fit(obs, C, P, x0, y0)
-    if best[0] < 0.5:                                      # patch259: 뮤뮤는 칸 속이 배경처럼 어두워 테두리만 잡힘 -> 속 채워 다시
-        import cv2
-        m = obs.astype(np.uint8) * 255
-        cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        f = np.zeros_like(m)
-        cv2.drawContours(f, cs, -1, 255, -1)
-        b2 = _fit(f > 0, C, P, x0, y0)
-        if b2[0] > best[0]:
-            best = b2
-    iou, s, cen = best
-    if iou < 0.5:
-        return None
-    res = []
-    for (q, r), (x, y) in zip(s, cen):
+class Piece(list):
+    """조각 칸 목록 [((q, r), tier)...] + dot_idx(점 찍힌 칸 인덱스) 속성 (patch283)"""
+    dot_idx = None
+
+
+def find_dot(im, cen, P):
+    """조각 각 칸의 중심 cen=[(x,y)...] 중 흰색 점(●)이 찍힌 칸 인덱스 (0..len-1). 점이 없으면 None"""
+    if len(cen) <= 1:
+        return 0
+    scores = []
+    ox = int(0.32 * P[0])
+    oy = int(-0.32 * P[1])
+    r = max(4, int(0.12 * P[1]))
+    for x, y in cen:
         x, y = int(round(x)), int(round(y))
-        k = tile_tier(im, x, y, P)
-        if k is None:                                      # patch259: 색으로 못 읽으면 그림으로
-            k = icon_tier(im, x, y, int(0.36 * P[1]), None, unlocked(im))
-        if k is None:
-            return None
-        res.append(((q, r), k))
-    return res
+        px, py = x + ox, y + oy
+        patch = im[max(0, py - r):min(im.shape[0], py + r), max(0, px - r):min(im.shape[1], px + r)]
+        if patch.size == 0:
+            scores.append(0)
+            continue
+        bright = (patch[:, :, 0] > 160) & (patch[:, :, 1] > 160) & (patch[:, :, 2] > 160)
+        scores.append(int(bright.sum()))
+    best_idx = int(np.argmax(scores))
+    return best_idx if scores[best_idx] >= 6 else None
 
 
 def _fit(obs, C, P, x0, y0):
@@ -235,14 +234,65 @@ def tile_tier(im, x, y, P):
     return k if n >= 2 or len(votes) == 1 else None
 
 
+def read_piece(im, C, P, bg=None, win=None):
+    """반환 Piece([((q,r),tier)...]) 또는 None. 무게중심 C 기준, 모양 후보와 겹침(IoU)으로 고름"""
+    if bg is None:
+        bg = (70, 63, 48)  # patch283: 새 UI 트레이 배경색
+    if win is None:
+        wx, wy = int(2.3 * P[0]), int(1.9 * P[1])
+        win = (int(C[0]) - wx, int(C[1]) - wy, int(C[0]) + wx, int(C[1]) + wy)
+    x0, y0, x1, y1 = win
+    sub = im[y0:y1, x0:x1].astype(float)
+    obs = np.sqrt(((sub - np.array(bg, float)) ** 2).sum(2)) > 35
+    if obs.mean() < 0.02:
+        return None
+    best = _fit(obs, C, P, x0, y0)
+    if best[0] < 0.5:                                      # patch259: 뮤뮤는 칸 속이 배경처럼 어두워 테두리만 잡힘 -> 속 채워 다시
+        import cv2
+        m = obs.astype(np.uint8) * 255
+        cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        f = np.zeros_like(m)
+        cv2.drawContours(f, cs, -1, 255, -1)
+        b2 = _fit(f > 0, C, P, x0, y0)
+        if b2[0] > best[0]:
+            best = b2
+    iou, s, cen = best
+    if iou < 0.45:
+        return None
+    res = Piece()
+    for (q, r), (x, y) in zip(s, cen):
+        x, y = int(round(x)), int(round(y))
+        k = tile_tier(im, x, y, P)
+        if k is None:                                      # patch259: 색으로 못 읽으면 그림으로
+            k = icon_tier(im, x, y, int(0.36 * P[1]), None, unlocked(im))
+        if k is None:
+            return None
+        res.append(((q, r), k))
+    res.dot_idx = find_dot(im, cen, P)
+    return res
+
+
 def tray(im):
-    return read_piece(im, TRAY_C, TRAY_P, win=(196, 860, 522, 1140))
+    return read_piece(im, TRAY_C, TRAY_P, win=(220, 890, 480, 1160))
 
 
 def preview(im):
     # 상자 안쪽 배경(어두움): 상자 모서리 근처에서 직접 잼
     bg = im[960:966, 538:544].reshape(-1, 3).astype(float).mean(0)
-    return read_piece(im, PREV_C, PREV_P, bg, win=(537, 958, 613, 1036))
+    return read_piece(im, PREV_C, PREV_P, bg, win=(490, 930, 670, 1150))
+
+
+def hammer_available(im):
+    """망치 잔여 횟수가 1 이상이면 True (patch283)"""
+    p = im[1030:1048, 208:224]
+    bright = (p[:, :, 0] > 180) & (p[:, :, 1] > 180) & (p[:, :, 2] > 180)
+    return int(bright.sum()) >= 6
+
+
+def hammer_active(im):
+    """망치 모드가 활성화되어 있는지 확인 (patch283)"""
+    p = im[1000:1060, 320:380]
+    return float(p.mean()) < 60
 
 
 def _near(p, c, tol=22):
@@ -295,6 +345,7 @@ def state(im):
     if popup_y(im):
         return 'popup'
     b, unk = read_board(im)
-    if len(unk) <= 4 and _near(px(im, 250, 207), (36, 27, 19), 14) and _near(px(im, 108, 340, 4), (25, 18, 15), 12) and _near(px(im, 612, 850, 4), (25, 18, 15), 12):
+    # patch283: 새 UI 대응 - 보드 23칸 중 대부분이 판독되고 보드 테두리/배경이 맞으면 game 판독
+    if len(unk) <= 8 and _near(px(im, 612, 850, 4), (20, 14, 12), 16):
         return 'game'
     return None

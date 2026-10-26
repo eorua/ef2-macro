@@ -179,7 +179,7 @@ def detect(img):
     if lines is not None:
         text = " ".join(lines)
         hit = _is_maint_text(text)
-        info = {"end": parse_end(text, now) if hit else None, "text": text} if hit else None
+        info = {"end": parse_end(text, now) if hit else None, "text": text, "btn": _last.get("btn")} if hit else None
         if hit:
             log("점검 팝업 인식 (OCR): %s" % text[:160])
             try:                                          # patch215: 읽은 글자 원문을 파일로 (끝나는 시각을 못 읽을 때 원인 확인용)
@@ -196,7 +196,7 @@ def detect(img):
     else:
         sc = template_score(img)
         hit = sc >= 0.75
-        info = {"end": None, "text": "(OCR 불가, 이미지 판별 %.2f)" % sc} if hit else None
+        info = {"end": None, "text": "(OCR 불가, 이미지 판별 %.2f)" % sc, "btn": _last.get("btn")} if hit else None
         if hit:
             log("점검 팝업 인식 (이미지 %.2f, OCR 불가 -> 끝나는 시각은 모름)" % sc)
         elif sc >= 0.5:

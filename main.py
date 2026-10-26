@@ -1326,8 +1326,8 @@ def handle_maintenance(st, info):
         #   일찍 끝날 수도 있으니 기다리는 동안 최소 30분마다 한 번씩 확인
         if end:
             wake = end - 180
-            if wake <= now + 30:                          # 끝나는 시각 3분 전을 이미 지남 -> 1분 뒤 다시
-                wake = now + (5 if first else 60)
+            if wake <= now + 30:                          # 끝나는 시각 3분 전을 이미 지남 -> 3분 뒤 다시 (patch282: 60초 무한 재시작 방지)
+                wake = now + (5 if first else 180)
         else:
             wake = now + MAINT_POLL_SEC
         wake = min(wake, now + 1800)
@@ -1358,12 +1358,27 @@ def handle_maintenance(st, info):
                 continue
             info2 = maint_check(img)
             if info2:
+                # patch282: 점검 팝업이 보이면 초록색 [확인] 버튼을 먼저 눌러 점검 종료 여부를 직접 확인!
+                # (확인을 누르지 않으면 모달 팝업이 자동으로 닫히지 않아 블루스택 무한 재시작 루프에 빠짐)
+                b = info2.get("btn") or (360, 538)
+                log("점검 팝업 '확인' 버튼 클릭 시도 (%d, %d)" % b)
+                subprocess.run(ADB + ["shell", "input", "tap", str(b[0]), str(b[1])], capture_output=True)
+                time.sleep(8)
+                img_chk = cap()
+                info3 = maint_check(img_chk) if img_chk is not None else None
+                if not info3:
+                    log("확인 버튼 클릭 후 점검 팝업 닫힘 -> 점검 종료 확인 및 게임 복귀 성공!")
+                    info2 = None
+                    break
+                else:
+                    log("확인 버튼 클릭 후에도 점검 팝업 유지 -> 아직 실제 점검 진행 중")
+                    end = info3.get("end") or end
                 break
             if wave.read_wave(img) is not None:
                 break
         if info2:
             log("아직 점검 중")
-            end = info2.get("end")
+            end = info2.get("end") or end
             continue
         break
     st.pop("maint", None)
@@ -1642,6 +1657,21 @@ def main():
                     stuck.reset()
                     continue
                 if _mt:
+                    # patch282: 점검 팝업 발생 시, 이미 종료 시각이 지난 상태라면 확인을 먼저 한 번 눌러봄!
+                    now = time.time()
+                    end = _mt.get("end")
+                    if end and now >= end:
+                        b = _mt.get("btn") or (360, 538)
+                        log("점검 종료 시각(%s) 경과 상태에서 팝업 감지 -> 확인 버튼 우선 클릭 (%d, %d)" % (
+                            time.strftime("%H:%M", time.localtime(end)), b[0], b[1]))
+                        subprocess.run(ADB + ["shell", "input", "tap", str(b[0]), str(b[1])], capture_output=True)
+                        time.sleep(8)
+                        img2 = cap()
+                        if img2 is not None and maint_check(img2) is None:
+                            log("확인 클릭 후 점검 팝업 닫힘 -> 점검 종료 복귀 (BlueStacks 종료 불필요)")
+                            hist.clear()
+                            stuck.reset()
+                            continue
                     handle_maintenance(st, _mt)
                     hist.clear()
                     stuck.reset()

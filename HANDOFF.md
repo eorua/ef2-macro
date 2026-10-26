@@ -24,6 +24,12 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-26 (Antigravity, patch286) 유물 공방 독립 배포 패키지 구성 및 ADB 경로 유연화** (`adbport.py`, `hexa.py`, `.gitignore`):
+  - **지인 전달용 원클릭 패키지 생성**: `C:\macro\유물공방_배포용.zip` (17.7MB).
+    - 봇 실행 필수 파일 16종 동봉: `hexa.py`, `hexa_engine.py`, `hexa_vision.py`, `hexa_nt.py`, `hexa_cfg.json`, `hexa_nt_w.npz`, `hexa_search_v8.exe`, `adbport.py`, `adb.exe`, DLL 2종, 원클릭 배치파일 4종(`1_필수라이브러리_설치.bat`, `2_공방_테스트.bat`, `3_공방_1판_플레이.bat`, `4_공방_연속_플레이.bat`), `사용설명서.txt`.
+    - `hexa_nt_w.npz`(14MB)에서 첫 실행 시 C 탐색용 바이너리 가중치(`hexa_nt_w.bin`, 577MB)를 자동 복원하므로, 500MB+ 대용량 파일 전송 없이 가볍게 전달 가능.
+  - **ADB 경로 유연화**: `adbport.py`와 `hexa.py`에서 실행 폴더 내 `adb.exe`를 1순위로 인식하도록 수정하여 `C:\platform-tools`가 없는 외부 PC에서도 무설치 동작 지원.
+
 - **2026-10-26 (Antigravity, patch285) 퀘스트 30번 오픈 목표 골드 기준 하향 조정 (200ao -> 170ao)** (`q30.py`, `main.py`, `panel.py`):
   - **사용자 요청 반영**: 30퀘스트 사이클 진행 시 오픈 목표 골드 기준을 기존 `200ao`에서 `170ao`로 하향 변경.
   - `q30.py`: `TARGET = "170ao"` 상수로 갱신 및 독스트링/주석 반영.

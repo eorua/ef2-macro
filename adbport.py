@@ -15,8 +15,10 @@
 """
 import os, re, sys, json, subprocess
 
-ADB_EXE = r"C:\platform-tools\adb.exe"
 BASE = os.path.dirname(os.path.abspath(__file__))
+ADB_EXE = os.path.join(BASE, "adb.exe") if os.path.exists(os.path.join(BASE, "adb.exe")) else (
+    r"C:\platform-tools\adb.exe" if os.path.exists(r"C:\platform-tools\adb.exe") else "adb"
+)
 PKG = "com.ekkorr.ef2"
 NOWIN = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 

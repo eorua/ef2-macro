@@ -29,7 +29,9 @@ except Exception:
 BASE = os.path.dirname(os.path.abspath(__file__))
 SHOTS = os.path.join(BASE, "shots")
 os.makedirs(SHOTS, exist_ok=True)
-ADB_EXE = r"C:\platform-tools\adb.exe"
+ADB_EXE = os.path.join(BASE, "adb.exe") if os.path.exists(os.path.join(BASE, "adb.exe")) else (
+    r"C:\platform-tools\adb.exe" if os.path.exists(r"C:\platform-tools\adb.exe") else "adb"
+)
 CFG_PATH = os.path.join(BASE, "hexa_cfg.json")
 LOG_PATH = os.path.join(SHOTS, "hexa_log.txt")
 LEARN_PATH = os.path.join(SHOTS, "hexa_learn.jsonl")

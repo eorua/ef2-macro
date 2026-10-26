@@ -24,6 +24,18 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-27 (Antigravity, patch294h) 영혼의 휴식 중 웨이브 6500 제한 무시(던전/무랭전 숙제 정상 진행) 및 오프라인 기상 홈화면 재부팅 방지** (`daily.py`, `main.py`, `tests/test_daily_soul_wave.py`):
+  - **원인 분석 ("휴식 중에는 웨이브 6500제한이 의미 없잖아 반영해줘")**:
+    - 영혼의 휴식 오프라인 등반으로 기상했을 때 웨이브가 7599층 등 고층에 도달해 있었음.
+    - 그러나 기상 작업에서 던전 소탕 및 무한랭킹전을 시도할 때 `daily.safe_wave_ok()`가 `MAX_WAVE = 6500` 제한을 엄격하게 적용하여 `[일일] 웨이브 7599 >= 6500 -> 중단` 로그와 함께 숙제를 전부 스킵하고 잠드는 문제 발생.
+    - 영혼의 휴식 중에는 최고층 등반 기록이나 수동 스킬 제어가 목적이 아니므로 고층이어도 숙제를 정상 진행해야 함.
+    - 부가 현상: 오프라인 기상 시점(20초 전)에 홈화면을 "게임 강제 종료(튕김)"로 오인해 BlueStacks를 불필요하게 1회 재부팅하던 현상 및 영입 직후 퀘스트 탭에 머물러 있어 유물 공방이 스킵되던 현상 확인.
+  - **수정 및 정상화**:
+    1. **영혼의 휴식 중 웨이브 상한 검사 면제 (`daily.py`)**: `daily.is_in_soul()` 및 `IN_SOUL` 플래그를 도입하여, 휴식 중에는 `safe_wave_ok()`가 웨이브 크기와 무관하게 항상 `True`를 반환하도록 수정 (성 함락/환생결과 팝업 감지 `blocked(img)`는 안전하게 유지).
+    2. **오프라인 기상 시 홈화면 처리 개선 (`main.py`)**: 기상 시점에 홈화면이 감지되면 BlueStacks를 재시작하지 않고 `launch_game()`을 통해 게임 앱만 즉시 실행하도록 분기 추가.
+    3. **유물 공방 전 전투 화면 이동 (`main.py`)**: 기상 작업에서 영입 후 유물 공방을 부르기 전에 `daily.go_battle()`을 호출하여 전투 화면 점수 부족으로 스킵되지 않도록 보강.
+    4. **단위 테스트 작성 및 통과 (`tests/test_daily_soul_wave.py`)**: 일반 모드 차단, 휴식 모드 7599층 허용, 팝업 차단 유지 등 3개 핵심 시나리오 전수 검증 통과 (`Ran 3 tests in 0.512s - OK`).
+
 - **2026-10-27 (Antigravity, patch294g) Windows 콘솔 창 번쩍임/검은 창 깜빡임 원인 규명 및 전 코드베이스 `CREATE_NO_WINDOW = 0x08000000` 전면 적용** (`main.py`, `bsrestart.py`, `adbport.py`, `daily.py`, `fastcam.py`, `web_panel.py`, `preset.py`, `recruit.py`, `wave.py`, `rebirth.py`, `skillctl.py`, `soul.py`, `pet.py`, `arrange.py`, `barracks.py`, `activate.py`, `cap.py`, `uitour.py`, `maint.py`, `ocrx.py`, `dungeon.py`, `arch.py`, `hexa.py`):
   - **원인 분석 ("검은색 창이 마구 뜨는데?")**:
     - Windows 환경에서 백그라운드 프로세스가 `subprocess.run`이나 `subprocess.Popen`으로 콘솔 실행 파일(`adb.exe`, `powershell.exe`, `tesseract.exe`)을 호출할 때 `creationflags=0x08000000` (`CREATE_NO_WINDOW`) 플래그가 지정되어 있지 않으면, Windows 운영체제가 해당 자식 프로세스를 위해 순간적으로 새 콘솔 창(`conhost.exe`)을 생성했다가 닫으면서 화면에 검은 창이 번쩍거리고 포커스를 방해함.

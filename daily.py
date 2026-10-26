@@ -13,6 +13,7 @@ DEV = __import__("adbport").DEV
 SHOTS = r"C:\macro\shots"
 
 MAX_WAVE = 6500          # 이 웨이브 이상이면 일일 작업 안 함 (patch200: 메인이 지금 고레벨 단계 웨이브로 덮어씀)
+IN_SOUL = False          # patch294h: 영혼의 휴식 중 여부 (휴식 중에는 웨이브 상한 제한 없이 숙제 진행)
 WAVE_SANE = 20000        # patch200: 이보다 큰 웨이브는 오독으로 봄 (던전 화면에서 39179 로 읽힌 적 있음)
 SWEEP_COUNT = 3          # 던전 소탕 횟수
 QUEST_COOLDOWN = 3600    # 퀘스트 보상 확인 최소 간격(초)
@@ -137,13 +138,30 @@ def blocked(img):
     return False
 
 
+def is_in_soul():
+    """영혼의 휴식 중인지 여부 (IN_SOUL 플래그 또는 state.json 확인)"""
+    if IN_SOUL:
+        return True
+    try:
+        st_path = os.path.join(r"C:\macro", "state.json")
+        if os.path.exists(st_path):
+            with open(st_path, "r", encoding="utf-8") as f:
+                st = json.load(f)
+                return bool(st.get("soul"))
+    except Exception:
+        pass
+    return False
+
+
 def safe_wave_ok(img=None):
-    """웨이브 상한 이하이고 팝업이 없으면 True"""
+    """웨이브 상한 이하이고 팝업이 없으면 True (영혼의 휴식 중에는 웨이브 상한 제한 무시)"""
     if img is None:
         img = cap()
     if blocked(img):
         log("성 함락/환생결과 팝업 감지 -> 중단")
         return False
+    if is_in_soul():
+        return True
     w = get_wave(img)
     if w is not None and w >= MAX_WAVE:
         # patch200: 오독 방지 - 말이 안 되게 큰 값은 무시, 아니면 0.3초 간격으로 두 번 더 읽어 둘 다 넘어야 중단
@@ -658,6 +676,8 @@ def run_soul_tasks(st):
     """patch233: 영혼의 휴식 중 - 던전 소탕 / 정령의 고원 / 무한랭킹전만 한 번에 하나.
     상점 광고가 아직이면(9시 갱신 직후) 던전은 휴식이 끝난 뒤 광고 다음에 (patch194 순서 유지).
     작업을 했으면 True"""
+    global IN_SOUL
+    IN_SOUL = True
     d = _soul_day(st)
     try:
         img = cap()

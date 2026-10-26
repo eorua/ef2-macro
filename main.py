@@ -95,6 +95,7 @@ def probe_sync(st):
     STUCK_MIN_WAVE = HIGH_WAVE
     # patch200: 일일 작업 상한 = 지금 고레벨 단계 웨이브 (상한 탐색 중이면 기본값)
     daily.MAX_WAVE = HIGH_WAVE if HIGH_WAVE < 99999 else int(st.get("high_wave") or HIGH_WAVE_BASE)
+    daily.IN_SOUL = bool(st.get("soul"))
 
 
 def probe_fall(st):
@@ -1749,6 +1750,13 @@ def main():
                 if is_soul_offline_active(st):
                     # patch294e: 영혼의 휴식 오프라인 등반 중 정상 앱 종료 상태 -> 재시작 절대 금지
                     pass
+                elif st.get("soul") and daily.setting("soul_offline", True):
+                    # patch294h: 기상 시각 도달 후 홈화면 상태이면 BlueStacks 재시작이 아니라 게임만 실행
+                    log("오프라인 휴식 기상: 홈화면에서 게임 실행")
+                    launch_game()
+                    time.sleep(8)
+                    hist.clear()
+                    continue
                 else:
                     log("바탕화면 감지 -> 게임이 강제 종료됨, 바로 BlueStacks 재시작")
                     try:
@@ -2018,6 +2026,8 @@ def main():
                         if hexa_on():
                             log("기상 작업: 유물 공방 티켓 확인")
                             try:
+                                daily.go_battle()
+                                time.sleep(1.0)
                                 hexa_auto_run(st)
                             except Abort:
                                 raise

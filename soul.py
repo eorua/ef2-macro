@@ -17,8 +17,8 @@ SHOTS = os.path.join(BASE, "shots")
 
 SOUL_HOURS = 4.0                    # 한 번에 쉴 수 있는 최대 시간
 COOLDOWN_SEC = 8 * 3600 + 300       # 휴식이 끝난 뒤 다시 시작할 수 있을 때까지 (게임 표시 약 8시간)
-MIN_DIA_START = 5000                # 이 다이아 이상일 때만 시작
-MIN_DIA_X2 = 2000                   # 종료할 때 이 이상이면 다이아 1000 으로 훈장 2배
+MIN_DIA_START = 1000                # patch293: 5000 -> 1000 이 다이아 이상일 때만 시작
+MIN_DIA_X2 = 1000                   # patch293: 2000 -> 1000 종료할 때 이 이상이면 다이아 1000 으로 훈장 2배
 
 TAB_CASTLE = (302, 1245)            # 하단 '성' 탭
 BTN_TEMPLE = (640, 790)             # 성 - 자원 화면의 '신전' 버튼 (추정 좌표 -> 위아래로 몇 곳 시도)
@@ -282,6 +282,41 @@ def _find_row():
     return img, row_y(img)
 
 
+def ensure_rest_view():
+    """patch293: 메인 화면 등에서 성 > 신전 > 영혼의 휴식 화면(running_view 또는 end_dialog)으로 진입"""
+    try:
+        img = grab()
+    except Exception:
+        return False
+    if end_dialog(img) or running_view(img):
+        return True
+    _close_everything()
+    if not _open_temple():
+        log("신전 패널을 열지 못함")
+        return False
+    img, y = _find_row()
+    if y is None:
+        log("영혼의 휴식 줄을 찾지 못함")
+        shot("soul_fail_ensure_row", img)
+        _close_everything()
+        return False
+    tap((ROW_BTN_X, y), "영혼의 휴식 줄 터치", 1.5)
+    for _ in range(6):
+        img = grab()
+        if end_dialog(img) or running_view(img):
+            return True
+        time.sleep(0.5)
+    # 줄 중앙(360, y) 한 번 더 시도
+    tap((360, y), "영혼의 휴식 줄 중앙 터치", 1.5)
+    for _ in range(6):
+        img = grab()
+        if end_dialog(img) or running_view(img):
+            return True
+        time.sleep(0.5)
+    shot("soul_fail_ensure_view", img)
+    return False
+
+
 def start(st, force=False):
     """영혼의 휴식 시작. 반환: 'started' / 'cooldown' / 'running' / 'low' / 'fail'
     patch206: force=True(사용자 예약) 면 다이아 5000 조건을 건너뛰고, 끝날 때 무조건 다이아 1000 으로 2배"""
@@ -361,9 +396,12 @@ def _resolve_end(st, img):
     dia, exact = read_diamonds(img)
     if dia is None:
         dia = d.get("dia", 0)
-    want_x2 = True                                       # patch232: 항상 다이아 1000 으로 2배 (옵션 삭제, 2배 안 할 거면 영휴를 안 함)
+    want_x2 = True                                       # patch232: 항상 다이아 1000 으로 2배
     if d.get("force_x2"):                                # patch206: 사용자 예약 - 무조건 2배
         want_x2 = True
+    elif dia is not None and dia < MIN_DIA_X2:           # patch293: 1,000 미만이면 안전하게 1배 수령
+        log("종료창: 다이아 부족 (%s < %d) -> 일반 1배 수령으로 전환" % (dia, MIN_DIA_X2))
+        want_x2 = False
     log("종료창: 다이아 %s -> %s" % (dia, "훈장 x2 (다이아 1000)" if want_x2 else "그냥 받기"))
     tap(END_X2 if want_x2 else END_OK, "종료 선택", 1.5)
     for i in range(4):
@@ -442,6 +480,14 @@ def tick(st, img):
             log("%.1f시간 경과 -> 휴식 종료 버튼" % ((now - d.get("start", now)) / 3600))
             tap(BTN_REST_END, "휴식 종료", 1.2)
         return True
+    # patch293: 종료 시각인데 휴식 화면이 안 보이면(메인 화면 등) 성 > 신전 > 휴식 진입 시도
+    if now - d.get("ensure_try", 0) > 20:
+        d["ensure_try"] = now
+        log("종료 시각 도달 -> 영혼의 휴식 화면 진입 시도")
+        if ensure_rest_view():
+            cur = grab()
+            if cur is not None and (running_view(cur) or end_dialog(cur)):
+                return tick(st, cur)
     # 종료 시각이 지났는데 휴식 화면이 안 보임 -> 이때만 가린 창을 닫고 다시 확인
     if now - end > END_GIVEUP:
         log("종료 시각 뒤 %d분 동안 휴식 화면을 못 찾음 -> 추적 종료 (상태 확인 필요)" % (END_GIVEUP // 60))

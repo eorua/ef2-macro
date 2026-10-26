@@ -142,7 +142,8 @@ def gem_left(img=None):
             except Exception as e:
                 print(f"보석 영웅 ({i}행) 글자 읽기 오류:", e)
 
-    # patch292/patch292b: '전장의 북소리' 보석 영입 실행 전 보유 다이아 2,000개 이상인지 사전 검증
+    # patch292/patch292b/patch293: '전장의 북소리' 보석 영입 실행 전 보유 다이아 사전 검증
+    # 영혼의 휴식 진행 중이거나 옵션 활성화 시 2배 보존(1,000)을 위해 3,000개 이상 필요
     if drum_targets:
         cur_dia = None
         try:
@@ -152,9 +153,28 @@ def gem_left(img=None):
         except Exception as e:
             print("[영입] 다이아 잔여량 판독 오류:", e)
 
+        soul_protect = False
+        try:
+            with open(os.path.join(BASE, "state.json"), "r", encoding="utf-8") as f:
+                st_data = json.load(f)
+            if st_data.get("soul"):
+                soul_protect = True
+        except Exception:
+            pass
+        if not soul_protect:
+            try:
+                import daily
+                if daily.setting("soul", False):
+                    soul_protect = True
+            except Exception:
+                pass
+
+        min_dia = 3000 if soul_protect else 2000
+
         for idx, y, name in drum_targets:
-            if cur_dia is not None and cur_dia < 2000:
-                print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견되었으나, 보유 다이아({cur_dia}) 2,000개 미만 -> 영입 건너뜀")
+            if cur_dia is not None and cur_dia < min_dia:
+                reason = f"영혼의 휴식 보존 기준({min_dia:,}개) 미만" if soul_protect else f"최소 필요({min_dia:,}개) 미만"
+                print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견되었으나, 보유 다이아({cur_dia}개)가 {reason} -> 영입 건너뜀")
                 continue
             dia_str = f"{cur_dia}개" if cur_dia is not None else "확인불가"
             print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견! (보유 다이아: {dia_str}) 보석 2000 영입 진행")

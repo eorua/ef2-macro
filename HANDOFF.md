@@ -24,6 +24,25 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-27 (Antigravity, patch293) 유물 공방 멈춤 버그 긴급 해결, 영혼의 휴식 다이아 1000 하향 및 1000 다이아 보존 안전장치, 영혼의 휴식 오프라인 등반(미접속 모드) 구현, BlueStacks 정기 재시작 동작 검증** (`hexa_vision.py`, `soul.py`, `recruit.py`, `main.py`, `panel.py`, `templates/index.html`, `settings.json`, `dist_package/`):
+  - **1) 유물 공방 멈춤 버그 긴급 해결 (`hexa_vision.py`, `dist_package/`, `유물공방_배포용.zip`)**:
+    - **원인 분석**: 10/26 UI 개편으로 보드 칸 크기가 확대됨에 따라 기존 인게임 검증 좌표 `(612, 850)`이 22번 칸 내부 좌표로 편입됨. 이로 인해 22번 칸에 조각이 놓이면 `state()`가 `None`을 반환하고, 20초간 지속되면 `화면을 모르겠음 -> 멈춤 C:\macro\shots\hexa_unknown.png`으로 중단되던 문제.
+    - **해결 및 검증**: 보드 바깥 좌표 `(60, 600)`, `(660, 600)`의 실제 새 UI 바닥색 `(68, 61, 45)`(및 구 UI `(20, 14, 12)`)을 확인하도록 수정. 멈췄던 `hexa_unknown.png` 및 전체 테스트셋 100% `game` 상태로 즉시 복구 확인. 배포용 zip 최신화 완료.
+  - **2) 정기 재시작 동작 구조 및 실행 확인**:
+    - **재시작 방식**: 정기 재시작(`do_restart("정기")` -> `restart_bluestacks_full()`)은 단순 게임 앱 종료가 아니라 **창 제목에 '오환2'가 포함된 BlueStacks(`Pie64_3`) 프로세스(PID) 자체를 종료하고 재실행**하는 방식임 (타 BlueStacks 인스턴스 및 PC 포커스 간섭 0%).
+    - **주기 및 최근 기록**: 6시간(`RESTART_HOURS = 6`) 주기. 01:45:11에도 앱 비정상 종료 감지 시 `BlueStacks(오환2) 재시작`이 단독으로 실행되어 30초 내에 게임 메인 화면 및 프리셋 활성화까지 정상 복구됨.
+  - **3) 영혼의 휴식 다이아 1000 하향 및 다이아 안전 보존 (`soul.py`, `recruit.py`)**:
+    - `soul.py`의 `MIN_DIA_START = 1000`, `MIN_DIA_X2 = 1000`으로 하향 조정 (기존 5000/2000 다이아).
+    - `recruit.py` 전장의 북소리 영입 시: 영혼의 휴식 진행 중(`st.get("soul")`)이거나 패널 `soul` 옵션이 켜져 있으면 `min_dia = 3000`(영입 2000 + 휴식 2배 1000 보존)으로 검증하여, 영휴 종료 시 1000 다이아 2배 보상을 100% 안전하게 받을 수 있도록 방어. 다이아 3000 미만 시 영입을 건너뛰고 로그 기록.
+    - `soul.py`의 `_resolve_end()`에서 만약 다이아가 1000 미만일 경우 일반 1배 수령(`END_OK`)으로 안전 fallback.
+  - **4) 영혼의 휴식 오프라인 등반 (미접속 모드) 구현 (`main.py`, `soul.py`, `panel.py`, `templates/index.html`)**:
+    - 옵션: `soul_offline` (기본값 True, settings.json / 패널 / 웹 대시보드 연동).
+    - **동작 루틴**:
+      1. 휴식 시작 후 / 숙제 완료 후 `am force-stop com.ekkorr.ef2`로 오환2 앱만 깔끔하게 종료 (오프라인 등반 가동, 에뮬레이터는 유지).
+      2. 영입 쿨타임 주기(`st["next_recruit"]`, 약 1시간)마다 게임 실행(`launch_game()`) -> 메인 화면 복귀(`recover()`) -> 영입(`do_recruit`), 공방 티켓 확인(`hexa_auto_run`), 주기 숙제(`daily.run_soul_tasks`) 일괄 수행 후 다시 앱 종료 및 취침.
+      3. 4시간 만료 시 게임 접속 후 신전 진입(`ensure_rest_view`) -> 훈장 2배(다이아 1000) 수령 -> `after_restart_setup` 프리셋 및 웨이브 호출 자동 복구 후 일반 등반 재개.
+      4. 취침 대기 중에도 패널/웹 "🛑 작업 중단" 또는 즉시 공방 요청(`hexa_now.req`) 감지 시 즉시 기상하여 처리.
+
 - **2026-10-27 (Antigravity, patch292b) 유물 공방 비전 오판독 긴급 복구 & 고속 조작 정상화, 공방 작업 중단 기능 완성, 전장의북 보석 영입 다이아 검증, 성 드루이드 12시/6시 분배 무한루프 방지, 일반 29퀘 주기 최적화** (`hexa_vision.py`, `hexa.py`, `hexa_cfg.json`, `recruit.py`, `arrange.py`, `pet.py`, `web_panel.py`, `templates/index.html`, `panel.py`, `wavecall.py`, `tests/golden.json`):
   - **1) 유물 공방 비전 오판독 긴급 복구 및 고속 조작 정상화 (`hexa_vision.py`, `hexa.py`, `hexa_cfg.json`)**:
     - **원인 분석 ("언제부터 이런거야?")**: `f69eee3`(00:28경)에서 로비 '이어하기' 갈색 버튼 인식을 위해 추가했던 `(70, 63, 48)` 색상이 게임 화면의 어두운 바닥 경계선 및 일반 전투 화면 배경과 매칭되면서, 인게임 플레이 중 매 수마다 화면 상태를 `over`(결과창)로 잘못 판독함.

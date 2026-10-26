@@ -792,6 +792,12 @@ def launch_game():
             adb_out(["shell", "input", "tap", str(pt[0]), str(pt[1])])
 
 
+def stop_game():
+    """patch293: 영혼의 휴식 오프라인 등반용 게임 앱 강제 종료 (BlueStacks/MuMu 인스턴스는 그대로 유지)"""
+    log("오환2 앱 종료 (am force-stop)")
+    adb_out(["shell", "am", "force-stop", PKG])
+
+
 def adb_alive(tries=1):
     """ADB 로 접속되고 안드로이드 부팅이 끝났는지. 실패하면 이유를 로그에 남김"""
     for i in range(tries):
@@ -1873,9 +1879,117 @@ def main():
                 stuck.reset()
                 hist.clear()
                 if GO:
+                    import soul as _sm
+                    _sd = st["soul"]
+                    _now = time.time()
+                    _end_t = _sm.end_time(_sd)
+                    _offline = daily.setting("soul_offline", True)
+
+                    # 1. 휴식 종료 시각(4시간) 도달 -> 복귀 및 다이아 1000 훈장 2배 수령
+                    if _now >= _end_t - 20:
+                        log("영혼의 휴식 만료 시각(4시간) 도달 -> 복귀 및 훈장 2배 수령 진행")
+                        if not game_in_focus():
+                            log("오프라인 상태에서 복귀: 게임 실행")
+                            launch_game()
+                            if not recover():
+                                log("게임 복귀 실패 -> 30초 후 재시도")
+                                time.sleep(30)
+                                continue
+                        _sm.ensure_rest_view()
+                        _cur_img = cap()
+                        _sm.tick(st, _cur_img)
+                        if not st.get("soul"):
+                            after_restart_setup(st)
+                            log("영혼의 휴식 종료 완료 -> 프리셋/웨이브 복구 후 일반 등반 재개")
+                            save_state(st)
+                        continue
+
+                    # 2. 오프라인 등반 모드 (patch293: 기본값 True, 미접속 상태 유지 + 영입 주기 기상)
+                    if _offline:
+                        _rec_t = st.get("next_recruit", _now + 3600)
+                        _wake_t = min(_rec_t, _end_t)
+                        _hreq = os.path.join(BASE, "hexa_now.req")
+                        _want_hexa_now = os.path.exists(_hreq)
+
+                        # 아직 기상 시각 전 (취침 / 미접속 유지 구간)
+                        if _now < _wake_t - 20 and not _want_hexa_now:
+                            if game_in_focus():
+                                log(f"영혼의 휴식 오프라인 등반 모드: 오환2 앱 종료 (다음 기상: {time.strftime('%H:%M:%S', time.localtime(_wake_t))}, {int((_wake_t - _now) / 60)}분 뒤)")
+                                stop_game()
+                                time.sleep(2)
+
+                            if _now - _sd.get("last_offline_log", 0) >= 600:
+                                _sd["last_offline_log"] = _now
+                                save_state(st)
+                                log(f"[오프라인 등반] 미접속 유지 중 - 다음 기상(영입): {time.strftime('%H:%M', time.localtime(_wake_t))} ({int((_wake_t - _now) / 60)}분 남음), 휴식 종료: {time.strftime('%H:%M', time.localtime(_end_t))} ({int((_end_t - _now) / 60)}분 남음)")
+                            time.sleep(5)
+                            continue
+
+                        # 기상 시각 도달 (또는 hexa_now.req 감지): 게임 실행 및 숙제 일괄 처리
+                        if _want_hexa_now:
+                            try:
+                                os.remove(_hreq)
+                            except OSError:
+                                pass
+                            log("hexa_now.req 감지 -> 오프라인 기상하여 유물 공방 확인")
+                        else:
+                            log("영혼의 휴식 정기 기상 (영입 주기 도달) -> 게임 접속")
+
+                        if not game_in_focus():
+                            log("오프라인 기상: 게임 실행")
+                            launch_game()
+                            if not recover():
+                                log("게임 실행/복귀 실패 -> 1분 뒤 재시도")
+                                time.sleep(60)
+                                continue
+
+                        # A. 영입
+                        if _now >= st.get("next_recruit", 0):
+                            log("기상 작업: 영웅 영입 진행")
+                            try:
+                                do_recruit(st)
+                            except Abort:
+                                raise
+                            except Exception as e:
+                                log("휴식 중 영입 오류: %r" % (e,))
+                                st["next_recruit"] = time.time() + 300
+                            save_state(st)
+
+                        # B. 유물 공방
+                        if hexa_on():
+                            log("기상 작업: 유물 공방 티켓 확인")
+                            try:
+                                hexa_auto_run(st)
+                            except Abort:
+                                raise
+                            except Exception as e:
+                                log("휴식 중 유물 공방 오류: %r" % (e,))
+                            save_state(st)
+
+                        # C. 일일/주기 숙제 (던전, 정령의 고원, 무한랭킹전)
+                        log("기상 작업: 던전/고원/무랭전 숙제 확인")
+                        try:
+                            for _ in range(5):
+                                if not daily.run_soul_tasks(st):
+                                    break
+                                time.sleep(1.0)
+                        except Abort:
+                            raise
+                        except Exception as e:
+                            log("휴식 중 숙제 오류: %r" % (e,))
+                        finally:
+                            try:
+                                daily.close_panels()
+                                daily.go_quest()
+                            except Exception:
+                                pass
+                        save_state(st)
+
+                        log("기상 작업 완료 -> 다음 루프에서 오프라인 취침 복귀")
+                        continue
+
+                    # 3. 온라인 유지 모드 (soul_offline = False 일 때 기존 방식 유지)
                     try:                                 # patch233: 휴식 중에도 던전 소탕 / 정령의 고원 / 무한랭킹전
-                        import soul as _sm
-                        _sd = st["soul"]
                         # patch270: '휴식 화면이 안 보임'으로 작업을 멈춘 뒤 휴식이 끝날 때까지 영입·던전 등이 영영 안 돌던 문제
                         #   (10-25 14:56 유물 공방 '공방 마감' 창이 덮고 있어서 멈춤 -> 그 뒤 2시간 넘게 작업 없음)
                         #   -> 30분 지난 뒤 지금 화면에 휴식 표시가 보이면 다시 켬

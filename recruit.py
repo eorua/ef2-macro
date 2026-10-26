@@ -172,9 +172,10 @@ def gem_left(img=None):
         min_dia = 3000 if soul_protect else 2000
 
         for idx, y, name in drum_targets:
-            if cur_dia is not None and cur_dia < min_dia:
-                reason = f"영혼의 휴식 보존 기준({min_dia:,}개) 미만" if soul_protect else f"최소 필요({min_dia:,}개) 미만"
-                print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견되었으나, 보유 다이아({cur_dia}개)가 {reason} -> 영입 건너뜀")
+            if cur_dia is None or cur_dia < min_dia:
+                reason = "다이아 잔여량 확인 불가" if cur_dia is None else (f"영혼의 휴식 보존 기준({min_dia:,}개) 미만" if soul_protect else f"최소 필요({min_dia:,}개) 미만")
+                dia_display = f"{cur_dia}개" if cur_dia is not None else "확인불가"
+                print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견되었으나, 보유 다이아({dia_display})가 {reason} -> 안전을 위해 영입 건너뜀")
                 continue
             dia_str = f"{cur_dia}개" if cur_dia is not None else "확인불가"
             print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견! (보유 다이아: {dia_str}) 보석 2000 영입 진행")

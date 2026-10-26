@@ -479,6 +479,12 @@ def tick(st, img):
             d["end_tap"] = now
             log("%.1f시간 경과 -> 휴식 종료 버튼" % ((now - d.get("start", now)) / 3600))
             tap(BTN_REST_END, "휴식 종료", 1.2)
+            cur = grab()
+            if cur is not None and end_dialog(cur):
+                ok, x2 = _resolve_end(st, cur)
+                if ok:
+                    _finish(st, x2)
+                return True
         return True
     # patch293: 종료 시각인데 휴식 화면이 안 보이면(메인 화면 등) 성 > 신전 > 휴식 진입 시도
     if now - d.get("ensure_try", 0) > 20:

@@ -798,6 +798,15 @@ def stop_game():
     adb_out(["shell", "am", "force-stop", PKG])
 
 
+def is_app_running():
+    """patch293: 오환2 앱 프로세스 실행 여부 (pidof 기반 초고속 확인)"""
+    try:
+        out = adb_out(["shell", "pidof", PKG]).strip()
+        return bool(out and any(p.isdigit() for p in out.split()))
+    except Exception:
+        return False
+
+
 def adb_alive(tries=1):
     """ADB 로 접속되고 안드로이드 부팅이 끝났는지. 실패하면 이유를 로그에 남김"""
     for i in range(tries):
@@ -1913,7 +1922,7 @@ def main():
 
                         # 아직 기상 시각 전 (취침 / 미접속 유지 구간)
                         if _now < _wake_t - 20 and not _want_hexa_now:
-                            if game_in_focus():
+                            if is_app_running():
                                 log(f"영혼의 휴식 오프라인 등반 모드: 오환2 앱 종료 (다음 기상: {time.strftime('%H:%M:%S', time.localtime(_wake_t))}, {int((_wake_t - _now) / 60)}분 뒤)")
                                 stop_game()
                                 time.sleep(2)
@@ -1935,7 +1944,7 @@ def main():
                         else:
                             log("영혼의 휴식 정기 기상 (영입 주기 도달) -> 게임 접속")
 
-                        if not game_in_focus():
+                        if not is_app_running() or not game_in_focus():
                             log("오프라인 기상: 게임 실행")
                             launch_game()
                             if not recover():
@@ -1943,8 +1952,11 @@ def main():
                                 time.sleep(60)
                                 continue
 
-                        # A. 영입
-                        if _now >= st.get("next_recruit", 0):
+                        # A. 영입 (30초 전후 도달 시 정확한 대기 후 실행)
+                        _n_rec = st.get("next_recruit", 0)
+                        if time.time() >= _n_rec - 30:
+                            if _n_rec > time.time():
+                                time.sleep(_n_rec - time.time() + 1.0)
                             log("기상 작업: 영웅 영입 진행")
                             try:
                                 do_recruit(st)

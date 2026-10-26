@@ -158,6 +158,11 @@ def record_rebirth(st, why=""):
     """환생 직전의 최고 웨이브(peak_wave)를 최근 환생 목록에 기록 (패널에서 표시)"""
     st["probe_fell"] = False                   # patch156
     st["reborn_tribe_checked"] = False         # patch244: 환생 완료 후 종족 보너스 다시 판별
+    try:                                       # patch290: 환생 직후 웨이브 호출 AUTO 켜기 예약
+        import wavecall
+        wavecall.request_check(st, "환생")
+    except Exception as e:
+        log("웨이브 호출 확인 예약 오류: %r" % (e,))
     bonus_reset()                               # patch235: 환생하면 배지 값을 다시 읽음
     _rp = st.get("rprobe")                      # patch161: 한 판 다 모았으면 끝
     if _rp and _rp.get("shots") and not _rp.get("done"):
@@ -866,6 +871,11 @@ def after_restart_setup(st):
     log(f"프리셋 선택({hero}/{relic}): " + ("성공" if ok2 else "실패"))
     if not st.get("high_done"):
         st["need_low"] = False if ok2 else True
+    try:                                       # patch290: 재시작 뒤엔 웨이브 호출 AUTO 켜기 예약
+        import wavecall
+        wavecall.request_check(st, "재시작")
+    except Exception as e:
+        log("웨이브 호출 확인 예약 오류: %r" % (e,))
     save_state(st)
 
 
@@ -1969,10 +1979,11 @@ def main():
                     log("종족/30퀘 확인 오류: %r" % (_e,))
                     _q30, _lh, _lr = None, "기본", "시간"
                 log("환생 후 프리셋 설정: 영웅 %s / 유물 %s (종족=%s)" % (_lh, _lr, st.get("reborn_tribe") or "UNKNOWN"))
-                try:                                   # patch119: 환생 -> 스킬 AUTO 다시 켬
+                try:                                   # patch119/290: 환생 -> 스킬 AUTO 다시 켬
                     import skillctl
-                    if GO and (skillctl.active() or st.get("skill_manual")):
+                    if GO:
                         skillctl.deactivate(st, "환생")
+                        skillctl.set_auto(True)
                 except Exception as e:
                     log("스킬 관리 오류: %r" % (e,))
                 if GO:
@@ -2044,6 +2055,12 @@ def main():
                 except Exception as _e:
                     log("녹화 확인 오류: %r" % (_e,))
                 if GO:
+                    try:
+                        import wavecall                        # patch290: 7000층 이상에서 끄고 환생 후 다시 켬
+                        if wavecall.tick(st, w):
+                            save_state(st)
+                    except Exception as _e:
+                        log("웨이브 호출 관리 오류: %r" % (_e,))
                     try:
                         reward_probe(st, hist)          # patch161
                     except Abort:

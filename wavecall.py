@@ -15,8 +15,8 @@ BASE = r"C:\macro"
 sys.path.insert(0, BASE)
 import preset
 
-OFF_WAVE = 7200            # 이 웨이브 이상이면 AUTO 끔
-ON_WAVE = 6000             # 환생 뒤 이 웨이브 미만이면 AUTO 다시 켬
+OFF_WAVE = 7000            # 이 웨이브 이상이면 AUTO 끔 (patch290: 사용자 요청 7000층)
+ON_WAVE = 6000             # 환생 뒤 이 웨이브 미만이면 AUTO 다시 켬 (patch290)
 GEAR = (170, 642)          # 왼쪽 아래 톱니(웨이브 호출/황혼의 부름 옆) - 오른쪽 위 환경설정 톱니 아님
 DLG_X = (631, 213)         # 설정창 빨간 X
 TAB_WAVE = (215, 270)      # '웨이브 호출' 탭
@@ -190,16 +190,53 @@ def set_auto(want_on):
         return False
 
 
-# patch273: 사용자 요청으로 웨이브 호출 상시 켜짐 전제 -> 주기적 확인 및 토글 루틴 제거
+# patch290: 7000층 이상에서 AUTO 끄고, 환생 후 6000층 미만에서 다시 켜기
 
 
 def request_check(st, why=""):
-    """patch273: 웨이브 호출 상시 켜짐 전제로 검증 루틴 제거 (호환용 no-op)"""
-    pass
+    """환생 직후 / 재시작 직후 등에 호출 -> 다음 tick 에서 AUTO 켜기 시도"""
+    if isinstance(st, dict):
+        st["wc_check"] = True
+        st["wc_next"] = 0
+        if why:
+            log("다음 루프에서 웨이브 호출 AUTO 켜기 예약 (%s)" % why)
 
 
 def tick(st, w):
-    """patch273: 웨이브 호출 상시 켜짐 전제로 검증 루틴 제거 (호환용 no-op)"""
+    """main 루프에서 호출. 7000층 이상에서 끄고, 환생 후(6000층 이하) 다시 켬"""
+    if w is None:
+        return False
+    now = time.time()
+    if now < st.get("wc_next", 0):
+        return False
+
+    # 고층(7000층 이상): AUTO 끄기
+    if w >= OFF_WAVE and not st.get("wc_off", False):
+        log("웨이브 %d (>= %d) -> 웨이브 호출 AUTO 끄기 시도" % (w, OFF_WAVE))
+        if set_auto(False):
+            st["wc_off"] = True
+            st["wc_fail"] = 0
+            log("웨이브 호출 AUTO 끔 완료")
+            return True
+        else:
+            st["wc_fail"] = st.get("wc_fail", 0) + 1
+            st["wc_next"] = now + 60
+            return False
+
+    # 저층(6000층 미만): 환생 후 AUTO 다시 켜기
+    if w < ON_WAVE and (st.get("wc_off", False) or st.get("wc_check", False)):
+        log("웨이브 %d (< %d) -> 웨이브 호출 AUTO 켜기 시도" % (w, ON_WAVE))
+        if set_auto(True):
+            st["wc_off"] = False
+            st["wc_check"] = False
+            st["wc_fail"] = 0
+            log("웨이브 호출 AUTO 켬 완료")
+            return True
+        else:
+            st["wc_fail"] = st.get("wc_fail", 0) + 1
+            st["wc_next"] = now + 60
+            return False
+
     return False
 
 

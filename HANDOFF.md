@@ -24,6 +24,13 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-26 (Antigravity, patch290) 웨이브 호출 AUTO 7000층 자동 끄기 / 환생 후 켜기 복원 및 환생 직후 스킬 AUTO 확실한 보장** (`wavecall.py`, `main.py`):
+  - **사용자 피드백**: "8000층 넘어가면 웨이브 호출이 치명적이더라... 7000층에서 껐으면 좋겠는데, 환생하면 다시 켜고...".
+  - **수정 사항**:
+    - `wavecall.py`: `OFF_WAVE = 7000` (기존 7200 -> 7000), `ON_WAVE = 6000`. `tick(st, w)` 함수 복원하여 7000층 이상 도달 시 웨이브 호출 AUTO를 끄고(`set_auto(False)`), 환생 후 6000층 미만 구간에서 다시 켜도록 구현.
+    - `main.py`: 메인 루프에 `wavecall.tick()` 연결 복원, 환생 및 재시작 시 `wavecall.request_check()` 등록.
+    - 환생 직후 `skillctl.set_auto(True)`를 무조건 호출하여 스킬 AUTO가 꺼져있을 가능성을 원천 차단.
+
 - **2026-10-26 (Antigravity, patch289) 영혼의 휴식 다이아 판독 ocrx 백업 추가 및 정확한 사유 출력** (`soul.py`):
   - **원인 규명**: `soul.py`의 `read_diamonds()`가 구형 템플릿 매칭(`_classify`)에만 의존하여, '8'이나 '5' 등 일부 숫자의 유사도가 0.90 미만일 때 4자리 숫자를 전혀 읽지 못하고 `(None, False)`를 반환, "다이아가 5000 미만이거나 읽지 못함" 오류가 발생함.
   - **해결 (`soul.py`)**:

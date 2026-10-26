@@ -538,7 +538,8 @@ def best_move_c(b, unlocked, piece, nxt, only_k0=False, D=3, B=8, K=8, budget_ms
     key = tuple(sorted(zip(cells, ts)))
     for k, c2, t2 in E.moves(b, piece, only_k0):
         if tuple(sorted(zip(c2, t2))) == key:
-            return k, c2, t2, float(r[2 + 2 * n]), "C D%d %s후보 %sms" % (D, r[3 + 2 * n], r[4 + 2 * n])
+            mode_tag = " [점수모드]" if any(x >= 10 for x in b) else " [10성모드]"
+            return k, c2, t2, float(r[2 + 2 * n]), "C D%d %s후보 %sms%s" % (D, r[3 + 2 * n], r[4 + 2 * n], mode_tag)
     raise RuntimeError("hexa_search 수를 목록에서 못 찾음")
 
 

@@ -33,8 +33,8 @@ SEED = "2700"
 NBENCH = 300
 GATE = 1.03
 # patch259: ★10 확정 달성 올인 보상·탐색 파라미터
-TEN_RW = dict(TENB=180, STAR9B=15, STAR8B=3, CLUST=1.0)
-TEN_SIM = dict(TENB=180, CLUST=1.0)
+TEN_RW = dict(TENB=10, STAR9B=0, STAR8B=0, CLUST=0)   # patch260: 판 길이 우선 (bench_ten: 보너스 100+ 는 ★10·판 길이 둘 다 하락)
+TEN_SIM = dict(TENB=10, CLUST=0)
 LOW = 0x00004000 if os.name == "nt" else 0       # BELOW_NORMAL
 
 
@@ -238,7 +238,7 @@ def main():
         say("   끝 (%.1f분): %s" % ((time.time() - t0) / 60, last[-1].strip()))
         mark("train_" + name, "ok")
 
-    # 5) 선별 (★10 달성률 최우선 + 판 길이 보조)
+    # 5) 선별 (patch260: 판 길이 우선, ★10 보조)
     say("5) 선별: D2 %d판, seed %s (같은 조각 순서, TENB=%s CLUST=%s)" % (NBENCH, SEED, TEN_SIM["TENB"], TEN_SIM["CLUST"]))
     res = {}
     res10 = {}
@@ -266,9 +266,10 @@ def main():
             (name, res10[name], res10[name] - base10, res10[name] - ctl10,
              res[name], (res[name] / base - 1) * 100, (res[name] / ctl - 1) * 100))
     # ★10 달성률이 현재 두뇌 및 ctl 보다 높거나(최우선), 동률이면 판 길이가 +3% 이상인 후보 선별
-    cands = [n for n in ("ctl", "all", "late") if res10[n] > max(base10, ctl10) or res[n] >= ctl * GATE]
+    # patch260: 판 길이 +3% 관문이 기준, ★10 달성률은 동률일 때만 (★10 ~8% 라 300판에서 ±1.6%p 는 잡음)
+    cands = [n for n in ("ctl", "all", "late") if res[n] >= ctl * GATE]
     if cands:
-        best = max(cands, key=lambda n: (res10[n], res[n]))
+        best = max(cands, key=lambda n: (res[n], res10[n]))
         say("관문 통과: %s -> 6단계 본 학습 후보 = %s (b_%s.bin, ★10 %.1f%%, 평균 %.1f수)" %
             (", ".join(cands), best, best, res10[best], res[best]))
     else:

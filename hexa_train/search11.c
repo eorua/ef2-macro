@@ -131,8 +131,13 @@ static inline double evalv(const int8_t *b, int u) {
     if (GATEP > 0) v -= GATEP * dead_cnt(b, u);
     if (DEADP > 0) { int c = 0; for (int i = 0; i < NC; i++) if (b[i] >= 1 && b[i] <= DEADG) c++; v -= DEADP * c; }
     if (CLUST > 0) v += CLUST * cluster_eval(b);
-    if (HUB > 0) v += HUB * hub_tier(b, 8);      // patch262
-    if (HUB7 > 0) v += HUB7 * hub_tier(b, 7);    // patch262
+    // patch284: 필드에 이미 ★10 이 달성되었으면 허브 강제 보너스를 꺼서 무리한 8성 쌓기를 방지하고 최고 점수/생존 모드로 전환
+    int has10 = 0;
+    for (int i = 0; i < NC; i++) if (b[i] >= 10) { has10 = 1; break; }
+    if (!has10) {
+        if (HUB > 0) v += HUB * hub_tier(b, 8);      // patch262
+        if (HUB7 > 0) v += HUB7 * hub_tier(b, 7);    // patch262
+    }
     return v;
 }
 

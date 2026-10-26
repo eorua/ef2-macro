@@ -1,4 +1,4 @@
-// patch259(★10 확정 달성 올인): TENB 기본 180 상향 + CLUST(필드에 ★8·★9 출현 시 인접 결합 가중치 기본 1.0) 반영.
+// patch260: 기본값 TENB=0 CLUST=0 으로 복귀(환경변수로만 켬). patch259(★10 올인): TENB 180 + CLUST(필드에 ★8·★9 출현 시 인접 결합 가중치 기본 1.0) 반영.
 // patch251(0단계 진단): CALIB=1 환경변수 = sim 에서 매 수 afterstate 평가값 V 와 실제 이후 보상합 G(=남은 수 + 0.002x합성점수) 비교, u별·진행 수별 오차 표 출력. 수 선택은 바뀌지 않음(평가 호출만 추가) -> SIM 줄은 search8.c 와 같음.
 // patch250: TENB 환경변수 = ★10 을 만들 때마다 보상에 더하는 보너스(단위 ≈ 수). 0 이면 search7.c 와 같음. sim 에 TEN 통계(★10 경로: 8성 5개 / 9성 3개). core4.inc = core3.inc + ★10 경로 세기.
 // patch249: FIVEB 환경변수 = 5개 이상 합치기(+2등급) 한 번마다 보상에 더하는 보너스(단위 = 대략 '수'). 0 이면 search6.c 와 같음. sim 에 FIVE 통계 줄. core3.inc = core2.inc + 합치기 횟수 세기.
@@ -39,7 +39,7 @@ static int CRN = 0, K2 = 0, B2 = 0;
 static double DEADP = 0; static int DEADG = 3;
 // patch244: 학습 평가 - 낮은 등급 칸 벌점 (이미 죽은 칸은 모든 수에서 같아 판단에 영향 없음)
 // patch259: ★10 확정 달성 올인 모드 - TENB 기본 180 상향 + CLUST(필드에 ★8·★9 출현 시 인접 결합 가중치)
-static double GATEP = 0; static double FIVEB = 0; static double TENB = 180.0; static double CLUST = 1.0;
+static double GATEP = 0; static double FIVEB = 0; static double TENB = 0; static double CLUST = 0;   /* patch260: 기본 0 (search8 호환), 켜려면 환경변수 TENB/CLUST */
 static inline int dead_cnt(const int8_t *b, int u) { int lo = lo_of(u), c = 0; for (int i = 0; i < NC; i++) if (b[i] > 0 && b[i] < lo) c++; return c; }
 
 // patch259: 필드에 ★8·★9 가 떠 있을 때 공간 확보보다 이들을 인접시켜 ★10 합각을 만드는 결합 가중치

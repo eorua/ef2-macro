@@ -14,12 +14,14 @@ for c in range(COLS):
     for r in range(5 if c % 2 == 0 else 4):
         CELLS.append((c, r))
 N = len(CELLS)
-XS = [157, 259, 360, 462, 564]
+# patch284: 10/26 업데이트로 판이 커짐 (칸 간격 104 -> 112, 칸 상자 100x100). 빈 판 캡처에서 23칸 상자 중심 실측
+#   예전 값: XS = [157, 259, 360, 462, 564], y = 388 + 104r (+52)
+XS = [140, 250, 360, 470, 580]
 
 
 def pix(i):
     c, r = CELLS[i]
-    return XS[c], 388 + 104 * r + (52 if c % 2 else 0)
+    return XS[c], 406 + 112 * r + (56 if c % 2 else 0)
 
 
 def to_ax(c, r):

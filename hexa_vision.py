@@ -8,14 +8,19 @@ REF = {0: (19, 12, 10), 1: (77, 83, 86), 2: (50, 94, 53), 3: (43, 68, 108), 4: (
        5: (180, 75, 80), 6: (175, 130, 50), 7: (63, 160, 180), 8: (114, 81, 91)}
 TOL = 28
 
-TRAY_C = (358, 1030)         # 아래 조각 무게중심 (patch283: 10/26 UI 개편 반영)
-TRAY_P = (84.0, 88.0)        # 조각 칸 간격 (가로 열간격, 세로 칸간격)
-PREV_C = (575, 1030)         # 오른쪽 '다음' 칸
-PREV_P = (31.0, 32.0)
-HAMMER_BTN = (185, 1070)     # 망치 버튼 (patch283)
-ROT_BTN = (185, 780)         # 회전 버튼 (patch283: 망치 위 노란 회전 화살표)
-ICON_X = [int(137 + 53.6 * i) for i in range(10)]  # patch283: 해금 아이콘 가로 위치
-ICON_Y = (210, 240)          # patch283: 해금 아이콘 세로 범위 (기존 265:295)
+# patch284: 10/26 업데이트 화면 실측 (빈 판 / 망치 모드 / 조각 2·3칸 캡처). patch283 값은 잘못 잰 것이라 전부 교체
+#   예전 UI: TRAY_C (359,998) P (84,85) / PREV_C (575,997) P (31,31.5) / ROT_BTN (144,997) / ICON 118+53.7i, y 265:295
+TRAY_C = (340, 1063)         # 아래 조각 무게중심 (1칸 상자 x300~380, y1022~1104)
+TRAY_P = (90.0, 93.0)        # 조각 칸 간격 (가로 열간격, 세로 칸간격) - 2칸 세로 조각 상자 간격 93
+TRAY_SCALES = (1.0, 0.92, 0.84)   # 큰 조각은 줄여 그릴 수 있어 여러 크기로 맞춰 봄
+PREV_C = (563, 1067)         # 오른쪽 '다음' 상자 속 조각 무게중심
+PREV_P = (64.0, 66.0)        # 2칸 조각일 때 간격. 3칸이면 (45.5, 47) 로 줄어듦 -> 여러 크기로 맞춤
+PREV_SCALES = (1.0, 0.85, 0.71, 0.62)
+HAMMER_BTN = (135, 1120)     # 망치 버튼 가운데 (상자 x85~185, y1072~1172, 오른쪽 위 남은 횟수 배지)
+HAMMER_BADGE = (176, 1076)   # 망치 남은 횟수 배지(검은 원 + 흰 숫자)
+ROT_BTN = (135, 1005)        # 회전 버튼 (회전되는 조각일 때만 망치 위에 뜸, 상자 x85~185 y955~1055). 조각을 눌러도 돔
+ICON_X = [int(99 + 58 * i) for i in range(10)]     # 해금 아이콘 가로 중심
+ICON_Y = (268, 308)          # 해금 아이콘 세로 범위
 
 
 def set_colors(extra):
@@ -34,7 +39,8 @@ def classify(p):
 
 def cell_color(im, i):
     x, y = pix(i)
-    return im[y - 12:y + 12, x - 40:x - 33].reshape(-1, 3).astype(float).mean(0)
+    # patch284: 칸 상자가 92 -> 100 으로 커져 왼쪽 띠 위치도 비례해서 옮김 (예전 x-40:x-33, y±12)
+    return im[y - 13:y + 13, x - 43:x - 36].reshape(-1, 3).astype(float).mean(0)
 
 
 # ---- patch259: 뮤뮤에서는 1성 조각 배경이 회색이 아니라 거의 검게 그려져(21,22,27) 빈칸(0)으로 읽힘
@@ -174,24 +180,29 @@ class Piece(list):
 
 
 def find_dot(im, cen, P):
-    """조각 각 칸의 중심 cen=[(x,y)...] 중 흰색 점(●)이 찍힌 칸 인덱스 (0..len-1). 점이 없으면 None"""
+    """조각 각 칸의 중심 cen=[(x,y)...] 중 흰색 점(●)이 찍힌 칸 인덱스 (0..len-1). 점이 없으면 None (patch284)"""
     if len(cen) <= 1:
         return 0
-    scores = []
-    ox = int(0.32 * P[0])
-    oy = int(-0.32 * P[1])
+    ox = int(0.28 * P[0])
+    oy = int(-0.28 * P[1])
     r = max(4, int(0.12 * P[1]))
+    maxs = []
     for x, y in cen:
         x, y = int(round(x)), int(round(y))
         px, py = x + ox, y + oy
         patch = im[max(0, py - r):min(im.shape[0], py + r), max(0, px - r):min(im.shape[1], px + r)]
         if patch.size == 0:
-            scores.append(0)
+            maxs.append(0)
             continue
-        bright = (patch[:, :, 0] > 160) & (patch[:, :, 1] > 160) & (patch[:, :, 2] > 160)
-        scores.append(int(bright.sum()))
-    best_idx = int(np.argmax(scores))
-    return best_idx if scores[best_idx] >= 6 else None
+        maxs.append(int(patch.max()))
+    best_idx = int(np.argmax(maxs))
+    other_maxs = [maxs[i] for i in range(len(maxs)) if i != best_idx]
+    if other_maxs:
+        avg_other = sum(other_maxs) / len(other_maxs)
+        # 흰 점은 주변 칸 우상단보다 밝고(>=20차이) 최소 110 이상의 밝기를 가짐
+        if maxs[best_idx] - avg_other >= 20 and maxs[best_idx] >= 110:
+            return best_idx
+    return None
 
 
 def _fit(obs, C, P, x0, y0):
@@ -234,8 +245,8 @@ def tile_tier(im, x, y, P):
     return k if n >= 2 or len(votes) == 1 else None
 
 
-def read_piece(im, C, P, bg=None, win=None):
-    """반환 Piece([((q,r),tier)...]) 또는 None. 무게중심 C 기준, 모양 후보와 겹침(IoU)으로 고름"""
+def read_piece(im, C, P, bg=None, win=None, scales=(1.0,)):
+    """반환 Piece([((q,r),tier)...]) 또는 None. 무게중심 C 기준, 다중 스케일 모양 후보와 겹침(IoU)으로 고름 (patch284)"""
     if bg is None:
         bg = (70, 63, 48)  # patch283: 새 UI 트레이 배경색
     if win is None:
@@ -243,50 +254,62 @@ def read_piece(im, C, P, bg=None, win=None):
         win = (int(C[0]) - wx, int(C[1]) - wy, int(C[0]) + wx, int(C[1]) + wy)
     x0, y0, x1, y1 = win
     sub = im[y0:y1, x0:x1].astype(float)
-    obs = np.sqrt(((sub - np.array(bg, float)) ** 2).sum(2)) > 35
+    # OpenCV imread BGR 순서 대비 (bg가 RGB일 수 있으므로 BGR로도 거리 확인)
+    d1 = np.sqrt(((sub - np.array(bg, float)) ** 2).sum(2))
+    d2 = np.sqrt(((sub - np.array(bg[::-1], float)) ** 2).sum(2))
+    obs = np.minimum(d1, d2) > 35
     if obs.mean() < 0.02:
         return None
-    best = _fit(obs, C, P, x0, y0)
-    if best[0] < 0.5:                                      # patch259: 뮤뮤는 칸 속이 배경처럼 어두워 테두리만 잡힘 -> 속 채워 다시
-        import cv2
-        m = obs.astype(np.uint8) * 255
-        cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        f = np.zeros_like(m)
-        cv2.drawContours(f, cs, -1, 255, -1)
-        b2 = _fit(f > 0, C, P, x0, y0)
-        if b2[0] > best[0]:
-            best = b2
+
+    import cv2
+    m = obs.astype(np.uint8) * 255
+    cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    f = np.zeros_like(m)
+    cv2.drawContours(f, cs, -1, 255, -1)
+    filled_obs = f > 0
+
+    best = None
+    best_P = P
+    for sc in scales:
+        cur_P = (P[0] * sc, P[1] * sc)
+        b = _fit(obs, C, cur_P, x0, y0)
+        b2 = _fit(filled_obs, C, cur_P, x0, y0)
+        cand = b2 if b2[0] > b[0] else b
+        if best is None or cand[0] > best[0]:
+            best = cand
+            best_P = cur_P
+
     iou, s, cen = best
-    if iou < 0.45:
+    if iou < 0.40:
         return None
     res = Piece()
     for (q, r), (x, y) in zip(s, cen):
         x, y = int(round(x)), int(round(y))
-        k = tile_tier(im, x, y, P)
+        k = tile_tier(im, x, y, best_P)
         if k is None:                                      # patch259: 색으로 못 읽으면 그림으로
-            k = icon_tier(im, x, y, int(0.36 * P[1]), None, unlocked(im))
+            k = icon_tier(im, x, y, int(0.36 * best_P[1]), None, unlocked(im))
         if k is None:
             return None
         res.append(((q, r), k))
-    res.dot_idx = find_dot(im, cen, P)
+    res.dot_idx = find_dot(im, cen, best_P)
     return res
 
 
 def tray(im):
-    return read_piece(im, TRAY_C, TRAY_P, win=(220, 890, 480, 1160))
+    return read_piece(im, TRAY_C, TRAY_P, win=(220, 890, 480, 1160), scales=TRAY_SCALES)
 
 
 def preview(im):
     # 상자 안쪽 배경(어두움): 상자 모서리 근처에서 직접 잼
     bg = im[960:966, 538:544].reshape(-1, 3).astype(float).mean(0)
-    return read_piece(im, PREV_C, PREV_P, bg, win=(490, 930, 670, 1150))
+    return read_piece(im, PREV_C, PREV_P, bg, win=(490, 930, 670, 1150), scales=PREV_SCALES)
 
 
 def hammer_available(im):
-    """망치 잔여 횟수가 1 이상이면 True (patch283)"""
-    p = im[1030:1048, 208:224]
+    """망치 잔여 횟수가 1 이상이면 True (patch284: 배지 (176, 1076) 근처 흰색 '1' 숫자 픽셀 검출)"""
+    p = im[1065:1085, 166:186]
     bright = (p[:, :, 0] > 180) & (p[:, :, 1] > 180) & (p[:, :, 2] > 180)
-    return int(bright.sum()) >= 6
+    return int(bright.sum()) >= 10
 
 
 def hammer_active(im):

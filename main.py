@@ -2179,7 +2179,7 @@ def main():
                     time.sleep(5)
                 continue
 
-            # patch154: (시범) 30퀘 열기 전략 - 29퀘 400c 뒤 골드 모으기 -> 200ao -> 오픈골드 감소 + 레오 -> 30퀘 오픈
+            # patch154/patch285: (시범) 30퀘 열기 전략 - 29퀘 400c 뒤 골드 모으기 -> 170ao -> 오픈골드 감소 + 레오 -> 30퀘 오픈
             if GO and not st["high_done"] and not st["need_low"] and len(hist) == 3:
                 try:
                     import q30

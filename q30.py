@@ -3,7 +3,7 @@
 흐름 (환생 한 번당):
   pre     : 환생 직후 영웅 '골드' / 유물 '시간' / 펫 팅키. 29퀘 200c~400c 랩티 교체는 기존 pet.py 그대로
   collect : 29퀘 400c 도달 -> 유물 '골드 모으기' + 팅키 -> (pet.py 가 4배속 확인 후 보물상자 1번)
-            -> 1분마다 화면 아래 골드(주황 숫자)를 읽어 200ao 이상이 두 번 연속이면 open
+            -> 1분마다 화면 아래 골드(주황 숫자)를 읽어 170ao 이상이 두 번 연속이면 open
   open    : 유물 '오픈골드 감소' + 펫 레오 -> 퀘스트 탭 맨 아래 30번 '오픈' 버튼이 활성(회색 아님)일 때만 누름
             회색이면 누르지 않고 '골드 모으기' + 팅키로 되돌려 collect 계속
   done    : 영웅 '기본' / 유물 '시간' / 펫 팅키 -> 이후 원래 사이클
@@ -22,7 +22,7 @@ TESS = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 
 GOLD_ROI = (588, 716, 716, 754)      # 화면 아래 정보줄의 골드(주황 글자) x1, y1, x2, y2
-TARGET = "200ao"                     # 이만큼 모이면 오픈 시도
+TARGET = "170ao"                     # 이만큼 모이면 오픈 시도 (patch285: 200ao -> 170ao)
 GOLD_EVERY = 60                      # 골드 확인 간격(초)
 OPEN_RETRY = 300                     # 오픈 버튼이 회색이었으면 이만큼 뒤에 다시 (초)
 MAX_OPEN_TRIES = 6

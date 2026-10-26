@@ -577,7 +577,47 @@ def plan(r, only_k0=False):
 
 
 def pick_hammer_target(b, piece):
-    """현재 piece를 놓을 수 있게 만들어주는 칸 중 가장 낮은 등급 칸 선택 (patch283)"""
+    """망치 대상 선택 (patch283: ★10 허브 피니셔 최우선 + 긴급 탈출 하이브리드):
+    1순위: ★9 가 2개 있고 그 사이를 막고 있는 장애물 칸 (3개 합치기 ★10 완성)
+    2순위: ★8 이 3~4개 모였을 때, 그 사이/주변을 가로막고 있는 장애물 칸 (5개 합치기 ★10 직행 허브 완성)
+    3순위: 둘 곳이 없을 때, 현재 조각을 즉시 둘 수 있게 만들어주는 칸 중 가장 낮은 등급 칸
+    4순위: 보드 전체에서 가장 낮은 등급(★1~★3) 중 고립된 칸
+    """
+    # 1순위: ★9 피니셔 (두 ★9 사이의 장애물)
+    for i in range(E.N):
+        if 0 < b[i] < 9:
+            nb9 = [n for n in E.NB[i] if b[n] == 9]
+            if len(nb9) >= 2:
+                log("★10 피니셔 발동: 두 ★9 사이를 막고 있는 칸 %d(%d성) 파괴!" % (i, b[i]))
+                return i
+
+    # 2순위: ★8 2+2 허브 피니셔 (5개 합치기 ★10 직행 길 열기)
+    cnt8 = sum(1 for x in b if x == 8)
+    if cnt8 >= 3:
+        best_cand, best_gain = None, 0
+        for i in range(E.N):
+            if 0 < b[i] < 8:
+                nb8 = [n for n in E.NB[i] if b[n] == 8]
+                if len(nb8) >= 2:
+                    comp_seen = set()
+                    total_conn = 0
+                    for n in nb8:
+                        g = E.group(b, n)
+                        gk = tuple(sorted(g))
+                        if gk not in comp_seen:
+                            comp_seen.add(gk)
+                            total_conn += len(g)
+                    if total_conn >= 4:
+                        log("★10 허브 피니셔 발동: ★8 %d개 연결을 가로막는 칸 %d(%d성) 파괴!" % (total_conn, i, b[i]))
+                        return i
+                    elif total_conn == 3 and best_gain < 100:
+                        best_gain = 50
+                        best_cand = i
+        if best_cand is not None:
+            log("★8 허브 확장: 칸 %d(%d성) 파괴" % (best_cand, b[best_cand]))
+            return best_cand
+
+    # 3순위: 긴급 탈출 (둘 곳 없을 때 배치 가능하게 만드는 최저티어 칸)
     offs = [c for c, t in piece]
     cands = []
     for k in range(6):
@@ -587,8 +627,10 @@ def pick_hammer_target(b, piece):
             if len(blocked) == 1:
                 cands.append((b[blocked[0]], blocked[0]))
     if cands:
-        cands.sort(key=lambda x: x[0])  # lowest tier first
+        cands.sort(key=lambda x: x[0])
         return cands[0][1]
+
+    # 4순위: 최저티어 고립 칸
     lows = [(b[i], i) for i in range(E.N) if b[i] > 0]
     if lows:
         lows.sort(key=lambda x: x[0])

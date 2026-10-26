@@ -798,6 +798,27 @@ def stop_game():
     adb_out(["shell", "am", "force-stop", PKG])
 
 
+def is_soul_offline_active(st):
+    """patch294e: 영혼의 휴식 오프라인 등반 상태(미접속 취침 유지 구간)인지 확인
+    이 상태에서는 오환2 앱이 종료되어 바탕화면(홈화면)이 보이는 것이 정상이므로,
+    홈화면 감지나 포커스 이탈로 인한 BlueStacks 재시작을 절대 트리거하지 않는다."""
+    if not st or not st.get("soul"):
+        return False
+    if not daily.setting("soul_offline", True):
+        return False
+    try:
+        import soul as _sm
+        _sd = st["soul"]
+        _now = time.time()
+        _end_t = _sm.end_time(_sd)
+        _rec_t = st.get("next_recruit", _now + 3600)
+        _wake_t = min(_rec_t, _end_t)
+        _want_hexa = os.path.exists(os.path.join(BASE, "hexa_now.req"))
+        return (_now < _wake_t - 20) and not _want_hexa
+    except Exception:
+        return False
+
+
 def is_app_running():
     """patch293: 오환2 앱 프로세스 실행 여부 (pidof 기반 초고속 확인)"""
     try:
@@ -1005,6 +1026,9 @@ def do_restart(kind, st=None):
     """kind: '정기' 또는 '튕김'. 성공하면 True"""
     if st is None:
         st = load_state()
+    if kind == "튕김" and is_soul_offline_active(st):
+        log("영혼의 휴식 오프라인 등반 중(앱 정상 종료 상태) -> 튕김 재시작 건너뜀")
+        return False
     for attempt in range(1, MAX_RECOVER_FAILS + 1):
         if os.path.exists(PAUSE_FILE):                   # patch104: 일시정지면 더 진행하지 않음
             log("일시정지 중 -> 재시작 단계를 더 진행하지 않음")
@@ -1653,6 +1677,31 @@ def main():
                 log("일시정지 해제 -> 재개")
             except Exception:
                 pass
+
+        # patch294e: 영혼의 휴식 오프라인 등반 상태이면 불필요한 cap(), OCR, 홈화면 검사 등을 건너뛰고 곧바로 취침 유지
+        if is_soul_offline_active(st):
+            if GO:
+                import soul as _sm
+                _sd = st["soul"]
+                _now = time.time()
+                _end_t = _sm.end_time(_sd)
+                _rec_t = st.get("next_recruit", _now + 3600)
+                _wake_t = min(_rec_t, _end_t)
+                _want_hexa_now = os.path.exists(os.path.join(BASE, "hexa_now.req"))
+
+                if _now < _wake_t - 20 and not _want_hexa_now:
+                    if is_app_running():
+                        log(f"영혼의 휴식 오프라인 등반 모드: 오환2 앱 종료 (다음 기상: {time.strftime('%H:%M:%S', time.localtime(_wake_t))}, {int((_wake_t - _now) / 60)}분 뒤)")
+                        stop_game()
+                        time.sleep(2)
+
+                    if _now - _sd.get("last_offline_log", 0) >= 600:
+                        _sd["last_offline_log"] = _now
+                        save_state(st)
+                        log(f"[오프라인 등반] 미접속 유지 중 - 다음 기상(영입): {time.strftime('%H:%M', time.localtime(_wake_t))} ({int((_wake_t - _now) / 60)}분 남음), 휴식 종료: {time.strftime('%H:%M', time.localtime(_end_t))} ({int((_end_t - _now) / 60)}분 남음)")
+                    time.sleep(5)
+                    continue
+
         img = cap()
         if img is None:
             cap_fails += 1
@@ -1703,29 +1752,33 @@ def main():
                     continue
             # patch149: 바탕화면이 보이면 = 게임 강제 종료 -> 스킬 연타 멈추고 바로 게임 실행
             if home_screen(img):
-                log("바탕화면 감지 -> 게임이 강제 종료됨, 바로 BlueStacks 재시작")
-                try:
-                    import skillctl
-                    if skillctl._cam is not None:
-                        try:
-                            skillctl._cam.stop()
-                        except Exception:
-                            pass
-                        skillctl._cam = None
-                except Exception:
+                if is_soul_offline_active(st):
+                    # patch294e: 영혼의 휴식 오프라인 등반 중 정상 앱 종료 상태 -> 재시작 절대 금지
                     pass
-                snap_fail("home_screen")
-                focus_fails = 0
-                if GO:
-                    if do_restart("튕김", st):
-                        st["last_restart"] = time.time()
-                    else:
-                        time.sleep(300)
-                    hist.clear()
-                    save_state(st)
-                continue
+                else:
+                    log("바탕화면 감지 -> 게임이 강제 종료됨, 바로 BlueStacks 재시작")
+                    try:
+                        import skillctl
+                        if skillctl._cam is not None:
+                            try:
+                                skillctl._cam.stop()
+                            except Exception:
+                                pass
+                            skillctl._cam = None
+                    except Exception:
+                        pass
+                    snap_fail("home_screen")
+                    focus_fails = 0
+                    if GO:
+                        if do_restart("튕김", st):
+                            st["last_restart"] = time.time()
+                        else:
+                            time.sleep(300)
+                        hist.clear()
+                        save_state(st)
+                    continue
             # 게임이 튕겨서 홈 화면 등으로 나갔는지 주기적으로 확인
-            if time.time() - last_focus_check >= FOCUS_CHECK_SEC:
+            if not is_soul_offline_active(st) and (time.time() - last_focus_check >= FOCUS_CHECK_SEC):
                 last_focus_check = time.time()
                 fg = game_in_focus()
                 if fg is None:

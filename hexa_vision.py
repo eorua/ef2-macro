@@ -333,15 +333,17 @@ POPUP_Y = [882]
 
 
 def popup_y(im):
-    """'공방 마감' 창의 나가기/다시 하기 버튼 줄 y (창 내용에 따라 위아래로 움직임). 없으면 None"""
-    if not _near(px(im, 300, 1093), (28, 24, 18), 18):
+    """'공방 마감' 창의 나가기/다시 하기 버튼 줄 y (창 내용에 따라 위아래로 움직임). 없으면 None (patch268/patch294c)"""
+    dark_bottom = _near(px(im, 300, 1168), (28, 24, 18), 18) or _near(px(im, 300, 1093), (28, 24, 18), 18)
+    if not dark_bottom:
         return None
     hits = []
-    for y in range(770, 940, 3):
-        a, b = px(im, 470, y, 3), px(im, 211, y, 3)
-        # patch268: 티켓이 없으면 '다시 하기' 버튼이 회색(56,50,43)이라 창을 못 알아보고 멈추던 문제 -> 회색도 인정
-        if (_near(a, (81, 48, 32), 16) or _near(a, (112, 59, 36), 16) or _near(a, (56, 50, 43), 8)) \
-                and _near(b, (45, 35, 28), 12):
+    for y in range(770, 960, 3):
+        a = px(im, 470, y, 3)
+        b1, b2 = px(im, 211, y, 3), px(im, 240, y, 3)
+        b_ok = _near(b1, (45, 35, 28), 14) or _near(b2, (45, 35, 28), 14)
+        a_ok = (_near(a, (81, 48, 32), 16) or _near(a, (112, 59, 36), 18) or _near(a, (56, 50, 43), 10))
+        if a_ok and b_ok:
             hits.append(y)
     runs, cur = [], []
     for y in hits:
@@ -352,7 +354,7 @@ def popup_y(im):
     if cur:
         runs.append(cur)
     best = max(runs, key=len) if runs else []
-    if len(best) < 5:
+    if len(best) < 3:
         return None
     POPUP_Y[0] = (best[0] + best[-1]) // 2
     return POPUP_Y[0]

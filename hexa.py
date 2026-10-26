@@ -902,17 +902,24 @@ def do_move(im, r):
             next_move_num, p))
         return False
 
-    # 판이 정상적으로 변경되고 화면 검증이 완료된 경우에만 성공한 수로 기록 (원칙 6)
+    hit = check_result(r, r3, cells, ts, preds, cx, cy, im3)
+    # 요구사항 4: 예상 결과와 실제 결과가 맞지 않으면 이동 성공으로 기록하지 않고 즉시 안전 중단
+    if hit is None:
+        p = save_shot(im3, "hexa_mismatch_%03d.png" % next_move_num)
+        log("[안전 중단] 수 %d 드래그 결과가 예상과 불일치 (빗나감/오배치, 저장: %s) -> 안전 중단" % (
+            next_move_num, p))
+        return False
+
+    # 판이 정상적으로 변경되고 예상 결과와 일치함이 검증된 경우에만 성공한 수로 기록 (원칙 6)
     STATS["moves"] += 1
 
-    hit = check_result(r, r3, cells, ts, preds, cx, cy, im3)
     for nb, made in preds:
         for t, n, nt in made:
             STATS["best"] = max(STATS["best"], nt)
 
     # patch294: 합침 유무와 무관하게 모든 수에 대해 정형화된 성공 결과 로그 출력
     new_tray = norm_piece(r3.get("tray")) if r3.get("tray") else "없음"
-    if hit is not None and preds[hit][1]:
+    if preds[hit][1]:
         log("[수 %d 성공] 칸 %s 배치 완료 -> 합침 %s (새 조각: %s, 미인식: %d칸)" % (
             STATS["moves"], list(zip(cells, ts)), preds[hit][1], new_tray, len(r3.get("unk", []))
         ))
@@ -1212,7 +1219,10 @@ def play(n_games):
                 log("[안전 중단] 게임 화면 안정화 실패 (상태: %s) -> 추가 입력 없이 안전 중단 (저장: %s)" % (st2, p))
                 break
         stall = None
-        do_move(im2, r)
+        ok_move = do_move(im2, r)
+        if not ok_move:
+            log("[안전 중단] do_move 실행 실패(드래그 미적용 또는 안전 가드 차단) -> 공방 플레이 루프 종료")
+            break
     if _CAM[0]:
         _fast_off("공방 정상 종료")
     return finished              # patch243: 끝낸 판 수 (0 = 중간에 끊김)

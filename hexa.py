@@ -1056,30 +1056,46 @@ def lobby_button(im):
 
 
 def claim_and_close():
-    """patch227: 로비에서 '받기' -> (보상 창 뜨면 닫기) -> 오른쪽 위 X 로 공방 창 닫기"""
+    """patch227/patch294: 로비에서 '받기' -> (보상 창 뜨면 닫기) -> 오른쪽 위 X 로 공방 창 닫기 -> 전투 화면 복귀"""
+    # 이미 전투 화면이면 즉시 완료
+    im0 = _adb_capture() if fast_on() else capture()
+    if icon_score(im0)[0] >= 0.7 and menu_forge(im0)[0] < 0.8:
+        log("끝. 이미 전투 화면임 -> 공방 창 닫힘 확인")
+        return True
+
+    # 1. 로비에서 받기 버튼 시도
     tap(*BTN_CLAIM)
-    time.sleep(2.0)
-    for n in range(5):
+    time.sleep(1.5)
+
+    # 2. 팝업 또는 로비 닫기 시도 (최대 6회)
+    for n in range(6):
         im = capture()
         st = V.state(im)
+        # 이미 공방 창이 닫혀서 전투 화면으로 나갔는지 확인
+        sc, _ = icon_score(im)
+        if sc >= 0.7 and menu_forge(im)[0] < 0.8:
+            log("끝. 공방 창 닫힘 -> 전투 화면 복귀 확인")
+            return True
+
         if st == "lobby":
+            # 로비 우상단 빨간 X (638, 120) 탭
             tap(*BTN_CLOSE)
             time.sleep(1.5)
-            im2 = capture()
-            if V.state(im2) != "lobby":
-                log("끝. 보상 받기 -> 공방 창 닫음")
-                return True
             continue
-        if st is None:
-            # 보상 받음 창 등: 저장하고 창 아래 빈 곳을 눌러 닫기
-            if n == 0:
-                save_shot(im, "hexa_claim.png")
+        elif st is None:
+            # 보상 획득 확인 팝업 등: 중앙 확인 버튼 탭 및 닫기
+            tap(360, 750)
+            time.sleep(0.8)
             tap(360, 1180)
-            time.sleep(1.2)
+            time.sleep(1.0)
             continue
-        break
-    log("보상 받기/창 닫기 확인 못함 -> shots\\hexa_claim.png 확인")
-    return False
+        elif st in ("over", "popup"):
+            tap(360, 882)
+            time.sleep(1.0)
+            continue
+
+    # 최종 백업: close_event() 호출로 확실한 전투 화면 복귀 보장
+    return close_event()
 
 
 def play(n_games):
@@ -1128,7 +1144,16 @@ def play(n_games):
             log("[안전 중단] 화면 상태 판별 불가(None) 감지 -> 추가 입력 차단 및 즉시 중단 (저장: %s)" % p)
             break
         if st == "lobby":
-            # patch294 (원칙 2): 최초 시작(started == 0)일 때만 정상 시작 허용. 진행 중 감지 시 임의 조작 없이 중단
+            # patch294: 목표 판수 완료 또는 정상 판 종료 후 로비 복귀 시 창 닫기 및 전투 화면 복귀
+            if finished >= n_games or (started >= n_games and in_game):
+                log("공방 완료 (finished=%d, started=%d) -> 보상 수령 및 창 닫기" % (finished, started))
+                claim_and_close()
+                if auto_opened:
+                    time.sleep(1.0)
+                    close_event()
+                finished = max(finished, started)
+                break
+            # 최초 시작(started == 0)일 때만 정상 시작 허용
             if started == 0 and not in_game:
                 btn = lobby_button(im)
                 tap(*BTN_START)
@@ -1148,8 +1173,12 @@ def play(n_games):
                 continue
             else:
                 p = save_shot(im, "hexa_unexpected_lobby_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
-                log("[안전 중단] 예기치 않은 로비(lobby) 상태 감지 (in_game=%s, started=%d) -> 임의 조작 없이 즉시 중단 (저장: %s)" % (
+                log("[안전 중단] 예기치 않은 로비(lobby) 상태 감지 (in_game=%s, started=%d) -> 창 닫기 시도 후 중단 (저장: %s)" % (
                     in_game, started, p))
+                claim_and_close()
+                if auto_opened:
+                    time.sleep(1.0)
+                    close_event()
                 break
         if st == "over":
             # patch294 (원칙 2): over 감지 시 임의로 결과 확인 버튼을 누르지 않고 증거 저장 후 안전 중단

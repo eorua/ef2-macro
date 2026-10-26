@@ -90,29 +90,33 @@ class TestHexaSafety(unittest.TestCase):
                 hexa.capture = orig_capture
 
     def test_play_loop_unexpected_lobby_no_restart(self):
-        """6. 게임 진행 중 lobby 감지 시 BTN_START를 누르지 않고 안전 중단된다."""
+        """6. 게임 진행 중 lobby 감지 시 BTN_START를 다시 누르지 않고(자동 재시작 차단) 창을 닫고 종료한다."""
         lobby_path = os.path.join(BASE, "shots", "hexa_after_045.png")
         if os.path.exists(lobby_path):
             lobby_img = cv2.cvtColor(cv2.imread(lobby_path), cv2.COLOR_BGR2RGB)
             orig_capture = hexa.capture
             orig_ensure = hexa.ensure_forge_open
             orig_tap = hexa.tap
+            orig_claim = hexa.claim_and_close
             tap_calls = []
+            claim_calls = []
             try:
                 hexa.capture = lambda: lobby_img
                 hexa.ensure_forge_open = lambda: (True, False)
                 hexa.tap = lambda *args: tap_calls.append(args)
+                hexa.claim_and_close = lambda: claim_calls.append(True)
 
-                # play(1) 실행
-                # 처음 시작 버튼 1회 탭(started=1) 후, 게임 도중 다음 루프에서 다시 로비가 감지되면
-                # 추가 tap 없이 즉시 break 되어야 함
                 res = hexa.play(1)
-                # 시작 1회 외에 불필요한 자동 재시작(2회차 시작) tap이 없음을 확인
-                self.assertLessEqual(len(tap_calls), 1)
+                # 시작 1회(BTN_START)만 호출되고, 2회차 시작(재시작)은 절대 호출되지 않아야 함
+                start_taps = [args for args in tap_calls if args == hexa.BTN_START]
+                self.assertEqual(len(start_taps), 1)
+                # 로비 복귀 시 창 닫기(claim_and_close)가 호출되었는지 확인
+                self.assertGreaterEqual(len(claim_calls), 1)
             finally:
                 hexa.capture = orig_capture
                 hexa.ensure_forge_open = orig_ensure
                 hexa.tap = orig_tap
+                hexa.claim_and_close = orig_claim
 
 
 if __name__ == "__main__":

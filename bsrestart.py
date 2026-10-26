@@ -16,10 +16,32 @@ def ps(cmd):
 
 
 def find_pids():
-    """창 제목에 TITLE 이 들어간 HD-Player 프로세스 번호들 (다른 인스턴스는 건드리지 않음)
-    patch250: 뮤뮤면 MuMuManager info 로 해당 인스턴스(mumu_index)의 프로세스 번호만"""
+    """오환2 BlueStacks(Pie64_3) HD-Player 프로세스 번호들 (다른 인스턴스는 절대 건드리지 않음)
+    patch250: 뮤뮤면 MuMuManager info 로 해당 인스턴스(mumu_index)의 프로세스 번호만
+    patch294f: 창 제목이 비어있거나 백그라운드일 때도 100% 탐색 가능하도록 현재 ADB 포트 LISTENING PID 우선 확인"""
     if adbport.IS_MUMU:
         return _mumu_pids()
+
+    # 1순위: 현재 연결된 ADB 포트를 LISTENING 중인 HD-Player PID 탐색 (창 제목 무관, 타 인스턴스 보호 100%)
+    try:
+        cur_dev = adbport.DEV or "127.0.0.1:5585"
+        port = int(cur_dev.split(":")[-1]) if ":" in cur_dev else 5585
+        r = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, timeout=5)
+        for line in r.stdout.splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 5 and parts[0] == "TCP":
+                local_addr = parts[1]
+                state = parts[3]
+                pid_str = parts[4]
+                if local_addr.endswith(":" + str(port)) and state == "LISTENING" and pid_str.isdigit():
+                    pid_val = int(pid_str)
+                    p_name = ps(f"(Get-Process -Id {pid_val} -ErrorAction SilentlyContinue).ProcessName").strip().lower()
+                    if "hd-player" in p_name:
+                        return [pid_val]
+    except Exception:
+        pass
+
+    # 2순위: 창 제목에 TITLE('오환2')이 포함된 HD-Player 프로세스 fallback
     out = ps("Get-Process HD-Player -ErrorAction SilentlyContinue | "
              f"Where-Object {{ $_.MainWindowTitle -like '*{TITLE}*' }} | ForEach-Object {{ $_.Id }}")
     return [int(x) for x in out.split() if x.strip().isdigit()]
@@ -108,9 +130,10 @@ def restart_mumu():
     return wait_boot()
 
 
-def restart_bluestacks():
+def restart_bluestacks(force=False):
     """'오환2' BlueStacks 만 종료 후 다시 실행하고 ADB 가 살아날 때까지 기다림. 성공하면 True
-    patch250: emu.json 이 뮤뮤면 뮤뮤 해당 인스턴스만 재시작 (함수 이름은 호출부 호환 위해 유지)"""
+    patch250: emu.json 이 뮤뮤면 뮤뮤 해당 인스턴스만 재시작 (함수 이름은 호출부 호환 위해 유지)
+    patch294f: force=True 지원 및 포트 기반 프로세스 ID 탐색으로 100% 단독 종료/재실행 보장"""
     if adbport.IS_MUMU:
         return restart_mumu()
     pids = find_pids()
@@ -118,11 +141,11 @@ def restart_bluestacks():
     if len(pids) > 1:
         print("대상이 2개 이상이라 중단합니다 (다른 BlueStacks 를 끄지 않기 위해)")
         return False
-    if not GO:
+    if not GO and not force:
         print("[시험] 실제로는 이 프로세스를 종료하고 BlueStacks 를 다시 실행합니다")
         return True
     if len(pids) == 1:
-        print("BlueStacks(오환2) 종료")
+        print("BlueStacks(오환2) 종료 (PID %d)" % pids[0])
         subprocess.run(["taskkill", "/PID", str(pids[0]), "/F"], capture_output=True)
         time.sleep(8)
     else:

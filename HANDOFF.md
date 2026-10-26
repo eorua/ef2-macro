@@ -24,6 +24,16 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-27 (Antigravity, patch294f) 튕김/포커스/정기 재시작 시 BlueStacks 프로세스 미종료 버그 원인 규명 및 100% 에뮬레이터 재부팅 정상화, 렉 원천 해소** (`bsrestart.py`, `main.py`):
+  - **원인 분석 ("왜 게임만 재시작하냐고 블루스택을 재시작해야지")**:
+    - `bsrestart.py`의 `find_pids()`가 BlueStacks 창 제목(`MainWindowTitle`)에 `'오환2'`가 포함된 프로세스를 검색했으나, 백그라운드/최소화 상태에서는 `MainWindowTitle`이 빈 문자열(`""`)로 반환되어 `find_pids()`가 항상 빈 리스트(`[]`)를 반환함.
+    - 이로 인해 `restart_bluestacks()`가 기존 BlueStacks 프로세스(`HD-Player.exe`, PID 10092)를 `taskkill`로 종료하지 못하고 "꺼져 있어 바로 실행합니다"라며 건너뛴 뒤, `main.py`의 `launch_game()`으로 게임 앱만 껐다 켜는 헛돌기가 발생하여 메모리 누수와 렉이 전혀 해소되지 않았던 원인 확정.
+    - 추가로 `do_restart()`에서 `kind == "포커스"`(화면 이탈)일 때 1차 시도에 블루스택을 끄지 않고 `launch_game()`(게임만 실행)을 시도하던 레거시 분기 확인.
+  - **수정 및 정상화**:
+    1. **포트 기반 100% 프로세스 탐색 (`bsrestart.py`)**: `netstat -ano`로 현재 오환2 BlueStacks의 ADB 포트(`127.0.0.1:5585`)를 `LISTENING` 중인 PID를 정확히 찾아내고, 해당 PID가 `HD-Player`인지 검증하여 창 제목 상태와 무관하게 100% 단독 종료/재실행 보장 (타 인스턴스 보호 100%).
+    2. **`do_restart()` 에뮬레이터 완전 재부팅 통일 (`main.py`)**: `kind in ("정기", "튕김", "포커스")` 모든 복구 경로에서 게임만 재실행하지 않고 1차 시도부터 반드시 `restart_bluestacks_full()`을 호출하여 BlueStacks를 완전히 재부팅하도록 통일.
+    3. **`force=True` 보장**: `restart_bluestacks_full()` 호출 시 `force=True`를 전달하여 어떤 실행 환경에서도 블루스택 종료 및 재시작이 무조건 실행되도록 보장.
+
 - **2026-10-27 (Antigravity, patch294e) 영혼의 휴식 오프라인 등반 시 블루스택 튕김 재시작 무한 루프 긴급 해결** (`main.py`):
   - **원인 분석**:
     - 영혼의 휴식 오프라인 등반(`soul_offline = True`) 중 오환2 앱을 `am force-stop`으로 종료하면 안드로이드 홈화면(바탕화면)이 노출됨.

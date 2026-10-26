@@ -854,7 +854,7 @@ NO_EMU_RESTART = bsrestart.EMU == "mumu"
 
 
 def restart_bluestacks_full():
-    """오환2 BlueStacks 자체를 껐다 켜고 게임까지 실행"""
+    """오환2 BlueStacks 자체를 껐다 켜고 게임까지 실행 (patch294f: force=True로 블루스택 100% 완전 재시작 보장)"""
     if NO_EMU_RESTART:                                   # patch256
         if not adb_alive(tries=3):
             log("뮤뮤: ADB 응답 없음 -> 에뮬레이터 재시작은 안 함 (뮤뮤를 직접 켜 주세요)")
@@ -865,7 +865,7 @@ def restart_bluestacks_full():
         launch_game()
         return True
     log("BlueStacks(오환2) 재시작")
-    if not bsrestart.restart_bluestacks():
+    if not bsrestart.restart_bluestacks(force=True):
         log("BlueStacks 재시작 실패")
         return False
     time.sleep(10)
@@ -1023,25 +1023,18 @@ def recover():
 
 
 def do_restart(kind, st=None):
-    """kind: '정기' 또는 '튕김'. 성공하면 True"""
+    """kind: '정기', '튕김', '포커스'. 성공하면 True (patch294f: 튕김/포커스/정기 모두 BlueStacks 째로 완전 재부팅하여 렉 원천 해소)"""
     if st is None:
         st = load_state()
-    if kind == "튕김" and is_soul_offline_active(st):
-        log("영혼의 휴식 오프라인 등반 중(앱 정상 종료 상태) -> 튕김 재시작 건너뜀")
+    if kind in ("튕김", "포커스") and is_soul_offline_active(st):
+        log("영혼의 휴식 오프라인 등반 중(앱 정상 종료 상태) -> %s 재시작 건너뜀" % kind)
         return False
     for attempt in range(1, MAX_RECOVER_FAILS + 1):
         if os.path.exists(PAUSE_FILE):                   # patch104: 일시정지면 더 진행하지 않음
             log("일시정지 중 -> 재시작 단계를 더 진행하지 않음")
             return False
-        log(f"{kind} 재시작 시도 {attempt}/{MAX_RECOVER_FAILS}")
-        if kind in ("정기", "튕김") or attempt == MAX_RECOVER_FAILS:     # patch150: 튕김(강제 종료)도 블루스택째
-            started = restart_bluestacks_full()
-        elif attempt == 1:
-            launch_game()
-            started = True
-        else:
-            restart_game()
-            started = True
+        log(f"{kind} 재시작 시도 {attempt}/{MAX_RECOVER_FAILS} (BlueStacks 재시작)")
+        started = restart_bluestacks_full()
         if started and recover():
             after_restart_setup(st)
             return True

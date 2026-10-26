@@ -8,6 +8,7 @@ GO = "go" in sys.argv[1:]
 HUD_PRESET = (487, 655)          # 전투 화면의 프리셋(금색 순환 화살표) 아이콘 (patch218: 10-23 업데이트로 527→487, 옛 자리는 절전 버튼)
 HUD_PRESET_ROI = (380, 580, 660, 730)   # patch218: 아이콘 그림(tpl\\hud_preset.png)을 찾는 범위
 SLEEP_KNOB = (200, 822)                 # patch218: 절전 화면 '스와이프하면 복귀' 손잡이
+TAB_QUEST = (68, 1240)                  # patch292: 하단 '퀘스트' 탭 (기본 대기화면)
 TAB_HERO = (185, 1240)           # 하단 '영웅' 탭
 BTN_PLUS = (326, 790)            # 영웅 탭의 '+' (일괄 레벨업)
 # 통합 프리셋 팝업
@@ -372,11 +373,14 @@ def auto_levelup(sec=None):
 
 
 def bulk_levelup(max_rounds=3, max_press=40):
-    if USE_HERO_AUTO:
-        r = auto_levelup()
-        if r is not None:
-            return r
-    return _bulk_levelup_old(max_rounds, max_press)
+    try:
+        if USE_HERO_AUTO:
+            r = auto_levelup()
+            if r is not None:
+                return r
+        return _bulk_levelup_old(max_rounds, max_press)
+    finally:
+        tap(TAB_QUEST, "퀘스트 탭 복귀")
 
 
 def _bulk_levelup_old(max_rounds=3, max_press=40):

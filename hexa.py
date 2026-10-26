@@ -890,8 +890,8 @@ def check_result(r, r3, cells, ts, preds, cx, cy, im3):
 
 
 # ---------------- 게임 흐름 ----------------
-BTN_START = (360, 1093)
-BTN_RESULT = (359, 1095)
+BTN_START = (360, 1168)            # patch292: 10/26 UI 변경으로 1093 -> 1168 이동
+BTN_RESULT = (360, 1168)           # patch292: 1095 -> 1168
 BTN_AGAIN = (470, 882)
 BTN_EXIT = (211, 882)
 BTN_CLAIM = (597, 647)
@@ -901,9 +901,16 @@ BTN_CLOSE = (638, 120)        # 공방 이벤트 창 오른쪽 위 빨간 X
 def lobby_button(im):
     """patch243: 로비 아래 버튼 종류. 'start' = '시작 🎫1'(노란 티켓 그림 약 480점) / 'cont' = '이어 하기'(0점) / None"""
     try:
-        roi = im[1070:1116, 250:470]
+        # patch292: 10/26 새 UI 버튼 위치(1145:1190) 및 구 UI(1070:1116) 모두 확인
+        roi = im[1145:1190, 250:470]
         hsv = cv2.cvtColor(np.ascontiguousarray(roi), cv2.COLOR_RGB2HSV)
         n = int(((hsv[..., 1] > 130) & (hsv[..., 2] > 170)).sum())
+        if n < 100:
+            roi_old = im[1070:1116, 250:470]
+            hsv_old = cv2.cvtColor(np.ascontiguousarray(roi_old), cv2.COLOR_RGB2HSV)
+            n_old = int(((hsv_old[..., 1] > 130) & (hsv_old[..., 2] > 170)).sum())
+            if n_old >= 150:
+                n = n_old
     except Exception:
         return None
     return "start" if n >= 150 else ("cont" if n <= 40 else None)
@@ -939,6 +946,10 @@ def claim_and_close():
 def play(n_games):
     load_cfg()
     find_serial()
+    ok_open, auto_opened = ensure_forge_open()      # patch292: 전투 화면이면 자동으로 공방 로비 진입
+    if not ok_open:
+        log("공방 화면 준비 실패 -> 플레이 중단")
+        return False
     brain = "nt" if (CFG.get("brain", "nt") == "nt" and NT is not None and NT.available()) else "old"
     if brain == "nt" and CFG.get("search", "c") == "c" and hasattr(NT, "c_available") and NT.c_available():
         brain = "nt+C(D%d B%d K%d, %d스레드)" % (CFG.get("c_depth", 3), CFG.get("c_B", 8), CFG.get("c_K", 8), CFG.get("c_threads", 6))
@@ -974,8 +985,11 @@ def play(n_games):
             continue
         unknown_since = None
         if st == "lobby":
-            if finished >= n_games or (started > finished and not in_game and started >= n_games):
+            if finished >= n_games:
                 claim_and_close()
+                if auto_opened:
+                    time.sleep(1.0)
+                    close_event()
                 break
             if started > finished and in_game:
                 # patch223: 판이 끝나고 결과창이 저절로 닫혀 로비로 온 경우 -> 끝난 판으로 셈
@@ -1207,6 +1221,64 @@ def close_event():
             tap(*BTN_CLOSE)                                       # 공방 창 X
         time.sleep(1.5)
     return icon_score(_adb_capture())[0] >= 0.7
+
+
+def ensure_forge_open():
+    """patch292: 공방 화면(로비/게임)인지 확인하고, 전투 화면이면 자동으로 이벤트 아이콘을 눌러 공방 로비로 진입
+    패널에서 공방 단발 실행 시 사용자가 직접 로비를 열어두지 않아도 자동 진입하도록 개선.
+    반환: (성공여부, 새로열었는지여부)"""
+    im = _adb_capture()
+    st = V.state(im)
+    if st in ("lobby", "game"):
+        return True, False
+
+    sc, pt = icon_score(im)
+    if sc < 0.65:
+        close_event()
+        time.sleep(1.0)
+        im = _adb_capture()
+        sc, pt = icon_score(im)
+        st = V.state(im)
+        if st in ("lobby", "game"):
+            return True, False
+
+    if sc < 0.6:
+        log("공방 진입 건너뜀: 전투 화면이 아님 (이벤트 아이콘 점수 %.2f)" % sc)
+        return False, False
+
+    log("전투 화면 감지 -> 이벤트 아이콘 누름 %s (점수 %.2f)" % (pt, sc))
+    tap(*pt)
+    time.sleep(2.0)
+    ok = False
+    icon_taps = 1
+    for i in range(8):
+        im = _adb_capture()
+        st = V.state(im)
+        if st == "lobby":
+            ok = True
+            break
+        ms, mp = menu_forge(im)
+        sc_i = icon_score(im)[0]
+        log("공방 진입 확인 %d: 화면 %s, 메뉴 '유물 공방' %.2f, 이벤트 아이콘 %.2f" % (i, st, ms, sc_i))
+        if ms >= 0.75:
+            tap(*mp)
+            time.sleep(2.5)
+            continue
+        if sc_i >= 0.65 and icon_taps < 2:
+            icon_taps += 1
+            tap(*pt)
+            time.sleep(2.0)
+            continue
+        if st in (None, "over"):
+            tap(*TAB_FORGE)
+        time.sleep(1.5)
+    if not ok:
+        save_shot(im, "hexa_auto_open.png")
+        log("공방 로비 진입 실패 -> 닫기 (shots\\hexa_auto_open.png)")
+        close_event()
+        return False, False
+    log("공방 로비 진입 성공")
+    return True, True
 
 
 def auto(need=5, games=2):

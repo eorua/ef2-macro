@@ -360,11 +360,15 @@ def popup_y(im):
 
 def state(im):
     """'game' / 'over'(결과 버튼) / 'lobby' / 'popup'(공방 마감) / None"""
-    b1, b2 = px(im, 300, 1093), px(im, 430, 1085)
-    if _near(b1, BROWN) and _near(b2, BROWN):
-        if _near(px(im, 110, 212), (121, 89, 47), 26):
-            return 'lobby'
-        return 'over'
+    # patch292: 10/26 새 UI 버튼(1168) 및 구 UI 버튼(1093) 둘 다 지원
+    for y_btn in (1168, 1093):
+        b1, b2 = px(im, 300, y_btn), px(im, 430, y_btn)
+        b1_brown = _near(b1, BROWN) or _near(b1, (70, 63, 48), 26) or _near(b1, (81, 48, 32), 24)
+        b2_brown = _near(b2, BROWN) or _near(b2, (70, 63, 48), 26) or _near(b2, (81, 48, 32), 24)
+        if b1_brown and b2_brown:
+            if _near(px(im, 110, 212), (121, 89, 47), 26):
+                return 'lobby'
+            return 'over'
     if popup_y(im):
         return 'popup'
     b, unk = read_board(im)

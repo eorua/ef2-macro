@@ -1999,6 +1999,10 @@ def main():
                             st["pq_next"] = time.time() + 420     # patch121: 첫 퀘스트 확인은 7분 뒤
                         st["pq_done"] = False
                         st["hexa_at"] = time.time() + 180     # patch238: 3분 뒤 일괄 레벨업 + 유물 공방 티켓 확인
+                        try:                                   # patch292: 환생 후 기본 대기화면을 퀘스트 탭으로
+                            preset.tap(preset.TAB_QUEST, "기본 대기 퀘스트 탭 복귀")
+                        except Exception:
+                            pass
                         save_state(st)
                         low_fails = 0
                     else:

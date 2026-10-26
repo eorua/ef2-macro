@@ -17,6 +17,7 @@ WAVE_SANE = 20000        # patch200: 이보다 큰 웨이브는 오독으로 봄
 SWEEP_COUNT = 3          # 던전 소탕 횟수
 QUEST_COOLDOWN = 3600    # 퀘스트 보상 확인 최소 간격(초)
 
+TAB_QUEST = (68, 1240)       # patch292: 퀘스트 탭 (기본 대기화면)
 TAB_BATTLE = (535, 1245)
 ROW_DUNGEON = (300, 870)
 ROW_RANKING = (300, 1060)
@@ -171,6 +172,12 @@ def close_panels(max_n=3):
 def go_battle():
     close_panels()
     tap(TAB_BATTLE, 1.0)
+
+
+def go_quest():
+    """patch292: 닫기 후 기본 대기화면인 퀘스트 탭으로 복귀"""
+    close_panels()
+    tap(TAB_QUEST, 0.8)
 
 
 # ---------------------------------------------------------------- 던전
@@ -473,7 +480,7 @@ def do_ads(go):
     st = dict((k, ad_active(img, k)) for k in AD_BTN)
     log("광고 버튼 활성: 게임속도 %s / 명예코인 %s / 보석 %s" % (st["speed"], st["coin"], st["gem"]))
     if not go:
-        tap(TAB_BATTLE, 1.0)
+        go_quest()
         return True
     pressed = False
     if not st["coin"] and not st["gem"]:
@@ -483,7 +490,7 @@ def do_ads(go):
             pressed = True
         else:
             log("전부 회색(게임속도 쿨타임 중) -> 나중에 재시도")
-            tap(TAB_BATTLE, 1.0)
+            go_quest()
             return False
     got = 0
     for key in ("coin", "gem"):
@@ -494,7 +501,7 @@ def do_ads(go):
             tap(AD_BTN[key], 1.2)
             got += 1
             log("%s 광고 보상 %d회째" % (key, got))
-    tap(TAB_BATTLE, 1.0)
+    go_quest()
     return pressed or got > 0
 
 
@@ -669,7 +676,18 @@ def run_soul_tasks(st):
 
 
 def run_daily(st):
-    """main.py에서 호출. 한 번 호출에 한 작업만 실행하고 True 반환(상태 변경 시 저장 필요)."""
+    """main.py에서 호출. 한 번 호출에 한 작업만 실행하고 True 반환(상태 변경 시 저장 필요).
+    patch292: 작업 완료 후 항상 기본 대기화면인 퀘스트 탭으로 복귀"""
+    res = _run_daily_inner(st)
+    if res:
+        try:
+            go_quest()
+        except Exception:
+            pass
+    return res
+
+
+def _run_daily_inner(st):
     d = st.setdefault("daily", {})
     today = game_day()
     if d.get("date") != today:

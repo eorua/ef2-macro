@@ -10,10 +10,12 @@ P = {
     "새로고침": (465, 790),
     "훈장구매": (585, 790),
     "닫기X":    (674, 790),
+    "확인":     (266, 632),
     "확인(금지)": (266, 632),
     "취소":     (452, 632),
     "성탭":     (302, 1240),
     "영웅탭":   (185, 1240),
+    "퀘스트탭": (68, 1240),
 }
 # 점 위치 (중심 x, y) - 영웅 탭의 '영입' 주황 점 / 고용 화면의 '새로고침' 빨간 점
 DOT_HERO = (608, 768)
@@ -72,8 +74,8 @@ GEM_ROW_Y0, GEM_ROW_DY = 868, 90       # patch204/patch277: 고용 목록 줄의
 GEM_FILE = os.path.join(BASE, "recruit_left.json")
 
 KNOWN_HEROES = [
-    # 5성~6성 및 주요 고용 출현 영웅 (patch277: OCR 오인식 보정용 사전)
-    "다크아처", "데스나이트", "폭탄병", "사제", "드루이드", "전장의북", "불의정령", "골렘",
+    # 5성~6성 및 주요 고용 출현 영웅 (patch277: OCR 오인식 보정용 사전, patch292: 전장의 북소리 보강)
+    "다크아처", "데스나이트", "폭탄병", "사제", "드루이드", "전장의북", "전장의 북소리", "전장의북소리", "불의정령", "골렘",
     "죽음의 손", "암흑제독", "서큐버스", "메두사", "리치", "다크엘프", "어비스메이지",
     "실피드", "윈드워커", "알라딘", "요정", "오공", "페가수스", "히포그리프", "세이지",
     "나가", "서리악마", "오크현자", "발키리", "그리핀라이더", "파일럿", "스팀펑크",
@@ -81,6 +83,14 @@ KNOWN_HEROES = [
     "열혈사제", "암흑궁수", "오크도끼병", "중갑병", "해골병", "총병", "보병",
     "엘프궁병", "오크파이터", "마법사", "사령관", "암살자", "서큐", "울프라이더"
 ]
+
+
+def is_drum(name):
+    """patch292: 전장의 북소리 영웅 판정 (전장의북 / 전장의 북소리 등)"""
+    if not name:
+        return False
+    n = name.replace(" ", "")
+    return "전장의북" in n or "북소리" in n or ("전장" in n and "북" in n)
 
 
 def _read_hero_name(img, y):
@@ -105,7 +115,8 @@ def _gem_ratio(img, y):
 
 
 def gem_left(img=None):
-    """patch204/patch277: 훈장구매 뒤 남은 '보석으로 사야 하는' 영웅 이름/가격을 읽어 recruit_left.json 에 저장 (패널에 크게 표시)"""
+    """patch204/patch277/patch292: 훈장구매 뒤 남은 '보석으로 사야 하는' 영웅 이름/가격을 읽어 recruit_left.json 에 저장
+    patch292: 보석 영웅이 '전장의 북소리'일 경우 보석 2000을 소모하여 자동 구매!"""
     import json
     if img is None:
         img = capture()
@@ -114,6 +125,7 @@ def gem_left(img=None):
     cv2.imwrite(os.path.join(BASE, "shots", "recruit_after_buy.png"), img)
     
     found_heroes = []
+    drum_targets = []
     has_gem = False
     for i in range(4):
         y = GEM_ROW_Y0 + GEM_ROW_DY * i
@@ -125,8 +137,25 @@ def gem_left(img=None):
                 name = _read_hero_name(img, y)
                 if name:
                     found_heroes.append(name)
+                    if is_drum(name):
+                        drum_targets.append((i, y, name))
             except Exception as e:
                 print(f"보석 영웅 ({i}행) 글자 읽기 오류:", e)
+
+    # patch292: '전장의 북소리' 보석 영입 실행
+    if drum_targets:
+        for idx, y, name in drum_targets:
+            print(f"[영입] ★ 보석 영웅 '{name}' ({idx}행, y={y}) 발견! 보석 2000 영입 진행")
+            btn_x = 625
+            if GO:
+                subprocess.run(ADB + ["shell", "input", "tap", str(btn_x), str(y)])
+                time.sleep(0.8)
+                # 확인 팝업 (266, 632)
+                print(f"[영입] 확인 팝업 클릭 ({P['확인'][0]}, {P['확인'][1]})")
+                subprocess.run(ADB + ["shell", "input", "tap", str(P["확인"][0]), str(P["확인"][1])])
+                time.sleep(1.0)
+            else:
+                print(f"[시험] 보석 영입 클릭: ({btn_x}, {y}) -> 확인 팝업 ({P['확인'][0]}, {P['확인'][1]})")
 
     hero_str = ", ".join(found_heroes) if found_heroes else ("?" if has_gem else "")
     info = {"name": hero_str, "price": 2000 if hero_str else None, "t": time.time()}
@@ -383,6 +412,8 @@ def recruit(force=False):
             last_wait, last_note = None, "오류 %r" % (e,)
         print("빨간 점 없음(쿨타임 중) → 새로고침 안 함, 닫기 / 남은 시간 %s초 (%s)" % (last_wait, last_note))
         tap("닫기X")
+        time.sleep(0.5)
+        tap("퀘스트탭")  # patch292: 기본 대기화면 퀘스트 탭 복귀
         return "cooldown"
     print("무료 새로고침 가능 → 새로고침 → 훈장구매 → 닫기")
     tap("새로고침")
@@ -393,10 +424,12 @@ def recruit(force=False):
     tap("훈장구매")
     time.sleep(1.5)
     try:
-        gem_left()                                       # patch204
+        gem_left()                                       # patch204, patch292
     except Exception as e:
         print("보석 영웅 확인 오류:", e)
     tap("닫기X")
+    time.sleep(0.5)
+    tap("퀘스트탭")  # patch292: 기본 대기화면 퀘스트 탭 복귀
     return "done"
 
 

@@ -209,7 +209,7 @@ def read_quest29(max_swipes=12):
             time.sleep(0.7)
         return None, "29번을 못 찾음"
     finally:
-        preset.tap(TAB_HERO, "영웅 탭")
+        preset.tap(TAB_QUEST, "퀘스트 탭")  # patch292: 퀘스트 탭 기본 대기 유지
         time.sleep(0.4)
 
 

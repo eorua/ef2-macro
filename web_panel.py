@@ -361,6 +361,7 @@ def do_action():
             "hexa": ("유물 공방 1판", ["hexa.py", "play", "go", "1"]),
             "recruit": ("무료 영입", ["recruit.py", "go"]),
             "cap": ("화면 캡처", ["cap.py"]),
+            "uitour": ("UI 점검 투어", ["uitour.py", "go"]),
             "cleanup": ("임시파일 정리", ["cleanup.py", "go"])
         }
         if job in job_map:

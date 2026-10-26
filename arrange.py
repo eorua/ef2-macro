@@ -23,6 +23,7 @@ SAVE_ROI = (190, 705, 345, 750)
 CANCEL_ROI = (375, 705, 530, 750)
 ICON_ROI = (120, 190, 600, 560)           # 아이콘이 놓이는 영역 (x1, y1, x2, y2)
 T12 = (350, 212)                          # 12시 (얼굴 중심 기준)
+T6 = (359, 474)                           # patch292: 6시 (얼굴 중심 기준, 드루이드 반반 분배)
 T_SPIRIT = [(221, 343), (485, 346)]       # patch292: 정확히 9시 / 3시 끝쪽 (성 y=340 수평선)
 #               # 왼쪽 / 오른쪽 - patch110 (불의 정령 2마리)
 T_DRUM = (352, 342)                       # 전장의 북: 성 한가운데
@@ -189,7 +190,7 @@ def grab_points(src, others):
 
 
 def status(img):
-    """(불의정령이 자리 잡은 목표 수, 12시 밖에 남은 나머지 아이콘 목록, 자리 밖 불의정령 목록)"""
+    """patch292: 불의정령 제자리 수, 12시/6시 밖 드루이드 목록, 자리 밖 불정, 빈 불정 목표, 자리 밖 북, 12시 드루이드, 6시 드루이드"""
     sp, ot, dm = scan3(img)
     placed = 0
     free_t = []
@@ -200,12 +201,14 @@ def status(img):
             free_t.append(t)
     stray_sp = [(x, y) for _, x, y in sp if all(dist((x, y), t) > NEAR for t in T_SPIRIT)]
     occ = [t for t in T_SPIRIT if any(dist((x, y), t) <= NEAR for _, x, y in sp)]     # patch112: 정령이 이미 앉은 자리만 제외
-    stray_ot = [(x, y) for _, x, y in ot if dist((x, y), T12) > NEAR and all(dist((x, y), t) > NEAR for t in occ)]
+    ot_12 = [(x, y) for _, x, y in ot if dist((x, y), T12) <= NEAR]
+    ot_6  = [(x, y) for _, x, y in ot if dist((x, y), T6) <= NEAR]
+    stray_ot = [(x, y) for _, x, y in ot if dist((x, y), T12) > NEAR and dist((x, y), T6) > NEAR and all(dist((x, y), t) > NEAR for t in occ)]
     stray_dm = [(x, y) for _, x, y in dm if dist((x, y), T_DRUM) > NEAR]
-    if not free_t and stray_sp:                  # patch130: 좌우 자리가 다 찼으면 남는 정령(새 불정)은 12시로
-        stray_ot = stray_ot + [p for p in stray_sp if dist(p, T12) > NEAR]
+    if not free_t and stray_sp:                  # patch130: 좌우 자리가 다 찼으면 남는 정령(새 불정)은 드루이드로 취급
+        stray_ot = stray_ot + [p for p in stray_sp if dist(p, T12) > NEAR and dist(p, T6) > NEAR]
         stray_sp = []
-    return placed, stray_ot, stray_sp, free_t, stray_dm
+    return placed, stray_ot, stray_sp, free_t, stray_dm, ot_12, ot_6
 
 
 def open_dialog():
@@ -251,8 +254,8 @@ def run():
         if not dialog_open(img):
             log("영웅 배치 창이 사라짐 -> 중단")
             return False
-        placed, stray_ot, stray_sp, free_t, stray_dm = status(img)
-        sig = (placed, len(stray_ot), len(stray_sp), len(stray_dm))
+        placed, stray_ot, stray_sp, free_t, stray_dm, ot_12, ot_6 = status(img)
+        sig = (placed, len(stray_ot), len(stray_sp), len(stray_dm), len(ot_12), len(ot_6))
         if prev_placed is not None and last_src is not None and placed < prev_placed:
             bad_pts.append(last_src)
             log("%s 를 옮겼더니 제자리 정령이 빠짐 -> 이 위치는 다시 집지 않음" % (last_src,))
@@ -260,9 +263,17 @@ def run():
         if mv == 0:
             _sp, _dr, _dm = scan3(img)
             log("찾은 아이콘: 정령 %s / 드루이드 %s / 북 %s" % ([p[1:] for p in _sp], [p[1:] for p in _dr], [p[1:] for p in _dm]))
-        log("자리 잡은 불의정령 %d/%d / 12시 밖 드루이드 %d / 자리 밖 북 %d / 자리 밖 불의정령 %d" % (placed, len(T_SPIRIT), len(stray_ot), len(stray_dm), len(stray_sp)))
-        if placed == len(T_SPIRIT) and not stray_ot and not stray_dm:
-            log("배치 완료 -> 저장")
+        log("자리 잡은 불의정령 %d/%d / 12시 드루이드 %d / 6시 드루이드 %d / 자리 밖(드루이드 %d, 북 %d, 불정 %d)" %
+            (placed, len(T_SPIRIT), len(ot_12), len(ot_6), len(stray_ot), len(stray_dm), len(stray_sp)))
+
+        total_ot = len(ot_12) + len(ot_6) + len(stray_ot)
+        # patch292: 12시와 6시 반반 분배 검증 (차이 1 이하, 4마리 이상이면 6시에도 최소 2마리)
+        is_balanced = (abs(len(ot_12) - len(ot_6)) <= 1)
+        if total_ot >= 4 and (len(ot_12) < 2 or len(ot_6) < 2):
+            is_balanced = False
+
+        if placed == len(T_SPIRIT) and not stray_ot and not stray_dm and not stray_sp and is_balanced:
+            log("배치 완료 -> 저장 (불정 %d, 12시 드루이드 %d, 6시 드루이드 %d, 북 제자리)" % (placed, len(ot_12), len(ot_6)))
             tap(BTN_SAVE, "저장")
             time.sleep(1.5)
             if dialog_open(capture()):
@@ -285,9 +296,12 @@ def run():
         else:
             fails = 0
         last = sig
-        if prev is not None and prev[0] in ("ot", "dm") and (len(stray_ot) if prev[0] == "ot" else len(stray_dm)) >= prev[1]:
-            _gv[0] += 1
-            log("나머지가 안 옮겨짐 -> 집는 위치 바꿈 (%d)" % _gv[0])
+        if prev is not None and prev[0] in ("ot", "dm"):
+            same_ot = prev[0] == "ot" and (len(ot_12), len(ot_6), len(stray_ot)) == prev[1]
+            same_dm = prev[0] == "dm" and len(stray_dm) >= prev[1]
+            if same_ot or same_dm:
+                _gv[0] += 1
+                log("나머지가 안 옮겨짐 -> 집는 위치 바꿈 (%d)" % _gv[0])
         if not GO:
             log("(시험 모드: 여기까지만 판별)")
             return True
@@ -301,10 +315,22 @@ def run():
         for s in stray_sp:
             if free_t:
                 cands.append(("sp", s, min(free_t, key=lambda q: dist(s, q))))
-        for s in stray_ot:
-            cands.append(("ot", s, T12))
         for s in stray_dm:
             cands.append(("dm", s, T_DRUM))
+        for s in stray_ot:
+            # 12시와 6시 중 더 적은 곳으로 (동률이면 12시 우선)
+            tgt_ot = T12 if len(ot_12) <= len(ot_6) else T6
+            cands.append(("ot", s, tgt_ot))
+
+        # patch292: stray_ot가 없지만 12시/6시 균형이 맞지 않는 경우 (예: 기존 12시 몰빵 상태에서 6시로 이전)
+        if not stray_ot and not stray_sp and not stray_dm:
+            if len(ot_12) > len(ot_6) + 1:
+                for s in ot_12:
+                    cands.append(("ot", s, T6))
+            elif len(ot_6) > len(ot_12) + 1:
+                for s in ot_6:
+                    cands.append(("ot", s, T12))
+
         cands = [c for c in cands if all(dist(c[1], b) > 25 for b in bad_pts)]     # patch124
 
         def _cscore(c):
@@ -329,9 +355,10 @@ def run():
 
         if cands:
             kind, src, tgt = max(cands, key=_cscore)
-            log("옮길 아이콘: %s %s -> %s (점수 %.0f)" % ({"sp": "불의정령", "ot": "드루이드 등", "dm": "북"}[kind], src, tgt, _cscore((kind, src, tgt))))
+            tgt_name = "12시" if tgt == T12 else ("6시" if tgt == T6 else ("중앙 북" if tgt == T_DRUM else "불정 좌우"))
+            log("옮길 아이콘: %s %s -> %s (목표: %s, 점수 %.0f)" % ({"sp": "불의정령", "ot": "드루이드 등", "dm": "북"}[kind], src, tgt, tgt_name, _cscore((kind, src, tgt))))
         last_src = src if cands else None
-        prev = (kind, len(stray_ot) if kind == "ot" else len(stray_dm))
+        prev = (kind, (len(ot_12), len(ot_6), len(stray_ot)) if kind == "ot" else len(stray_dm))
         if tgt is not None:
             off = OFFS[tgt]
             sp_all, dr_all, dm_all = scan3(img)
@@ -410,7 +437,9 @@ if __name__ == "__main__":
             print("불의정령:", sp)
             print("드루이드 등:", ot)
             print("전장의 북:", dm)
-            print("상태(자리 잡은 불의정령, 12시 밖 드루이드, 자리 밖 불의정령, 빈 목표, 자리 밖 북):", status(img))
+            placed, stray_ot, stray_sp, free_t, stray_dm, ot_12, ot_6 = status(img)
+            print("상태: 불정 제자리 %d/%d, 12시 드루이드 %d, 6시 드루이드 %d, 자리 밖(드루이드 %d, 북 %d, 불정 %d)" %
+                  (placed, len(T_SPIRIT), len(ot_12), len(ot_6), len(stray_ot), len(stray_dm), len(stray_sp)))
     elif cmd == "open":
         print("열림:", open_dialog())
     else:

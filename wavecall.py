@@ -15,8 +15,8 @@ BASE = r"C:\macro"
 sys.path.insert(0, BASE)
 import preset
 
-OFF_WAVE = 7000            # 이 웨이브 이상이면 AUTO 끔 (patch290: 사용자 요청 7000층)
-ON_WAVE = 6000             # 환생 뒤 이 웨이브 미만이면 AUTO 다시 켬 (patch290)
+OFF_WAVE = 7200            # 이 웨이브 이상이면 AUTO 끔 (사용자 요청: 7200층)
+ON_WAVE = 6000             # 환생 뒤 이 웨이브 미만이면 AUTO 다시 켬
 GEAR = (170, 642)          # 왼쪽 아래 톱니(웨이브 호출/황혼의 부름 옆) - 오른쪽 위 환경설정 톱니 아님
 DLG_X = (631, 213)         # 설정창 빨간 X
 TAB_WAVE = (215, 270)      # '웨이브 호출' 탭

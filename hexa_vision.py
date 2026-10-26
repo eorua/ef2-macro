@@ -360,12 +360,11 @@ def popup_y(im):
 
 def state(im):
     """'game' / 'over'(결과 버튼) / 'lobby' / 'popup'(공방 마감) / None"""
-    # patch292: 10/26 새 UI 버튼(1168) 및 구 UI 버튼(1093) 둘 다 지원
+    # patch292b: 새 UI(1168) 및 구 UI(1093) 시작/결과 갈색 버튼(BROWN=(110,59,36)) 판정
+    # 게임/전투 화면의 어두운 바닥색([70,63,48], [49,44,35])이 over로 오인식되지 않도록 BROWN 단독 검출
     for y_btn in (1168, 1093):
         b1, b2 = px(im, 300, y_btn), px(im, 430, y_btn)
-        b1_brown = _near(b1, BROWN) or _near(b1, (70, 63, 48), 26) or _near(b1, (81, 48, 32), 24)
-        b2_brown = _near(b2, BROWN) or _near(b2, (70, 63, 48), 26) or _near(b2, (81, 48, 32), 24)
-        if b1_brown and b2_brown:
+        if _near(b1, BROWN, 24) and _near(b2, BROWN, 24):
             if _near(px(im, 110, 212), (121, 89, 47), 26):
                 return 'lobby'
             return 'over'
@@ -373,6 +372,6 @@ def state(im):
         return 'popup'
     b, unk = read_board(im)
     # patch283: 새 UI 대응 - 보드 23칸 중 대부분이 판독되고 보드 테두리/배경이 맞으면 game 판독
-    if len(unk) <= 8 and _near(px(im, 612, 850, 4), (20, 14, 12), 16):
+    if b is not None and len(unk) <= 8 and _near(px(im, 612, 850, 4), (20, 14, 12), 16):
         return 'game'
     return None

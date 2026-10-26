@@ -24,6 +24,9 @@ def add_cors_headers(response):
     return response
 
 
+_JOB_RUNNING = {"proc": None, "label": None}
+
+
 def is_pid_alive(pid):
     """Windows API로 콘솔 창 깜빡임 없이 프로세스 생존 여부 확인"""
     try:
@@ -367,10 +370,37 @@ def do_action():
         if job in job_map:
             label, cmd = job_map[job]
             def run_job():
-                subprocess.run([sys.executable] + cmd, cwd=BASE_OHWAN, creationflags=CREATE_NO_WINDOW)
+                try:
+                    p = subprocess.Popen([sys.executable] + cmd, cwd=BASE_OHWAN, creationflags=CREATE_NO_WINDOW)
+                    _JOB_RUNNING["proc"] = p
+                    _JOB_RUNNING["label"] = label
+                    p.wait()
+                finally:
+                    if _JOB_RUNNING.get("proc") == p:
+                        _JOB_RUNNING["proc"] = None
+                        _JOB_RUNNING["label"] = None
             threading.Thread(target=run_job, daemon=True).start()
             return jsonify({"ok": True, "msg": "'%s' 단발 실행을 시작했습니다." % label})
         return jsonify({"ok": False, "msg": "알 수 없는 단발 작업입니다."})
+
+    elif action == "ohwan_job_cancel":
+        # patch292b: 단발 작업 중단 (플래그 파일 생성 및 프로세스 종료)
+        try:
+            open(os.path.join(BASE_OHWAN, "hexa_stop.req"), "w").close()
+            open(os.path.join(BASE_OHWAN, "job_cancel.req"), "w").close()
+        except Exception:
+            pass
+        p = _JOB_RUNNING.get("proc")
+        lbl = _JOB_RUNNING.get("label", "단발 작업")
+        if p is not None and p.poll() is None:
+            try:
+                subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True, creationflags=CREATE_NO_WINDOW)
+            except Exception:
+                pass
+            _JOB_RUNNING["proc"] = None
+            _JOB_RUNNING["label"] = None
+            return jsonify({"ok": True, "msg": f"실행 중이던 '{lbl}' 작업을 즉시 중단했습니다."})
+        return jsonify({"ok": True, "msg": "작업 중단 요청을 전송했습니다."})
 
     elif action == "ohwan_rec_set":
         runs = int(data.get("runs", 3))

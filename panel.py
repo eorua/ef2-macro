@@ -574,6 +574,11 @@ class App:
         threading.Thread(target=self._oneshot, args=(label, args), daemon=True).start()
 
     def cancel_job(self):
+        try:
+            open(os.path.join(BASE, "hexa_stop.req"), "w").close()
+            open(os.path.join(BASE, "job_cancel.req"), "w").close()
+        except Exception:
+            pass
         p = self.cur
         if p is not None and p.poll() is None:
             self.note("작업 중단 요청", "warn")

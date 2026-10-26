@@ -5,7 +5,7 @@
  ],
  "rot_dir": 1,
  "colors": {},
- "swipe_ms": 900,
+ "swipe_ms": 650,
  "settle": 0.9,
  "depth": 3,
  "drop_fail": 2,

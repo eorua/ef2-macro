@@ -38,6 +38,24 @@ LEARN_PATH = os.path.join(SHOTS, "hexa_learn.jsonl")
 SPAWN_PATH = os.path.join(SHOTS, "hexa_spawn.jsonl")   # patch246: 매 수 조각 기록(출현 규칙 분석용)
 SPAWN = {"gid": None, "last": None}
 
+STOP_REQ = os.path.join(BASE, "hexa_stop.req")
+CANCEL_REQ = os.path.join(BASE, "job_cancel.req")
+PAUSE_FILE = os.path.join(BASE, "PAUSE")
+
+
+def should_stop():
+    """patch292b: 작업 중단 요청(hexa_stop.req, job_cancel.req, PAUSE) 확인"""
+    for req in (STOP_REQ, CANCEL_REQ):
+        if os.path.exists(req):
+            try:
+                os.remove(req)
+            except Exception:
+                pass
+            return True
+    if os.path.exists(PAUSE_FILE):
+        return True
+    return False
+
 CFG = dict(lift=[0.0, 130.0], rot_dir=1, colors={}, swipe_ms=650, settle=0.9, depth=3)
 
 
@@ -288,6 +306,22 @@ def tap(x, y):
 
 
 def swipe(x1, y1, x2, y2, ms):
+    c = _CAM[0]
+    if c:                     # patch292b: fastcam 직결 터치로 지연 없이 즉각 드래그
+        try:
+            steps = 8
+            c.touch(0, int(x1), int(y1))
+            dt = (ms / 1000.0) / steps
+            for i in range(1, steps + 1):
+                time.sleep(dt)
+                xi = int(x1 + (x2 - x1) * i / steps)
+                yi = int(y1 + (y2 - y1) * i / steps)
+                c.touch(2, xi, yi)
+            time.sleep(0.06)
+            c.touch(1, int(x2), int(y2))
+            return
+        except Exception as ex:
+            _fast_off("스와이프 실패 %r" % (ex,))
     adb("shell", "input", "swipe", str(int(x1)), str(int(y1)), str(int(x2)), str(int(y2)), str(int(ms)))
 
 
@@ -655,6 +689,9 @@ def use_hammer(target_cell):
 
 
 def do_move(im, r):
+    if should_stop():
+        log("[공방 중단] 작업 중단 요청 감지 -> 수 진행 중단")
+        return False
     b0 = r["board"]
     cur = r["tray"]
     has_star10 = any(x >= 10 for x in b0) or any(t >= 10 for t in HI.values()) or STATS.get("star10", 0) >= 1
@@ -964,6 +1001,13 @@ def play(n_games):
     TM.update(n=0, last=None)
     _cam()                       # patch245: 빠른 화면 준비 (안 되면 ADB)
     while True:
+        if should_stop():
+            log("[공방 중단] 작업 중단 요청 감지 -> 공방 플레이를 중단하고 종료합니다")
+            claim_and_close()
+            if auto_opened:
+                time.sleep(1.0)
+                close_event()
+            break
         if NEXT:                 # patch245: 놓은 뒤 확인한 판이 있으면 다시 찍지 않음
             im, r_next = NEXT["im"], NEXT["r"]
             NEXT.clear()
@@ -1074,6 +1118,8 @@ def play(n_games):
                 continue
         stall = None
         do_move(im2, r)
+    if _CAM[0]:
+        _fast_off("공방 정상 종료")
     return finished              # patch243: 끝낸 판 수 (0 = 중간에 끊김)
 
 

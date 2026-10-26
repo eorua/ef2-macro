@@ -45,14 +45,16 @@
    ],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -61,7 +63,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -75,8 +77,8 @@
   "main.fall_popup": [
    false,
    [
-    133,
-    662
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -84,8 +86,8 @@
   "main.result_popup": [
    false,
    [
-    331,
-    749
+    387,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -100,7 +102,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 3900,
   "wavecall.auto_on": [
@@ -131,12 +133,19 @@
    ],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
+    ]
+   ],
+   [],
+   [
+    [
+     351,
+     211
     ]
    ],
    []
@@ -147,7 +156,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -161,8 +170,8 @@
   "main.fall_popup": [
    false,
    [
-    133,
-    662
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -170,8 +179,8 @@
   "main.result_popup": [
    false,
    [
-    331,
-    749
+    387,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -186,7 +195,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 4000,
   "wavecall.auto_on": [
@@ -204,14 +213,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -239,8 +250,8 @@
   "main.fall_popup": [
    false,
    [
-    137,
-    773
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -248,8 +259,8 @@
   "main.result_popup": [
    false,
    [
-    352,
-    698
+    347,
+    879
    ]
   ],
   "main.wave_visible": true,
@@ -300,14 +311,16 @@
    ],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -316,7 +329,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -330,8 +343,8 @@
   "main.fall_popup": [
    false,
    [
-    137,
-    662
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -339,8 +352,8 @@
   "main.result_popup": [
    false,
    [
-    331,
-    749
+    417,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -355,7 +368,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 6400,
   "wavecall.auto_on": [
@@ -368,7 +381,7 @@
  "arrange_unknown.png": {
   "arrange.dialog_open": true,
   "arrange.status": [
-   1,
+   0,
    [
     [
      281,
@@ -377,14 +390,29 @@
    ],
    [
     [
+     247,
+     351
+    ],
+    [
      439,
      342
     ]
    ],
    [
     [
-     459,
-     372
+     221,
+     343
+    ],
+    [
+     485,
+     346
+    ]
+   ],
+   [],
+   [
+    [
+     350,
+     211
     ]
    ],
    []
@@ -395,7 +423,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -409,8 +437,8 @@
   "main.fall_popup": [
    false,
    [
-    137,
-    662
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -418,8 +446,8 @@
   "main.result_popup": [
    false,
    [
-    331,
-    749
+    417,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -434,7 +462,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 6200,
   "wavecall.auto_on": [
@@ -452,14 +480,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -482,8 +512,8 @@
   "main.fall_popup": [
    false,
    [
-    123,
-    757
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -491,8 +521,8 @@
   "main.result_popup": [
    false,
    [
-    343,
-    774
+    387,
+    896
    ]
   ],
   "main.wave_visible": false,
@@ -525,14 +555,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -541,7 +573,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "fold",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -555,8 +587,8 @@
   "main.fall_popup": [
    false,
    [
-    166,
-    775
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -580,7 +612,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 6200,
   "wavecall.auto_on": [
@@ -598,14 +630,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -628,8 +662,8 @@
   "main.fall_popup": [
    false,
    [
-    149,
-    722
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -637,8 +671,8 @@
   "main.result_popup": [
    false,
    [
-    310,
-    696
+    351,
+    633
    ]
   ],
   "main.wave_visible": true,
@@ -671,233 +705,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
-   []
-  ],
-  "barracks.barracks_open": false,
-  "barracks.is_full": false,
-  "closer.close_buttons": [],
-  "daily.blocked": false,
-  "friend.dot": 0.0,
-  "guild.guild_open": false,
-  "hud.state": "open",
-  "inf2.is_open": false,
-  "main.continue_btn": [
-   false,
-   [
-    576,
-    691
-   ],
-   0.0
-  ],
-  "main.dl_popup": false,
-  "main.fall_popup": [
-   false,
-   [
-    103,
-    737
-   ]
-  ],
-  "main.home_screen": false,
-  "main.popup_open": false,
-  "main.result_popup": [
-   false,
-   [
-    314,
-    736
-   ]
-  ],
-  "main.wave_visible": true,
-  "notice.detect": null,
-  "pet.rep_pet": null,
-  "pet.speed_x4": [
-   true,
-   0.98,
-   0.19
-  ],
-  "preset.bulk_open": false,
-  "preset.hero_auto_on": false,
-  "preset.preset_open": false,
-  "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
-  "soul.screen_state": "other",
-  "wave.read_wave": 4500,
-  "wavecall.auto_on": [
-   false,
-   0
-  ],
-  "wavecall.dlg_open": false,
-  "wavecall.tab_selected": false
- },
- "chest_noboost_1.png": {
-  "arrange.dialog_open": false,
-  "arrange.status": [
-   0,
    [],
    [],
-   [
-    [
-     253,
-     368
-    ],
-    [
-     459,
-     372
-    ]
-   ],
-   []
-  ],
-  "barracks.barracks_open": false,
-  "barracks.is_full": true,
-  "closer.close_buttons": [],
-  "daily.blocked": false,
-  "friend.dot": 0.25,
-  "guild.guild_open": false,
-  "hud.state": "open",
-  "inf2.is_open": false,
-  "main.continue_btn": [
-   false,
-   [
-    576,
-    691
-   ],
-   0.41
-  ],
-  "main.dl_popup": false,
-  "main.fall_popup": [
-   false,
-   [
-    133,
-    593
-   ]
-  ],
-  "main.home_screen": false,
-  "main.popup_open": false,
-  "main.result_popup": [
-   false,
-   [
-    316,
-    733
-   ]
-  ],
-  "main.wave_visible": true,
-  "notice.detect": null,
-  "pet.rep_pet": null,
-  "pet.speed_x4": [
-   false,
-   0.68,
-   0.2
-  ],
-  "preset.bulk_open": false,
-  "preset.hero_auto_on": false,
-  "preset.preset_open": false,
-  "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
-  "soul.screen_state": "other",
-  "wave.read_wave": 4500,
-  "wavecall.auto_on": [
-   false,
-   0
-  ],
-  "wavecall.dlg_open": false,
-  "wavecall.tab_selected": false
- },
- "cont_cd_1.png": {
-  "arrange.dialog_open": false,
-  "arrange.status": [
-   0,
-   [],
-   [],
-   [
-    [
-     253,
-     368
-    ],
-    [
-     459,
-     372
-    ]
-   ],
-   []
-  ],
-  "barracks.barracks_open": false,
-  "barracks.is_full": true,
-  "closer.close_buttons": [],
-  "daily.blocked": false,
-  "friend.dot": 0.0,
-  "guild.guild_open": false,
-  "hud.state": "fold",
-  "inf2.is_open": false,
-  "main.continue_btn": [
-   false,
-   [
-    576,
-    691
-   ],
-   0.0
-  ],
-  "main.dl_popup": false,
-  "main.fall_popup": [
-   false,
-   [
-    154,
-    774
-   ]
-  ],
-  "main.home_screen": false,
-  "main.popup_open": false,
-  "main.result_popup": [
-   false,
-   [
-    399,
-    798
-   ]
-  ],
-  "main.wave_visible": true,
-  "notice.detect": null,
-  "pet.rep_pet": null,
-  "pet.speed_x4": [
-   true,
-   0.99,
-   0.19
-  ],
-  "preset.bulk_open": false,
-  "preset.hero_auto_on": false,
-  "preset.preset_open": false,
-  "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
-  "soul.screen_state": "other",
-  "wave.read_wave": 7700,
-  "wavecall.auto_on": [
-   false,
-   0
-  ],
-  "wavecall.dlg_open": false,
-  "wavecall.tab_selected": false
- },
- "daily_quest_after.png": {
-  "arrange.dialog_open": false,
-  "arrange.status": [
-   0,
-   [],
-   [],
-   [
-    [
-     253,
-     368
-    ],
-    [
-     459,
-     372
-    ]
-   ],
    []
   ],
   "barracks.barracks_open": false,
@@ -920,8 +737,8 @@
   "main.fall_popup": [
    false,
    [
-    124,
-    771
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -929,8 +746,233 @@
   "main.result_popup": [
    false,
    [
-    364,
-    828
+    274,
+    783
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.98,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4500,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "chest_noboost_1.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     221,
+     343
+    ],
+    [
+     485,
+     346
+    ]
+   ],
+   [],
+   [],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.41
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    0,
+    0
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    417,
+    896
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   false,
+   0.68,
+   0.2
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 4500,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "cont_cd_1.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     221,
+     343
+    ],
+    [
+     485,
+     346
+    ]
+   ],
+   [],
+   [],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": true,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    0,
+    0
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    417,
+    896
+   ]
+  ],
+  "main.wave_visible": true,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.99,
+   0.19
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": false,
+  "skillctl.auto_on": false,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": 7700,
+  "wavecall.auto_on": [
+   false,
+   0
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "daily_quest_after.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     221,
+     343
+    ],
+    [
+     485,
+     346
+    ]
+   ],
+   [],
+   [],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    0,
+    0
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": false,
+  "main.result_popup": [
+   false,
+   [
+    430,
+    829
    ]
   ],
   "main.wave_visible": true,
@@ -963,14 +1005,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -993,8 +1037,8 @@
   "main.fall_popup": [
    false,
    [
-    109,
-    784
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1036,14 +1080,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1075,8 +1121,8 @@
   "main.fall_popup": [
    false,
    [
-    133,
-    626
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1084,8 +1130,8 @@
   "main.result_popup": [
    false,
    [
-    382,
-    694
+    276,
+    889
    ]
   ],
   "main.wave_visible": true,
@@ -1118,14 +1164,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1157,8 +1205,8 @@
   "main.fall_popup": [
    false,
    [
-    133,
-    626
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1166,8 +1214,8 @@
   "main.result_popup": [
    false,
    [
-    312,
-    728
+    276,
+    889
    ]
   ],
   "main.wave_visible": true,
@@ -1200,14 +1248,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1216,7 +1266,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    true,
@@ -1230,8 +1280,8 @@
   "main.fall_popup": [
    false,
    [
-    144,
-    775
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1239,7 +1289,7 @@
   "main.result_popup": [
    false,
    [
-    315,
+    345,
     783
    ]
   ],
@@ -1255,7 +1305,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 5600,
   "wavecall.auto_on": [
@@ -1273,14 +1323,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1308,8 +1360,8 @@
   "main.fall_popup": [
    false,
    [
-    91,
-    694
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1317,7 +1369,7 @@
   "main.result_popup": [
    false,
    [
-    312,
+    288,
     697
    ]
   ],
@@ -1351,14 +1403,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1390,8 +1444,8 @@
   "main.fall_popup": [
    false,
    [
-    133,
-    626
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1399,8 +1453,8 @@
   "main.result_popup": [
    false,
    [
-    312,
-    728
+    276,
+    889
    ]
   ],
   "main.wave_visible": true,
@@ -1433,14 +1487,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1468,8 +1524,8 @@
   "main.fall_popup": [
    false,
    [
-    91,
-    615
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1478,7 +1534,7 @@
    false,
    [
     353,
-    762
+    628
    ]
   ],
   "main.wave_visible": true,
@@ -1511,14 +1567,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1541,8 +1599,8 @@
   "main.fall_popup": [
    false,
    [
-    100,
-    654
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1584,14 +1642,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1600,7 +1660,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    true,
@@ -1614,8 +1674,8 @@
   "main.fall_popup": [
    false,
    [
-    108,
-    739
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1623,8 +1683,8 @@
   "main.result_popup": [
    false,
    [
-    312,
-    734
+    387,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -1639,7 +1699,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 6400,
   "wavecall.auto_on": [
@@ -1657,14 +1717,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1692,8 +1754,8 @@
   "main.fall_popup": [
    false,
    [
-    91,
-    669
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1701,8 +1763,8 @@
   "main.result_popup": [
    false,
    [
-    407,
-    760
+    340,
+    844
    ]
   ],
   "main.wave_visible": true,
@@ -1735,14 +1797,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1751,7 +1815,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    true,
@@ -1765,8 +1829,8 @@
   "main.fall_popup": [
    false,
    [
-    161,
-    738
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1774,8 +1838,8 @@
   "main.result_popup": [
    false,
    [
-    317,
-    734
+    387,
+    896
    ]
   ],
   "main.wave_visible": false,
@@ -1790,7 +1854,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": null,
   "wavecall.auto_on": [
@@ -1808,23 +1872,25 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
   "barracks.is_full": true,
   "closer.close_buttons": [],
   "daily.blocked": false,
-  "friend.dot": 0.25,
+  "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -1838,8 +1904,8 @@
   "main.fall_popup": [
    false,
    [
-    154,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1847,11 +1913,11 @@
   "main.result_popup": [
    false,
    [
-    399,
-    798
+    417,
+    896
    ]
   ],
-  "main.wave_visible": false,
+  "main.wave_visible": true,
   "notice.detect": null,
   "pet.rep_pet": null,
   "pet.speed_x4": [
@@ -1863,9 +1929,9 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
-  "wave.read_wave": null,
+  "wave.read_wave": 6200,
   "wavecall.auto_on": [
    false,
    0
@@ -1881,14 +1947,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1897,7 +1965,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -1911,8 +1979,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1936,7 +2004,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 5400,
   "wavecall.auto_on": [
@@ -1954,14 +2022,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -1989,8 +2059,8 @@
   "main.fall_popup": [
    false,
    [
-    94,
-    729
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -1998,8 +2068,8 @@
   "main.result_popup": [
    false,
    [
-    313,
-    834
+    442,
+    638
    ]
   ],
   "main.wave_visible": true,
@@ -2032,14 +2102,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2067,8 +2139,8 @@
   "main.fall_popup": [
    false,
    [
-    121,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2076,8 +2148,8 @@
   "main.result_popup": [
    false,
    [
-    316,
-    754
+    427,
+    897
    ]
   ],
   "main.wave_visible": true,
@@ -2110,14 +2182,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2140,8 +2214,8 @@
   "main.fall_popup": [
    false,
    [
-    91,
-    655
+    0,
+    0
    ]
   ],
   "main.home_screen": true,
@@ -2149,8 +2223,8 @@
   "main.result_popup": [
    false,
    [
-    310,
-    694
+    274,
+    649
    ]
   ],
   "main.wave_visible": false,
@@ -2183,14 +2257,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2199,7 +2275,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "fold",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -2213,8 +2289,8 @@
   "main.fall_popup": [
    false,
    [
-    148,
-    572
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2222,8 +2298,8 @@
   "main.result_popup": [
    false,
    [
-    399,
-    798
+    387,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -2238,7 +2314,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 5100,
   "wavecall.auto_on": [
@@ -2256,14 +2332,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2272,7 +2350,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -2286,8 +2364,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2295,8 +2373,8 @@
   "main.result_popup": [
    false,
    [
-    314,
-    736
+    387,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -2311,7 +2389,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 5100,
   "wavecall.auto_on": [
@@ -2329,14 +2407,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2350,7 +2430,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": true,
   "main.continue_btn": [
    false,
@@ -2364,8 +2444,8 @@
   "main.fall_popup": [
    false,
    [
-    143,
-    781
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2373,7 +2453,7 @@
   "main.result_popup": [
    false,
    [
-    323,
+    274,
     774
    ]
   ],
@@ -2389,7 +2469,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 5300,
   "wavecall.auto_on": [
@@ -2407,14 +2487,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2428,7 +2510,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": true,
   "main.continue_btn": [
    false,
@@ -2442,8 +2524,8 @@
   "main.fall_popup": [
    false,
    [
-    143,
-    781
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2451,7 +2533,7 @@
   "main.result_popup": [
    false,
    [
-    323,
+    274,
     774
    ]
   ],
@@ -2467,7 +2549,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 5300,
   "wavecall.auto_on": [
@@ -2485,14 +2567,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2520,8 +2604,8 @@
   "main.fall_popup": [
    false,
    [
-    157,
-    781
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2529,7 +2613,7 @@
   "main.result_popup": [
    false,
    [
-    356,
+    274,
     774
    ]
   ],
@@ -2545,7 +2629,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 3800,
   "wavecall.auto_on": [
@@ -2563,14 +2647,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2593,8 +2679,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    766
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2602,8 +2688,8 @@
   "main.result_popup": [
    false,
    [
-    374,
-    712
+    387,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -2636,14 +2722,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2671,8 +2759,8 @@
   "main.fall_popup": [
    false,
    [
-    100,
-    768
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2681,7 +2769,7 @@
    false,
    [
     397,
-    732
+    618
    ]
   ],
   "main.wave_visible": false,
@@ -2717,14 +2805,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2733,7 +2823,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "fold",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -2747,8 +2837,8 @@
   "main.fall_popup": [
    false,
    [
-    119,
-    597
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2756,7 +2846,7 @@
   "main.result_popup": [
    false,
    [
-    317,
+    308,
     783
    ]
   ],
@@ -2772,7 +2862,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 7500,
   "wavecall.auto_on": [
@@ -2790,14 +2880,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2806,7 +2898,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -2820,8 +2912,8 @@
   "main.fall_popup": [
    false,
    [
-    149,
-    602
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2829,8 +2921,8 @@
   "main.result_popup": [
    false,
    [
-    363,
-    707
+    414,
+    645
    ]
   ],
   "main.wave_visible": false,
@@ -2863,14 +2955,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2879,7 +2973,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -2893,8 +2987,8 @@
   "main.fall_popup": [
    false,
    [
-    106,
-    734
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2902,8 +2996,8 @@
   "main.result_popup": [
    false,
    [
-    315,
-    731
+    417,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -2936,14 +3030,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -2952,7 +3048,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -2966,8 +3062,8 @@
   "main.fall_popup": [
    false,
    [
-    106,
-    735
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -2975,8 +3071,8 @@
   "main.result_popup": [
    false,
    [
-    314,
-    736
+    417,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -2991,7 +3087,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": true,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 6300,
   "wavecall.auto_on": [
@@ -3009,14 +3105,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3044,8 +3142,8 @@
   "main.fall_popup": [
    false,
    [
-    153,
-    642
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3053,7 +3151,7 @@
   "main.result_popup": [
    false,
    [
-    313,
+    305,
     748
    ]
   ],
@@ -3087,14 +3185,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3103,7 +3203,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -3117,8 +3217,8 @@
   "main.fall_popup": [
    false,
    [
-    165,
-    738
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3126,8 +3226,8 @@
   "main.result_popup": [
    false,
    [
-    312,
-    734
+    417,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -3142,7 +3242,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 6200,
   "wavecall.auto_on": [
@@ -3160,14 +3260,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3190,8 +3292,8 @@
   "main.fall_popup": [
    false,
    [
-    147,
-    667
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3233,14 +3335,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3263,8 +3367,8 @@
   "main.fall_popup": [
    false,
    [
-    123,
-    784
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3306,14 +3410,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3322,7 +3428,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -3336,8 +3442,8 @@
   "main.fall_popup": [
    false,
    [
-    154,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3345,8 +3451,8 @@
   "main.result_popup": [
    false,
    [
-    399,
-    798
+    417,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -3361,7 +3467,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 3800,
   "wavecall.auto_on": [
@@ -3379,14 +3485,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3395,7 +3503,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -3409,8 +3517,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3418,8 +3526,8 @@
   "main.result_popup": [
    false,
    [
-    316,
-    732
+    387,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -3434,7 +3542,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 7000,
   "wavecall.auto_on": [
@@ -3452,87 +3560,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
-   []
-  ],
-  "barracks.barracks_open": false,
-  "barracks.is_full": false,
-  "closer.close_buttons": [],
-  "daily.blocked": false,
-  "friend.dot": 0.0,
-  "guild.guild_open": false,
-  "hud.state": "fold",
-  "inf2.is_open": false,
-  "main.continue_btn": [
-   false,
-   [
-    576,
-    691
-   ],
-   0.0
-  ],
-  "main.dl_popup": false,
-  "main.fall_popup": [
-   false,
-   [
-    167,
-    774
-   ]
-  ],
-  "main.home_screen": false,
-  "main.popup_open": true,
-  "main.result_popup": [
-   false,
-   [
-    399,
-    798
-   ]
-  ],
-  "main.wave_visible": false,
-  "notice.detect": null,
-  "pet.rep_pet": null,
-  "pet.speed_x4": [
-   true,
-   0.97,
-   0.16
-  ],
-  "preset.bulk_open": false,
-  "preset.hero_auto_on": false,
-  "preset.preset_open": true,
-  "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
-  "soul.screen_state": "other",
-  "wave.read_wave": null,
-  "wavecall.auto_on": [
-   false,
-   3
-  ],
-  "wavecall.dlg_open": false,
-  "wavecall.tab_selected": false
- },
- "probe_scrcpy.png": {
-  "arrange.dialog_open": false,
-  "arrange.status": [
-   0,
    [],
    [],
-   [
-    [
-     253,
-     368
-    ],
-    [
-     459,
-     372
-    ]
-   ],
    []
   ],
   "barracks.barracks_open": false,
@@ -3555,8 +3592,83 @@
   "main.fall_popup": [
    false,
    [
-    123,
-    669
+    0,
+    0
+   ]
+  ],
+  "main.home_screen": false,
+  "main.popup_open": true,
+  "main.result_popup": [
+   false,
+   [
+    445,
+    895
+   ]
+  ],
+  "main.wave_visible": false,
+  "notice.detect": null,
+  "pet.rep_pet": null,
+  "pet.speed_x4": [
+   true,
+   0.97,
+   0.16
+  ],
+  "preset.bulk_open": false,
+  "preset.hero_auto_on": false,
+  "preset.preset_open": true,
+  "skillctl.auto_on": true,
+  "skillctl.ring_ok": false,
+  "soul.screen_state": "other",
+  "wave.read_wave": null,
+  "wavecall.auto_on": [
+   false,
+   3
+  ],
+  "wavecall.dlg_open": false,
+  "wavecall.tab_selected": false
+ },
+ "probe_scrcpy.png": {
+  "arrange.dialog_open": false,
+  "arrange.status": [
+   0,
+   [],
+   [],
+   [
+    [
+     221,
+     343
+    ],
+    [
+     485,
+     346
+    ]
+   ],
+   [],
+   [],
+   []
+  ],
+  "barracks.barracks_open": false,
+  "barracks.is_full": false,
+  "closer.close_buttons": [],
+  "daily.blocked": false,
+  "friend.dot": 0.0,
+  "guild.guild_open": false,
+  "hud.state": null,
+  "inf2.is_open": false,
+  "main.continue_btn": [
+   false,
+   [
+    576,
+    691
+   ],
+   0.0
+  ],
+  "main.dl_popup": false,
+  "main.fall_popup": [
+   false,
+   [
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3598,14 +3710,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3614,7 +3728,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "fold",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    true,
@@ -3628,8 +3742,8 @@
   "main.fall_popup": [
    false,
    [
-    107,
-    738
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3637,8 +3751,8 @@
   "main.result_popup": [
    false,
    [
-    363,
-    694
+    274,
+    783
    ]
   ],
   "main.wave_visible": true,
@@ -3653,7 +3767,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": true,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 6600,
   "wavecall.auto_on": [
@@ -3671,14 +3785,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3701,8 +3817,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    781
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3744,14 +3860,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3779,8 +3897,8 @@
   "main.fall_popup": [
    false,
    [
-    103,
-    681
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3788,8 +3906,8 @@
   "main.result_popup": [
    false,
    [
-    339,
-    795
+    405,
+    925
    ]
   ],
   "main.wave_visible": true,
@@ -3822,14 +3940,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": true,
@@ -3843,7 +3963,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -3857,8 +3977,8 @@
   "main.fall_popup": [
    false,
    [
-    144,
-    775
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3882,7 +4002,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 4100,
   "wavecall.auto_on": [
@@ -3900,14 +4020,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": true,
@@ -3921,7 +4043,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -3935,8 +4057,8 @@
   "main.fall_popup": [
    false,
    [
-    144,
-    775
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -3960,7 +4082,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 4100,
   "wavecall.auto_on": [
@@ -3978,14 +4100,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -3994,7 +4118,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -4008,8 +4132,8 @@
   "main.fall_popup": [
    false,
    [
-    106,
-    734
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4017,8 +4141,8 @@
   "main.result_popup": [
    false,
    [
-    397,
-    798
+    336,
+    900
    ]
   ],
   "main.wave_visible": true,
@@ -4033,7 +4157,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 5400,
   "wavecall.auto_on": [
@@ -4051,14 +4175,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4067,7 +4193,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -4081,8 +4207,8 @@
   "main.fall_popup": [
    false,
    [
-    106,
-    734
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4106,7 +4232,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 5400,
   "wavecall.auto_on": [
@@ -4124,14 +4250,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4154,8 +4282,8 @@
   "main.fall_popup": [
    false,
    [
-    91,
-    655
+    0,
+    0
    ]
   ],
   "main.home_screen": true,
@@ -4163,8 +4291,8 @@
   "main.result_popup": [
    false,
    [
-    310,
-    694
+    274,
+    649
    ]
   ],
   "main.wave_visible": false,
@@ -4197,14 +4325,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4213,7 +4343,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -4227,8 +4357,8 @@
   "main.fall_popup": [
    false,
    [
-    110,
-    681
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4236,8 +4366,8 @@
   "main.result_popup": [
    false,
    [
-    399,
-    798
+    445,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -4252,7 +4382,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 7200,
   "wavecall.auto_on": [
@@ -4270,14 +4400,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4286,7 +4418,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -4300,8 +4432,8 @@
   "main.fall_popup": [
    false,
    [
-    107,
-    737
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4309,7 +4441,7 @@
   "main.result_popup": [
    false,
    [
-    338,
+    301,
     783
    ]
   ],
@@ -4325,7 +4457,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 7200,
   "wavecall.auto_on": [
@@ -4343,14 +4475,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4359,7 +4493,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -4373,8 +4507,8 @@
   "main.fall_popup": [
    false,
    [
-    110,
-    681
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4382,8 +4516,8 @@
   "main.result_popup": [
    false,
    [
-    310,
-    732
+    389,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -4398,7 +4532,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 7600,
   "wavecall.auto_on": [
@@ -4416,14 +4550,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4432,7 +4568,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    true,
@@ -4446,8 +4582,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4455,8 +4591,8 @@
   "main.result_popup": [
    false,
    [
-    317,
-    732
+    445,
+    895
    ]
   ],
   "main.wave_visible": false,
@@ -4471,7 +4607,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": null,
   "wavecall.auto_on": [
@@ -4489,23 +4625,25 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
   "barracks.is_full": true,
   "closer.close_buttons": [],
   "daily.blocked": false,
-  "friend.dot": 0.0,
+  "friend.dot": 0.01,
   "guild.guild_open": false,
-  "hud.state": "fold",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -4519,8 +4657,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4528,8 +4666,8 @@
   "main.result_popup": [
    false,
    [
-    317,
-    735
+    445,
+    895
    ]
   ],
   "main.wave_visible": false,
@@ -4544,7 +4682,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": null,
   "wavecall.auto_on": [
@@ -4562,14 +4700,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4578,7 +4718,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -4592,8 +4732,8 @@
   "main.fall_popup": [
    false,
    [
-    107,
-    738
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4601,7 +4741,7 @@
   "main.result_popup": [
    false,
    [
-    314,
+    302,
     783
    ]
   ],
@@ -4617,7 +4757,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": false,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": null,
   "wavecall.auto_on": [
@@ -4635,14 +4775,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4651,7 +4793,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "fold",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -4665,8 +4807,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4674,8 +4816,8 @@
   "main.result_popup": [
    false,
    [
-    399,
-    798
+    387,
+    896
    ]
   ],
   "main.wave_visible": true,
@@ -4690,7 +4832,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 4600,
   "wavecall.auto_on": [
@@ -4708,14 +4850,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4743,8 +4887,8 @@
   "main.fall_popup": [
    false,
    [
-    165,
-    637
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4752,8 +4896,8 @@
   "main.result_popup": [
    false,
    [
-    401,
-    743
+    434,
+    748
    ]
   ],
   "main.wave_visible": true,
@@ -4786,14 +4930,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4816,8 +4962,8 @@
   "main.fall_popup": [
    false,
    [
-    159,
-    699
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4859,14 +5005,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4889,8 +5037,8 @@
   "main.fall_popup": [
    false,
    [
-    159,
-    699
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4932,14 +5080,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -4948,7 +5098,7 @@
   "daily.blocked": false,
   "friend.dot": 0.0,
   "guild.guild_open": false,
-  "hud.state": "open",
+  "hud.state": null,
   "inf2.is_open": false,
   "main.continue_btn": [
    false,
@@ -4962,8 +5112,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    774
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -4987,7 +5137,7 @@
   "preset.hero_auto_on": false,
   "preset.preset_open": false,
   "skillctl.auto_on": true,
-  "skillctl.ring_ok": true,
+  "skillctl.ring_ok": false,
   "soul.screen_state": "other",
   "wave.read_wave": 7500,
   "wavecall.auto_on": [
@@ -5005,14 +5155,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -5035,8 +5187,8 @@
   "main.fall_popup": [
    false,
    [
-    159,
-    699
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -5078,14 +5230,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -5108,8 +5262,8 @@
   "main.fall_popup": [
    false,
    [
-    94,
-    699
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -5151,14 +5305,16 @@
    [],
    [
     [
-     253,
-     368
+     221,
+     343
     ],
     [
-     459,
-     372
+     485,
+     346
     ]
    ],
+   [],
+   [],
    []
   ],
   "barracks.barracks_open": false,
@@ -5181,8 +5337,8 @@
   "main.fall_popup": [
    false,
    [
-    167,
-    586
+    0,
+    0
    ]
   ],
   "main.home_screen": false,
@@ -5190,8 +5346,8 @@
   "main.result_popup": [
    false,
    [
-    323,
-    726
+    357,
+    616
    ]
   ],
   "main.wave_visible": true,

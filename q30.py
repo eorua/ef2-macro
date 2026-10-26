@@ -23,8 +23,8 @@ ADB = [r"C:\platform-tools\adb.exe", "-s", __import__("adbport").DEV]
 
 GOLD_ROI = (588, 716, 716, 754)      # 화면 아래 정보줄의 골드(주황 글자) x1, y1, x2, y2
 TARGET = "170ao"                     # 이만큼 모이면 오픈 시도 (patch285: 200ao -> 170ao)
-GOLD_EVERY = 60                      # 골드 확인 간격(초)
-OPEN_RETRY = 300                     # 오픈 버튼이 회색이었으면 이만큼 뒤에 다시 (초)
+GOLD_EVERY = 25                      # 골드 확인 간격(초) (patch286: 텀 단축 60초 -> 25초)
+OPEN_RETRY = 120                     # 오픈 버튼이 회색이었으면 이만큼 뒤에 다시 (초, patch286: 300초 -> 120초)
 MAX_OPEN_TRIES = 6
 TAB_QUEST = (68, 1240)
 TAB_HERO = (185, 1240)
@@ -288,46 +288,54 @@ def _adb(*a):
     return subprocess.run(ADB + list(a), capture_output=True, timeout=15, creationflags=0x08000000)
 
 
-def _to_bottom(max_swipes=12):
-    prev, same = None, 0
+def _to_bottom(max_swipes=10):
+    """patch286: 퀘스트 목록 맨 아래(30번)까지 스크롤. 600px 씩 시원하게 스와이프"""
+    import ocrx
     img = preset.capture()
-    for _ in range(max_swipes):
+    for i in range(max_swipes):
         if img is None:
             return None
-        band = cv2.cvtColor(img[840:1200, 150:600], cv2.COLOR_BGR2GRAY).astype(int)
-        if prev is not None and float(np.abs(band - prev).mean()) < 2.0:
-            same += 1
-            if same >= 2:
-                return img
-        else:
-            same = 0
-        prev = band
-        _adb("shell", "input", "swipe", "360", "1170", "360", "870", "500")
-        time.sleep(0.7)
+        _adb("shell", "input", "swipe", "360", "1080", "360", "480", "350")
+        time.sleep(0.5)
         img = preset.capture()
+        if img is None:
+            return None
+        if i >= 3:  # 최소 4회 이상 스크롤 후 30번 위치 확인
+            ws = ocrx.words(img) or []
+            ys = [w[2] for w in ws if "협상" in w[0] or w[0].startswith("30.")]
+            if ys:
+                y = max(ys)
+                if y > 1080:  # 30번 제목이 화면 밑에 살짝 걸쳤으면 추가 스와이프로 온전히 올림
+                    _adb("shell", "input", "swipe", "360", "1000", "360", "750", "300")
+                    time.sleep(0.5)
+                    img = preset.capture()
+                return img
     return img
 
 
 def row30(img):
-    """30번 줄 -> (제목 y, 오픈 버튼 좌표, 버튼 활성 여부, 버튼 글자) / 못 찾으면 None"""
+    """patch286: 30번 줄 -> (제목 y, 오픈 버튼 좌표, 버튼 활성 여부, 버튼 글자, 채도, lv0, coin) / 못 찾으면 None"""
+    if img is None:
+        return None
     import ocrx
     ws = ocrx.words(img) or []
-    ys = [w[2] for w in ws if "협상" in w[0] or w[0].startswith("30.")]
+    # 30. 또는 협상 (퀘스트 바닥 위치는 y ≈ 1130~1150)
+    ys = [w[2] for w in ws if ("협상" in w[0] or w[0].startswith("30.")) and 600 <= w[2] <= 1180]
     if not ys:
         return None
     y = max(ys)
     bx, by = BTN_DX, y + BTN_DY
-    roi = img[by - 22:by + 22, bx - 55:bx + 55]
-    sat = float(np.median(cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)[..., 1]))
+    # patch286: 동전 아이콘 간섭을 피하기 위해 버튼 상단 배경(by-20:by-5)의 채도 측정 (회색=0~25, 활성갈색=80~200)
+    roi_top = img[by - 20:by - 5, bx - 45:bx + 45]
+    sat = float(np.median(cv2.cvtColor(roi_top, cv2.COLOR_BGR2HSV)[..., 1])) if roi_top.size > 0 else 0.0
     btxt = " ".join(w[0] for w in ws if abs(w[2] - by) < 30 and w[1] > 540)
     lv0 = any(re.search(r"Lv\.?0\b", w[0]) for w in ws if w[1] < 160 and 0 < w[2] - y < 90)
-    hv = cv2.cvtColor(img[y + 18:y + 50, 156:178], cv2.COLOR_BGR2HSV)     # patch188: 진행 막대 앞 동전 - 안 열린 줄은 회색
-    coin = float(((hv[..., 0] >= 12) & (hv[..., 0] <= 35) & (hv[..., 1] >= 120) & (hv[..., 2] >= 150)).mean())
-    if coin < 0.12:                                   # 열린 줄 0.3~0.43, 안 열린 30번 0.0 (10-18)
+    hv = cv2.cvtColor(img[y + 18:y + 50, 156:178], cv2.COLOR_BGR2HSV) if y + 50 <= 1280 else None
+    coin = float(((hv[..., 0] >= 12) & (hv[..., 0] <= 35) & (hv[..., 1] >= 120) & (hv[..., 2] >= 150)).mean()) if hv is not None and hv.size > 0 else 0.0
+    if coin < 0.12:                                   # 열린 줄 0.3~0.43, 안 열린 30번 0.0
         lv0 = True
-    if lv0 and "오픈" not in btxt:                     # patch187: 아직 Lv.0 이면 안 열린 것 -> 버튼 글자를 일부만 읽어도 '오픈'으로 봄
-        btxt = "오픈 " + btxt
-    return y, (bx, by), sat >= SAT_ACTIVE, btxt, sat
+    active = sat >= 50
+    return y, (bx, by), active, btxt, sat, lv0, coin
 
 
 def _closed(btxt):
@@ -336,7 +344,7 @@ def _closed(btxt):
 
 
 def open_quest30(say=log):
-    """'open': 퀘스트 탭 맨 아래 30번 오픈 버튼이 활성일 때만 누름 -> 'opened' / 'gray' / 'fail'"""
+    """patch286: 퀘스트 탭 맨 아래 30번 오픈 버튼이 활성일 때만 누름 -> 'opened' / 'gray' / 'fail'"""
     try:
         preset.tap(TAB_QUEST, "퀘스트 탭")
         time.sleep(0.8)
@@ -345,13 +353,20 @@ def open_quest30(say=log):
             return "fail"
         r = row30(img)
         if r is None:
+            # 살짝 올려서 한 번 더 시도
+            _adb("shell", "input", "swipe", "360", "950", "360", "650", "300")
+            time.sleep(0.5)
+            img = preset.capture()
+            r = row30(img) if img is not None else None
+        if r is None:
             _save("q30_norow.png", img)
             say("  [30퀘] 30번 줄을 못 찾음 (shots\\q30_norow.png)")
             return "fail"
-        y, pt, active, btxt, sat = r
+        y, pt, active, btxt, sat, lv0, coin = r
         _save("q30_before.png", img)
-        if not _closed(btxt) and btxt:
-            say("  [30퀘] 30번 버튼에 '오픈' 글자가 없음 (%s) -> 이미 열린 것으로 봄" % btxt)
+        # patch286 오판 방지: 'max' 가 있으면 이미 열린 퀘스트 줄
+        if "max" in btxt.lower():
+            say("  [30퀘] 30번이 이미 열려 있음 (버튼=%s, coin=%.2f) -> opened" % (btxt, coin))
             return "opened"
         if not active:
             say("  [30퀘] 오픈 버튼이 회색 (채도 %.0f, %s) -> 아직 골드 부족" % (sat, btxt))
@@ -363,9 +378,12 @@ def open_quest30(say=log):
         if img2 is not None:
             _save("q30_after.png", img2)
             r2 = row30(img2)
-            if r2 is not None and _closed(r2[3]):
-                say("  [30퀘] 눌렀는데 아직 '오픈' 버튼이 보임 (%s)" % r2[3])
-                return "gray"
+            if r2 is not None:
+                _, _, active2, btxt2, sat2, _, coin2 = r2
+                # 눌렀는데도 여전히 회색 미오픈 상태면 실패
+                if not active2 and "max" not in btxt2.lower():
+                    say("  [30퀘] 눌렀는데 아직 미오픈 상태임 (sat=%.0f, %s)" % (sat2, btxt2))
+                    return "gray"
         return "opened"
     finally:
         try:

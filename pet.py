@@ -286,12 +286,28 @@ Q_STEP = 20                     # 맞추는 폭(초)
 Q_RETRY = 30                    # 200c 전 다시 확인 간격(초)
 Q_RETRY_400 = 20                # 400c 전 다시 확인 간격(초)
 
+# patch286: 30퀘 빌드(골드 프리셋) 전용 초고속 간격 (골드 증가로 29퀘 만렙 도달이 훨씬 빠름)
+Q_FIRST_Q30 = (25, 60, 35)      # 30퀘 환생 뒤 첫 확인: 35초 (최소 25, 최대 60)
+Q_400_Q30 = (15, 45, 20)        # 30퀘 랩티 뒤 첫 확인: 20초 (최소 15, 최대 45)
+Q_RETRY_Q30 = 15                # 30퀘 200c 전 다시 확인 간격(초)
+Q_RETRY_400_Q30 = 12            # 30퀘 400c 전 다시 확인 간격(초)
+
+
+def _is_q30(st):
+    try:
+        import q30
+        return q30.on(st)
+    except Exception:
+        return False
+
 
 def first_delay(st):
     """main 이 환생 직후 부름: 첫 확인까지 몇 초"""
     st["pq_t0"] = time.time()
     st["pq_miss200"] = 0
     st["pq_miss400"] = 0
+    if _is_q30(st):
+        return int(st.get("pq_first_q30", Q_FIRST_Q30[2]))
     return int(st.get("pq_first", Q_FIRST[2]))
 
 
@@ -318,30 +334,41 @@ def quest_tick(st, say=log):
     v, t = read_quest29()
     cur = st.get("pet_q", "팅키")
     tgt = quest_target(v, cur)
-    # patch134: 지난 판 기록으로 맞춘 간격
+    q30_mode = _is_q30(st)
+    # patch134 / patch286: 지난 판 기록으로 맞춘 간격 (30퀘 빌드는 초고속 간격 적용)
     if v is None or v < TO_RAPTY:
         if cur == "랩티":
             st["pq_miss400"] = st.get("pq_miss400", 0) + (1 if v is not None or "안 열림" not in str(t) else 0)
-            nxt = Q_RETRY_400
+            nxt = Q_RETRY_400_Q30 if q30_mode else Q_RETRY_400
         else:
             st["pq_miss200"] = st.get("pq_miss200", 0) + (1 if v is not None or "안 열림" not in str(t) else 0)
-            nxt = Q_RETRY
+            nxt = Q_RETRY_Q30 if q30_mode else Q_RETRY
     elif v < TO_TINKY:
         if cur != "랩티":
-            _adapt(st, "pq_first", Q_FIRST, st.get("pq_miss200", 0))
+            if q30_mode:
+                _adapt(st, "pq_first_q30", Q_FIRST_Q30, st.get("pq_miss200", 0))
+                nxt = int(st.get("pq_d400_q30", Q_400_Q30[2]))
+            else:
+                _adapt(st, "pq_first", Q_FIRST, st.get("pq_miss200", 0))
+                nxt = int(st.get("pq_d400", Q_400[2]))
             if st.get("pq_t0"):
                 say("  200c 확인: 환생 %.1f분 뒤 (그전 못 미친 확인 %d번) -> 다음 판 첫 확인 %d초" % (
-                    (time.time() - st["pq_t0"]) / 60, st.get("pq_miss200", 0), st["pq_first"]))
+                    (time.time() - st["pq_t0"]) / 60, st.get("pq_miss200", 0),
+                    st.get("pq_first_q30" if q30_mode else "pq_first")))
             st["pq_miss400"] = 0
-            nxt = int(st.get("pq_d400", Q_400[2]))
         else:
             st["pq_miss400"] = st.get("pq_miss400", 0) + 1
-            nxt = Q_RETRY_400
+            nxt = Q_RETRY_400_Q30 if q30_mode else Q_RETRY_400
     else:
         if cur == "랩티":
-            _adapt(st, "pq_d400", Q_400, st.get("pq_miss400", 0))
-            say("  400c 확인 (그전 못 미친 확인 %d번) -> 다음 판 랩티 뒤 첫 확인 %d초" % (
-                st.get("pq_miss400", 0), st["pq_d400"]))
+            if q30_mode:
+                _adapt(st, "pq_d400_q30", Q_400_Q30, st.get("pq_miss400", 0))
+                say("  400c 확인 (그전 못 미친 확인 %d번) -> 다음 판 랩티 뒤 첫 확인 %d초" % (
+                    st.get("pq_miss400", 0), st["pq_d400_q30"]))
+            else:
+                _adapt(st, "pq_d400", Q_400, st.get("pq_miss400", 0))
+                say("  400c 확인 (그전 못 미친 확인 %d번) -> 다음 판 랩티 뒤 첫 확인 %d초" % (
+                    st.get("pq_miss400", 0), st["pq_d400"]))
         nxt = 300
     st["pq_next"] = time.time() + nxt
     say("퀘스트 29번 레벨 %s (%s) -> 대표 펫 %s%s / 다음 확인 %d초 뒤" % (

@@ -24,6 +24,15 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-26 (Antigravity, patch280) 표키2 패스 미션 5~6행 좌표 간격(115px) 수정 및 다중 빙고 이벤트(골드러쉬 G_gold vs 할로윈 G_hall) 분리 자동화** (`C:\pyokey\pass_quest.py`, `C:\pyokey\events.py`, `C:\pyokey\tpl\ev_title_*.png`):
+  - 1) **패스 미션 5~6번 미수령 원인 해결 (`pass_quest.py`)**:
+    - 미션 카드 행 간격이 90px이 아닌 115px(`MISSION_CLAIMS = [(605, 535 + 115 * i) for i in range(6)]`)로, 기존에 4행(870px)까지만 탭하고 5행(보스 처치, 995px) 및 6행(환영누각, 1110px)을 누르지 못하던 문제 해결.
+    - 탭 위치 `TAB_MISSION=(545, 440)`, `TAB_REWARD=(230, 440)` 정합성 보정 및 실전 실행으로 미수령 미션 2종 + 상단 무료 보상 정상 수령 완료.
+  - 2) **다중 빙고 이벤트(골드러쉬 vs 할로윈 빙고) 상호 간섭 해결 (`events.py`)**:
+    - 동일한 G유형(`ev_typeG.png`) 구조인 할로윈 빙고와 골드러쉬가 단일 키(`ev_G_day`)를 공유하여, 먼저 만난 할로윈 빙고 완료 후 골드러쉬가 "오늘 이미 한 이벤트"로 판별되어 스킵되던 문제 해결.
+    - 상단 배너 타이틀 템플릿(`ev_title_goldrush.png`, `ev_title_halloween.png`) 기반 세부 분류(`classify_g`) 신설: `G_gold`와 `G_hall`로 분리.
+    - 각각 `ev_G_gold_day`, `ev_G_hall_day`로 독립 저장/처리하여 두 이벤트가 동시에 진행될 때도 매일 둘 다 빠짐없이 미션 수령 및 빙고 3회 뽑기 자동 수행 완료 (실전 검증: 골드러쉬 5개 미션 수령 + 뽑기 3회 완벽 수행 확인).
+
 - **2026-10-26 (Antigravity, patch279) 유물 공방 사전 포석(CLUST / HUB7) 3,000판 벤치마크 검증 및 Claude Code 권한 완성** (`bench_prehub.py`, `bench_prehub_result.txt`, `.claude/settings.local.json`, `~/.claude/settings.json`):
   - 1) **유물 공방 사전 포석 시뮬레이션 비교 (총 3,000판, 5개 군 x 600판)**:
     - **A (현재 기준: HUB 60, TENB 100)**: ★10 **27.5%**, 평균 **154.1수**, 점수 7,609, 8x5 직행 158회 (최고 성적).

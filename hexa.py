@@ -308,19 +308,27 @@ def tap(x, y):
     adb("shell", "input", "tap", str(int(x)), str(int(y)))
 
 
-def swipe(x1, y1, x2, y2, ms):
+def swipe(x1, y1, x2, y2, ms=380):
     c = _CAM[0]
-    if c:                     # patch292b: fastcam 직결 터치로 지연 없이 즉각 드래그
+    if c:                     # patch292b/patch293c: 60Hz 초고속 부드러운 드래그 & 집기/놓기 안정화
         try:
-            steps = 8
+            # 1. 터치 다운 (조각 집기 래치 35ms 대기)
             c.touch(0, int(x1), int(y1))
+            time.sleep(0.035)
+
+            # 2. 60Hz 연속 보간 이동 (smoothstep 가감속)
+            steps = max(24, int(ms / 15))
             dt = (ms / 1000.0) / steps
             for i in range(1, steps + 1):
-                time.sleep(dt)
-                xi = int(x1 + (x2 - x1) * i / steps)
-                yi = int(y1 + (y2 - y1) * i / steps)
+                t = i / steps
+                s = 3.0 * t * t - 2.0 * t * t * t  # smoothstep
+                xi = int(x1 + (x2 - x1) * s)
+                yi = int(y1 + (y2 - y1) * s)
                 c.touch(2, xi, yi)
-            time.sleep(0.06)
+                time.sleep(dt)
+
+            # 3. 목표 지점 칸 스냅 안착 45ms 대기 후 터치 업
+            time.sleep(0.045)
             c.touch(1, int(x2), int(y2))
             return
         except Exception as ex:
@@ -916,13 +924,11 @@ def check_result(r, r3, cells, ts, preds, cx, cy, im3):
                 save_cfg()
                 log("드래그 보정: 빗나감 (%.0f,%.0f) -> lift %s" % (dx, dy, [round(v) for v in CFG["lift"]]))
     if b0 == b1:
-        # 조각이 판에 안 들어감 -> 드래그 높이 후보를 돌려 가며 시험
-        cands = [130, 100, 160, 70, 190, 40]
+        # patch293c: 10/26 새 UI 정밀 lift(160) 주변에서만 미세 보정, swipe_ms 폭주 방지
+        cands = [160, 155, 165, 150, 170]
         CFG["drop_fail"] = CFG.get("drop_fail", 0) + 1
         i = CFG["drop_fail"] % len(cands)
         CFG["lift"] = [0.0, float(cands[i])]
-        if CFG["drop_fail"] % len(cands) == 0:
-            CFG["swipe_ms"] = min(1500, CFG["swipe_ms"] + 250)
         save_cfg()
         log("판이 그대로 -> 드래그 실패 %d번째, lift %s, swipe %dms" % (CFG["drop_fail"], CFG["lift"], CFG["swipe_ms"]))
     else:

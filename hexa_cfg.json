@@ -1,14 +1,14 @@
 {
  "lift": [
   0.0,
-  160.0
+  100.0
  ],
  "rot_dir": 1,
  "colors": {},
- "swipe_ms": 650,
+ "swipe_ms": 900,
  "settle": 0.9,
  "depth": 3,
- "drop_fail": 2,
+ "drop_fail": 7,
  "c_exact": 1,
  "c_depth": 3,
  "c_tenb": 100.0,

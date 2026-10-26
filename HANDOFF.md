@@ -24,6 +24,14 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-26 (Antigravity, patch287) 확정 합성점(●) 지향 연쇄 조준 알고리즘 구현 및 망치 임계 빈칸 수 튜닝 도구 구축** (`hexa.py`, `hexa_train/bench_hammer_threshold.*`):
+  - 1) **확정 합성점(●) 지향 연쇄 조준 (`find_dot_aim_move`)**:
+    - 조각의 회전각(0~5)에 따라 점(●) 위치가 달라지는 특성을 반영하여, 모든 배치/회전 후보 중 **점(●) 자리에 상위 기물이 태어나 즉시 ★10 합성(8성 5개 합체 등)이 완성되는 킬각 수**가 존재하면 0.4ms 만에 즉시 감지하여 최우선 선택.
+    - ★10 미달성 시, 점 자리에 탄생하는 ★8이 기존 ★8들과 인접 허브를 이루도록 점 위치를 허브 중심으로 자동 조준.
+  - 2) **망치 임계 빈칸 수 튜닝 PC 단독 실행 도구 구축 (`hexa_train/bench_hammer_threshold.bat`)**:
+    - 대량 시뮬레이션을 유저 PC에서 언제든 직접 백그라운드로 돌려볼 수 있도록 원클릭 배치 파일 제공.
+    - 6대 임계치 전략을 실시간 진행률(`flush=True`)과 함께 비교하여 `hexa_train/bench_hammer_threshold_result.txt`에 자동 저장.
+
 - **2026-10-26 (Antigravity, patch286) 유물 공방 독립 배포 패키지 구성 및 ADB 경로 유연화** (`adbport.py`, `hexa.py`, `.gitignore`):
   - **지인 전달용 원클릭 패키지 생성**: `C:\macro\유물공방_배포용.zip` (17.7MB).
     - 봇 실행 필수 파일 16종 동봉: `hexa.py`, `hexa_engine.py`, `hexa_vision.py`, `hexa_nt.py`, `hexa_cfg.json`, `hexa_nt_w.npz`, `hexa_search_v8.exe`, `adbport.py`, `adb.exe`, DLL 2종, 원클릭 배치파일 4종(`1_필수라이브러리_설치.bat`, `2_공방_테스트.bat`, `3_공방_1판_플레이.bat`, `4_공방_연속_플레이.bat`), `사용설명서.txt`.

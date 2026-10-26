@@ -537,8 +537,47 @@ def tm_move_done():
         TM["n"] = 0
 
 
+def find_dot_aim_move(b, piece, dot_idx, has_star10=False):
+    """확정 합성점(●) 지향 연쇄 조준 (patch287):
+    조각의 모든 가능한 회전 및 배치 중, 점(●) 위치를 고려했을 때:
+    1순위: 즉시 ★10 합성(8성 5개 합체 등)을 달성하는 수가 있다면 최우선 선택!
+    2순위: (★10 미달성 시) 새로 생성되는 ★8이 기존 ★8들과 인접 허브를 이루는 수가 있다면 우선 선택!
+    """
+    if dot_idx is None or dot_idx >= len(piece):
+        return None
+    best_hub_move = None
+    best_hub_conn = 0
+    for k, cells, ts in E.moves(b, piece):
+        dot_cell = cells[dot_idx]
+        nb, made, _ = E.apply(b, cells, ts, dot_cell=dot_cell)
+        if any(nt >= 10 for _t, _n, nt in made):
+            return k, cells, ts, "star10"
+        if not has_star10:
+            for t, n, nt in made:
+                if nt == 8:
+                    g8 = [n for n in E.NB[dot_cell] if nb[n] == 8]
+                    if len(g8) >= 2 and len(g8) > best_hub_conn:
+                        best_hub_conn = len(g8)
+                        best_hub_move = (k, cells, ts, "hub")
+    if best_hub_move is not None and best_hub_conn >= 2:
+        return best_hub_move
+    return None
+
+
 def plan(r, only_k0=False):
     b = board_for_plan(r["board"])
+    has_star10 = any(x >= 10 for x in b) or any(t >= 10 for t in HI.values()) or STATS.get("star10", 0) >= 1
+
+    # patch287: 확정 합성점(●) 지향 연쇄 조준 (★10 킬각 최우선 저격)
+    dot_idx = getattr(r.get("tray"), "dot_idx", None)
+    if dot_idx is not None:
+        aim_mv = find_dot_aim_move(b, r["tray"], dot_idx, has_star10=has_star10)
+        if aim_mv is not None and aim_mv[3] == "star10":
+            k, cells, ts, _kind = aim_mv
+            log("🎯 [연쇄 조준] 점(●) 위치 회전 최적화 ➜ ★10 확정 합성 각 발견! (회전 %d, 칸 %s)" % (k, cells))
+            STATS["plans"] = STATS.get("plans", 0) + 1
+            STATS["c_info"] = "[연쇄조준 ★10]"
+            return k, cells, ts, 9999.0
     # patch231: 학습된 n-tuple 평가(hexa_nt_w.npz)가 있으면 그것으로 3수 탐색. hexa_cfg.json "brain": "old" 면 예전 방식
     if CFG.get("brain", "nt") == "nt" and NT is not None and NT.available():
         t0 = time.time()

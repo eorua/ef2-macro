@@ -24,6 +24,35 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-27 (Antigravity, patch294) 유물 공방 버그 원인 규명, 7대 안전 입력 차단 시스템 구축, 드래그 끊김/파라미터 정상화 및 오프라인 검증 체계 구축** (`hexa.py`, `hexa_cfg.json`, `tests/test_hexa_safety.py`):
+  - **1) 기존 분석 사실 여부 및 42번째 수 이후 45번째 수 전환 원인 확정**:
+    - **스크린샷 타임스탬프 분리 및 착오 규명**: 기존 관찰(43번 None, 44번 game 8개 미인식, 45번 lobby)은 서로 다른 날짜/세션의 파일(`040.png` 01:44:44, `043.png` 01:44:55, `044.png` 10/26 01:21:14 어제 파일, `045.png` 02:15:22)을 연속된 프레임으로 오인한 오류였음을 실측 입증.
+    - **42->45수 건너뜀 원인 규명**: `hexa.py`는 `if preds[hit][1]:` 규칙에 따라 **합침(`made`)이 발생한 수만 로그를 남김**. 수 43(`mv=42`, 1칸 2등급)과 수 44(`mv=43`, 1칸 2등급)는 합침 없는 빈칸 배치였으므로 로그만 출력되지 않았을 뿐, `shots/hexa_spawn.jsonl`에 정상 배치(`mv=42`, `mv=43`)로 기록됨.
+    - **게임 조기 중단 원인 규명**: 수 45(`mv=44`) 드래그 직후 `wait_settle()`에서 실제 로비 화면이 감지되어 `hexa_after_045.png`가 저장됨. 보드에 빈칸 15칸이 남아있어 게임오버가 아님에도 `play()`의 로비 분기(`started > finished and in_game`)에서 종료 처리 후 바로 '이어 하기'로 재진입했던 현상 규명.
+  - **2) 화면 상태에 따른 7대 안전 입력 차단 시스템 구현 (`check_game_safety`, `do_move`, `play`)**:
+    - **원칙 1 (None/신뢰도 부족 시 차단)**: 상태가 `None`이거나 미인식 칸 `len(unk) > 4`이면 추가 입력 없이 즉시 스크린샷(`hexa_safety_unk_*.png`, `hexa_unknown_*.png`) 저장 후 중단.
+    - **원칙 2 (lobby/over/popup 임의 조작 금지)**: 게임 진행 중 예상 밖의 `lobby`, `over`, `popup` 감지 시 임의로 시작/결과확인/재시작/수령 버튼을 누르지 않고 증거 스크린샷 저장 후 안전 중단. (최초 정상 1회 시작만 허용)
+    - **원칙 3 (입력 직전 정상 상태 검증)**: 회전 탭, 망치 탭, 드래그 직전에 매번 현재 화면을 캡처하여 `check_game_safety` 검증 통과 시에만 입력 허용.
+    - **원칙 4 (입력 후 화면 및 보드 변화 검증)**: 드래그 후 화면을 다시 캡처하여 `st == "game"` 및 보드 변화(`b0 != b1`)를 정밀 확인.
+    - **원칙 5 (판 불변 시 재시도 중단)**: 드래그 후 판이 변하지 않으면(`b0 == b1`), 같은 드래그를 반복하지 않고 `hexa_drag_fail_%03d.png` 저장 후 즉시 중단 (중복 입력 위험 원천 차단).
+    - **원칙 6 (검증 성공 시에만 수 증가)**: `STATS["moves"] += 1`을 입력 호출 시점이 아닌, 드래그 후 화면 및 보드 검증이 100% 완료된 시점에만 성공으로 기록.
+    - **원칙 7 (공통 검사 우회 불가)**: `check_game_safety()` 함수를 공통 가드로 배치하여 모든 입력 경로에 단일 적용.
+  - **3) 드래그 끊김 원인 검증 및 파라미터 정상화 (`hexa.py`, `hexa_cfg.json`)**:
+    - **실행 경로 확인**: `_CAM[0]` 존재 시 `fastcam.py`의 소켓 터치(`c.touch(action, x, y)`) 직결 경로 사용.
+    - **설정값 충돌 및 폭주 원인**: `swipe(..., ms=380)` 기본값이 정의되어 있었으나, 호출부에서 `CFG["swipe_ms"]`를 전달함. 과거 드래그 실패 시 `swipe_ms`가 1500까지 증가하던 로직으로 인해 `hexa_cfg.json`에 `900`ms가 고착되어 있었음.
+    - **터치 래치 안정화**: `hexa_cfg.json`의 `swipe_ms`를 정상 권장값인 `380`ms로 복원하고 `drop_fail`을 `0`으로 리셋. 터치 다운 후 조각 집기 래치 대기를 35ms -> 50ms로 보강하고, 이동 후 안착 래치 대기를 45ms -> 60ms로 보강하여 조각 흘림 및 스냅 실패 방지.
+  - **4) 정형화된 전수 로깅 체계 구축 (`hexa.py`)**:
+    - 각 수마다 세션 ID, 타임스탬프, 이동 번호, 실행 전 화면 상태/미인식 칸/조각/보드, 계획 좌표/함수/설정 시간, 실행 후 상태/미인식 칸/새 조각/성공 여부를 합침 유무와 무관하게 모든 수에 대해 일관되게 출력.
+  - **5) 오프라인 6대 안전 단위 테스트 검증 (`tests/test_hexa_safety.py`)**:
+    - 실제 게임 조작 없이 오프라인 이미지 및 모킹 환경에서 6대 상황 검증 100% 통과 (`Ran 6 tests in 5.043s - OK`):
+      ① `test_state_none_blocks_input` (None 시 입력 차단)
+      ② `test_state_lobby_blocks_input` (lobby 시 입력 차단)
+      ③ `test_incomplete_board_blocks_move` (미인식 6칸 > 4칸 시 low_confidence 차단)
+      ④ `test_normal_game_screen_allowed` (정상 게임 화면에서만 입력 허용)
+      ⑤ `test_drag_failure_does_not_increment_move_or_repeat` (판 불변 시 moves 미증가 및 즉시 중단)
+      ⑥ `test_play_loop_unexpected_lobby_no_restart` (게임 루프 중 예기치 않은 로비 감지 시 추가 tap 없이 안전 중단)
+
+
 - **2026-10-27 (Antigravity, patch293) 유물 공방 멈춤 버그 긴급 해결, 영혼의 휴식 다이아 1000 하향 및 1000 다이아 보존 안전장치, 영혼의 휴식 오프라인 등반(미접속 모드) 구현, BlueStacks 정기 재시작 동작 검증** (`hexa_vision.py`, `soul.py`, `recruit.py`, `main.py`, `panel.py`, `templates/index.html`, `settings.json`, `dist_package/`):
   - **1) 유물 공방 멈춤 버그 긴급 해결 (`hexa_vision.py`, `dist_package/`, `유물공방_배포용.zip`)**:
     - **원인 분석**: 10/26 UI 개편으로 보드 칸 크기가 확대됨에 따라 기존 인게임 검증 좌표 `(612, 850)`이 22번 칸 내부 좌표로 편입됨. 이로 인해 22번 칸에 조각이 놓이면 `state()`가 `None`을 반환하고, 20초간 지속되면 `화면을 모르겠음 -> 멈춤 C:\macro\shots\hexa_unknown.png`으로 중단되던 문제.

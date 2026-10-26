@@ -59,7 +59,7 @@ def should_stop():
         return True
     return False
 
-CFG = dict(lift=[0.0, 130.0], rot_dir=1, colors={}, swipe_ms=650, settle=0.9, depth=3)
+CFG = dict(lift=[0.0, 160.0], rot_dir=1, colors={}, swipe_ms=380, settle=0.9, depth=3)
 
 
 def load_cfg():
@@ -310,14 +310,14 @@ def tap(x, y):
 
 def swipe(x1, y1, x2, y2, ms=380):
     c = _CAM[0]
-    if c:                     # patch292b/patch293c: 60Hz 초고속 부드러운 드래그 & 집기/놓기 안정화
+    if c:                     # patch292b/patch293c/patch294: 정밀 터치 안정화 (집기 50ms, smoothstep 보간, 안착 60ms)
         try:
-            # 1. 터치 다운 (조각 집기 래치 35ms 대기)
+            # 1. 터치 다운 (조각 집기 래치 50ms 대기)
             c.touch(0, int(x1), int(y1))
-            time.sleep(0.035)
+            time.sleep(0.050)
 
             # 2. 60Hz 연속 보간 이동 (smoothstep 가감속)
-            steps = max(24, int(ms / 15))
+            steps = max(16, int(ms / 20))
             dt = (ms / 1000.0) / steps
             for i in range(1, steps + 1):
                 t = i / steps
@@ -327,8 +327,8 @@ def swipe(x1, y1, x2, y2, ms=380):
                 c.touch(2, xi, yi)
                 time.sleep(dt)
 
-            # 3. 목표 지점 칸 스냅 안착 45ms 대기 후 터치 업
-            time.sleep(0.045)
+            # 3. 목표 지점 칸 스냅 안착 60ms 대기 후 터치 업
+            time.sleep(0.060)
             c.touch(1, int(x2), int(y2))
             return
         except Exception as ex:
@@ -340,6 +340,28 @@ def save_shot(im, name):
     p = os.path.join(SHOTS, name)
     cv2.imwrite(p, cv2.cvtColor(im, cv2.COLOR_RGB2BGR))
     return p
+
+
+def check_game_safety(im, context=""):
+    """patch294: 모든 입력 경로 공통 안전 가드
+    1. 화면 상태가 'game'인지 확인. 'None', 'lobby', 'over', 'popup' 등 비정상 상태면 즉시 차단.
+    2. 보드 인식 신뢰도 검증: unk(미인식 칸)이 4칸 이하인지 확인.
+    3. 이상 감지 시 스크린샷과 진단 정보를 저장하고 False 반환 (추가 조작 차단).
+    """
+    if im is None:
+        log("[안전 차단] 캡처 화면이 없음 (None) - %s" % context)
+        return False, "no_image", None, None
+    st = V.state(im)
+    if st != "game":
+        p = save_shot(im, "hexa_safety_%s_%s.png" % (st or "unknown", datetime.datetime.now().strftime("%H%M%S")))
+        log("[안전 차단] 화면 상태가 'game'이 아님 (%s) - %s (저장: %s)" % (st, context, p))
+        return False, st, None, p
+    b, unk = V.read_board(im)
+    if len(unk) > 4:
+        p = save_shot(im, "hexa_safety_unk_%d_%s.png" % (len(unk), datetime.datetime.now().strftime("%H%M%S")))
+        log("[안전 차단] 보드 인식 신뢰도 부족 (미인식 %d칸 > 4칸: %s) - %s (저장: %s)" % (len(unk), unk, context, p))
+        return False, "low_confidence", (b, unk), p
+    return True, "game", (b, unk), None
 
 
 # ---------------- 화면 읽기 묶음 ----------------
@@ -689,20 +711,37 @@ def pick_hammer_target(b, piece, has_star10=False):
 
 
 def use_hammer(target_cell):
-    """망치를 터치하고 대상 칸을 터치하여 파괴 (patch283)"""
+    """망치를 터치하고 대상 칸을 터치하여 파괴 (patch283/patch294)"""
+    chk_im = capture()
+    ok, st, _, p = check_game_safety(chk_im, "망치 탭 직전 상태 검증")
+    if not ok:
+        log("[안전 차단] 망치 버튼 탭 전 화면 이상 (%s) -> 망치 사용 중단" % st)
+        return False
     log("망치 버튼 탭: %s" % (V.HAMMER_BTN,))
     tap(*V.HAMMER_BTN)
     time.sleep(0.5)
+    chk_im2 = capture()
+    ok2, st2, _, p2 = check_game_safety(chk_im2, "망치 대상 칸 탭 직전 상태 검증")
+    if not ok2:
+        log("[안전 차단] 망치 대상 칸 탭 전 화면 이상 (%s) -> 대상 터치 중단" % st2)
+        return False
     tx, ty = E.pix(target_cell)
     log("망치 대상 칸 %d 탭: (%d, %d)" % (target_cell, tx, ty))
     tap(tx, ty)
     time.sleep(0.8)
+    return True
 
 
 def do_move(im, r):
     if should_stop():
         log("[공방 중단] 작업 중단 요청 감지 -> 수 진행 중단")
         return False
+    # patch294: 수 진행 직전 화면 안전 가드 (상태 확인 및 보드 신뢰도 검증)
+    ok_safe, st_safe, info_safe, p_safe = check_game_safety(im, "수 시작 전 상태 검증")
+    if not ok_safe:
+        log("[안전 중단] 수 진행 전 화면 안전 검증 실패 (%s) -> 즉시 중단" % st_safe)
+        return False
+
     b0 = r["board"]
     cur = r["tray"]
     has_star10 = any(x >= 10 for x in b0) or any(t >= 10 for t in HI.values()) or STATS.get("star10", 0) >= 1
@@ -740,6 +779,11 @@ def do_move(im, r):
     k, cells, ts, sc = mv
     # 회전
     if k:
+        chk_im = capture()
+        ok_rot, st_rot, _, _ = check_game_safety(chk_im, "회전 전 상태 검증")
+        if not ok_rot:
+            log("[안전 중단] 회전 전 화면 상태 이상 (%s) -> 수 중단" % st_rot)
+            return False
         n = k if CFG["rot_dir"] == 1 else (6 - k) % 6
         META["taps"] = n
         for _ in range(n):
@@ -747,6 +791,7 @@ def do_move(im, r):
             time.sleep(0.35)
         st, im2, r2 = wait_settle(6, hold=0.25)
         if st != "game" or not r2:
+            log("[안전 중단] 회전 후 판 안정화 실패 (상태: %s) -> 수 중단" % st)
             return False
         obs = norm_piece(r2["tray"])
         if obs == rotated(cur, k):
@@ -779,14 +824,21 @@ def do_move(im, r):
                 log("회전 결과가 예상과 달라 지금 방향에서 다시 고름 (조각 %s)" % (norm_piece(r["tray"]),))
                 break
             if extra == 0:
-                save_shot(im2, "hexa_rot_%03d.png" % STATS["moves"])
+                save_shot(im2, "hexa_rot_%03d.png" % (STATS["moves"] + 1))
             log("지금 방향 둘 곳 없음 -> 한 번 더 회전 (%d) 조각 %s" % (extra + 1, norm_piece(r["tray"])))
             if extra == 5:
-                return True
+                log("[안전 중단] 6회 회전 후에도 둘 곳 없음 -> 수 중단")
+                return False
+            chk_im_ext = capture()
+            ok_ext, st_ext, _, _ = check_game_safety(chk_im_ext, "추가 회전 전 상태 검증")
+            if not ok_ext:
+                log("[안전 중단] 추가 회전 전 화면 상태 이상 (%s) -> 수 중단" % st_ext)
+                return False
             tap(*V.ROT_BTN)
             time.sleep(0.45)
             st, im2, r2 = wait_settle(6, hold=0.25)
             if st != "game" or not r2:
+                log("[안전 중단] 추가 회전 후 판 안정화 실패 (상태: %s) -> 수 중단" % st)
                 return False
             r = r2
     tm_add(rot=time.time() - _t_rot if k else 0.0)
@@ -801,36 +853,80 @@ def do_move(im, r):
         preds.append((nb, made))
         ch += 1
     EXPECT[:] = [list(nb) for nb, made in preds]      # patch257
-    # 드래그
+
+    # patch294: 드래그 직전 공통 안전 검증
+    chk_drag = capture()
+    ok_drag, st_drag, _, p_drag = check_game_safety(chk_drag, "드래그 직전 상태 검증")
+    if not ok_drag:
+        log("[안전 중단] 드래그 직전 화면 안전 검증 실패 (%s) -> 입력 차단 및 수 중단" % st_drag)
+        return False
+
+    # 드래그 좌표 계산
     xs = [E.pix(c)[0] for c in cells]
     ys = [E.pix(c)[1] for c in cells]
     cx, cy = sum(xs) / len(xs), sum(ys) / len(ys)
     ex, ey = cx + CFG["lift"][0], cy + CFG["lift"][1]
     META.update(finger=[round(ex), round(ey)], placed=[[c, t] for c, t in zip(cells, ts)],
                 tray_now=[[list(o), t] for o, t in r["tray"]])
+
+    # patch294: 정형화된 상세 수 계획 로그 (세션 ID, 타임스탬프, 이동 번호, 계획 좌표, 설정 시간/인자)
+    next_move_num = STATS["moves"] + 1
+    session_id = SPAWN.get("gid", "unknown")
+    swipe_ms_val = CFG.get("swipe_ms", 380)
+    log("[세션 %s | 수 %d 준비] %s | 상태: %s | 미인식: %d칸 | 조각: %s | 목표 칸: %s | 드래그: (%d,%d) -> (%d,%d) %dms" % (
+        session_id, next_move_num, datetime.datetime.now().strftime("%H:%M:%S"),
+        st_drag, len(r.get("unk", [])), norm_piece(r["tray"]), cells,
+        V.TRAY_C[0], V.TRAY_C[1], round(ex), round(ey), swipe_ms_val
+    ))
+
     _t = time.time()
-    swipe(V.TRAY_C[0], V.TRAY_C[1], ex, ey, CFG["swipe_ms"])
+    swipe(V.TRAY_C[0], V.TRAY_C[1], ex, ey, swipe_ms_val)
     tm_add(drag=time.time() - _t)
     _t = time.time()
     time.sleep(CFG.get("settle_fast", 0.3) if fast_on() else CFG["settle"])     # patch245: 빠른 화면이면 0.9 -> 0.3
     st, im3, r3 = wait_settle(15)
     tm_add(after=time.time() - _t)
-    STATS["moves"] += 1
+
+    # 드래그 후 상태 검증 (원칙 1, 3, 4, 6)
     if st != "game" or not r3:
-        p = save_shot(im3, "hexa_after_%03d.png" % STATS["moves"]) if im3 is not None else ""
-        log("수 %d: 놓은 뒤 상태 %s %s" % (STATS["moves"], st, p))
-        return st in ("over", "popup")
+        p = save_shot(im3, "hexa_after_%03d.png" % next_move_num) if im3 is not None else ""
+        log("[안전 중단] 수 %d 드래그 후 화면이 게임이 아님 (상태: %s, 저장: %s) -> 추가 입력 없이 안전 중단" % (
+            next_move_num, st, p))
+        return False
+
+    b1 = r3["board"]
+    # 판 변화 검증 (원칙 5: 판이 변하지 않았으면 중복 입력 방지를 위해 즉시 중단)
+    if b0 == b1:
+        p = save_shot(im3, "hexa_drag_fail_%03d.png" % next_move_num)
+        log("[안전 중단] 수 %d 드래그 후 판이 변하지 않음 (드래그 실패/미적용, 저장: %s) -> 중복 입력 방지를 위해 즉시 중단" % (
+            next_move_num, p))
+        return False
+
+    # 판이 정상적으로 변경되고 화면 검증이 완료된 경우에만 성공한 수로 기록 (원칙 6)
+    STATS["moves"] += 1
+
     hit = check_result(r, r3, cells, ts, preds, cx, cy, im3)
     for nb, made in preds:
         for t, n, nt in made:
             STATS["best"] = max(STATS["best"], nt)
+
+    # patch294: 합침 유무와 무관하게 모든 수에 대해 정형화된 성공 결과 로그 출력
+    new_tray = norm_piece(r3.get("tray")) if r3.get("tray") else "없음"
+    if hit is not None and preds[hit][1]:
+        log("[수 %d 성공] 칸 %s 배치 완료 -> 합침 %s (새 조각: %s, 미인식: %d칸)" % (
+            STATS["moves"], list(zip(cells, ts)), preds[hit][1], new_tray, len(r3.get("unk", []))
+        ))
+    else:
+        log("[수 %d 성공 (합침 없음)] 칸 %s 배치 완료 (새 조각: %s, 미인식: %d칸)" % (
+            STATS["moves"], list(zip(cells, ts)), new_tray, len(r3.get("unk", []))
+        ))
+
     # patch245: 방금 확인한 멈춘 판을 다음 수에 그대로 (9·10등급 기억은 check_result 가 갱신한 것으로 다시 입힘)
     b = list(r3["board"])
     for i, t in HI.items():
         if b[i] != 0:
             b[i] = t
     # patch266: 화면에서 못 읽은 칸(-1)은 맞아떨어진 예상 판 값으로 채움 (읽은 칸이 전부 예상과 같을 때만).
-    #   실전 로그 재현: 엔진 예상이 실제 판과 97.8% 일치 -> 못 읽은 ★8 을 벽(-1)으로 두고 합칠 기회를 놓치던 문제
     pb = preds[hit][0] if hit is not None else None
     filled = []
     for i in range(E.N):
@@ -839,8 +935,6 @@ def do_move(im, r):
         if pb is not None and 0 < pb[i] < 9:
             b[i] = pb[i]
             filled.append(i)
-        # patch267: 예상에서도 모르는 칸(벽)이거나 예상이 빗나간 수면, 그 칸에서 마지막으로 확인된 등급으로
-        #   로그 재현: -1 86 -> 60칸, 채운 값이 뒤에 실제로 읽혔을 때 167/167 일치
         elif (pb is None or pb[i] < 0) and i in LAST:
             b[i] = LAST[i]
             filled.append(i)
@@ -893,7 +987,6 @@ def check_result(r, r3, cells, ts, preds, cx, cy, im3):
                        board=b0, cells=list(cells), ts=list(ts), choice=hit,
                        n=len(preds), made=preds[hit][1]))
         if preds[hit][1]:
-            log("수 %d: %s -> 합침 %s" % (STATS["moves"], list(zip(cells, ts)), preds[hit][1]))
             # patch271: 실제 판과 맞은 예상에서 ★10 이 만들어졌으면 텔레그램 무음 알림 (made = (원래 등급, 칸 수, 결과 등급))
             if any(nt >= 10 for _t, _n, nt in preds[hit][1]):
                 log("★10 합성! (수 %d) ➜ 다음 수부터 최고 점수 득점 모드로 전환!" % STATS["moves"])
@@ -1020,86 +1113,56 @@ def play(n_games):
         if NEXT:                 # patch245: 놓은 뒤 확인한 판이 있으면 다시 찍지 않음
             im, r_next = NEXT["im"], NEXT["r"]
             NEXT.clear()
-            st = "game"
+            # patch294: NEXT 판이 있어도 현재 화면 상태 및 보드 신뢰도 검증
+            ok_next, st, info_next, p_next = check_game_safety(im, "NEXT 화면 상태 검증")
+            if not ok_next:
+                log("[안전 중단] NEXT 화면 안전 검증 실패 (%s, 저장: %s) -> 플레이 중단" % (st, p_next))
+                break
         else:
             r_next = None
             im = capture()
             st = V.state(im)
         if st is None:
-            if finished >= 1 and started <= finished and icon_score(_adb_capture() if fast_on() else im)[0] >= 0.7:
-                log("끝. 전투 화면으로 돌아옴 (patch238)")
-                break
-            unknown_since = unknown_since or time.time()
-            if time.time() - unknown_since > 25:
-                p = save_shot(im, "hexa_unknown.png")
-                log("화면을 모르겠음 -> 멈춤", p)
-                break
-            time.sleep(1)
-            continue
-        unknown_since = None
+            # patch294 (원칙 1): 상태가 None이면 추가 입력을 하지 않고 즉시 증거 저장 후 중단
+            p = save_shot(im, "hexa_unknown_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
+            log("[안전 중단] 화면 상태 판별 불가(None) 감지 -> 추가 입력 차단 및 즉시 중단 (저장: %s)" % p)
+            break
         if st == "lobby":
-            if finished >= n_games:
-                claim_and_close()
-                if auto_opened:
-                    time.sleep(1.0)
-                    close_event()
-                break
-            if started > finished and in_game:
-                # patch223: 판이 끝나고 결과창이 저절로 닫혀 로비로 온 경우 -> 끝난 판으로 셈
-                finished += 1
-                in_game = False
-                log("판 끝 (결과창 없이 로비로 돌아옴): %d수, 최고 등급 %d" % (STATS["moves"], STATS["best"]))
-                continue
-            if started > finished:
-                # 시작 눌렀는데 로비 그대로 -> 티켓 없음
-                p = save_shot(im, "hexa_lobby_stop.png")
-                log("시작이 안 됨 (티켓 없음?) -> 멈춤", p)
-                break
-            btn = lobby_button(im)          # patch243
-            tap(*BTN_START)
-            started += 1
-            STATS.update(moves=0, fails=0, best=0, filled=0, star10=0, last_mode=None)
-            HI.clear()
-            NEXT.clear()
-            TM["last"] = None
-            spawn_new_game("cont" if btn == "cont" else "start")   # patch246
-            if btn == "cont":
-                need_hi = True
-                log("판 시작 - 이어 하기 (지난 판 이어서, 티켓 안 씀) (%d/%d)" % (started, n_games))
-            else:
-                hi_save([])
-                log("판 시작 (%d/%d)" % (started, n_games))
-            time.sleep(2.5)
-            continue
-        if st == "over":
-            log("게임 끝: %d수, 최고 등급 %d, 예상 빗나감 %d, 못 읽은 칸 예상으로 채움 %d, 한 수 계산 평균 %.2f초" % (   # patch266
-                STATS["moves"], STATS["best"], STATS["fails"], STATS.get("filled", 0),
-                STATS.get("think", 0) / max(1, STATS.get("plans", 0))))
-            save_shot(im, "hexa_over_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M"))
-            tap(*BTN_RESULT)
-            time.sleep(2)
-            continue
-        if st == "popup":
-            if in_game:
-                log("게임 끝: %d수, 최고 등급 %d, 예상 빗나감 %d" % (STATS["moves"], STATS["best"], STATS["fails"]))
-            finished += 1
-            save_shot(im, "hexa_result_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M"))
-            in_game = False
-            if finished < n_games:
-                tap(BTN_AGAIN[0], V.POPUP_Y[0])
+            # patch294 (원칙 2): 최초 시작(started == 0)일 때만 정상 시작 허용. 진행 중 감지 시 임의 조작 없이 중단
+            if started == 0 and not in_game:
+                btn = lobby_button(im)
+                tap(*BTN_START)
                 started += 1
-                STATS.update(moves=0, fails=0, best=0, filled=0)
+                STATS.update(moves=0, fails=0, best=0, filled=0, star10=0, last_mode=None)
                 HI.clear()
-                hi_save([])
                 NEXT.clear()
                 TM["last"] = None
-                spawn_new_game("again")   # patch246
-                log("다시 하기 (%d/%d)" % (started, n_games))
+                spawn_new_game("cont" if btn == "cont" else "start")   # patch246
+                if btn == "cont":
+                    need_hi = True
+                    log("판 시작 - 이어 하기 (지난 판 이어서, 티켓 안 씀) (%d/%d)" % (started, n_games))
+                else:
+                    hi_save([])
+                    log("판 시작 (%d/%d)" % (started, n_games))
                 time.sleep(2.5)
+                continue
             else:
-                tap(BTN_EXIT[0], V.POPUP_Y[0])
-                time.sleep(2)
-            continue
+                p = save_shot(im, "hexa_unexpected_lobby_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
+                log("[안전 중단] 예기치 않은 로비(lobby) 상태 감지 (in_game=%s, started=%d) -> 임의 조작 없이 즉시 중단 (저장: %s)" % (
+                    in_game, started, p))
+                break
+        if st == "over":
+            # patch294 (원칙 2): over 감지 시 임의로 결과 확인 버튼을 누르지 않고 증거 저장 후 안전 중단
+            p = save_shot(im, "hexa_over_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
+            log("[안전 중단] 결과 화면(over) 감지: %d수, 최고 등급 %d -> 임의 조작 없이 안전 중단 (저장: %s)" % (
+                STATS["moves"], STATS["best"], p))
+            break
+        if st == "popup":
+            # patch294 (원칙 2): popup 감지 시 임의로 다시하기/나가기 버튼을 누르지 않고 증거 저장 후 안전 중단
+            p = save_shot(im, "hexa_popup_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S"))
+            log("[안전 중단] 팝업 창(popup) 감지: %d수, 최고 등급 %d -> 임의 조작 없이 안전 중단 (저장: %s)" % (
+                STATS["moves"], STATS["best"], p))
+            break
         # game
         if started == 0:
             started = 1          # 게임 화면에서 바로 시작한 경우
@@ -1116,15 +1179,9 @@ def play(n_games):
             st2, im2, r = wait_settle(12)
             if st2 != "game" or not r:
                 TM["last"] = None
-                # patch257: 게임 화면인데 수를 못 두는 상태가 이어지면 로그 + 3분이면 멈춤 (조용히 영원히 도는 것 방지)
-                if st2 == "timeout":
-                    stall = stall or time.time()
-                    if time.time() - stall > 180:
-                        p = save_shot(im2, "hexa_stall.png")
-                        log("게임 화면인데 3분 동안 판을 못 읽음 -> 멈춤", p)
-                        break
-                    log("판이 12초 동안 안정되지 않음 -> 다시 읽기")
-                continue
+                p = save_shot(im2, "hexa_stall_%s.png" % datetime.datetime.now().strftime("%m%d_%H%M%S")) if im2 is not None else ""
+                log("[안전 중단] 게임 화면 안정화 실패 (상태: %s) -> 추가 입력 없이 안전 중단 (저장: %s)" % (st2, p))
+                break
         stall = None
         do_move(im2, r)
     if _CAM[0]:

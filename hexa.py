@@ -618,36 +618,11 @@ def plan(r, only_k0=False):
 
 
 def pick_hammer_target(b, piece, has_star10=False):
-    """망치 대상 선택 (patch284: ★10 달성 여부에 따른 목적 동적 전환):
-    [★10 미달성 시 - ★10 달성 최우선 모드]
-      1순위: ★8 이 3~4개 모였을 때, 그 사이 허브를 가로막고 있는 ★1~★3 장애물 칸 (★10 직행 5개 합치기 허브 완성)
-      2순위: 긴급 탈출 (둘 곳이 없을 때, 현재 조각을 즉시 둘 수 있게 해주는 칸 중 최저 등급 칸)
-      3순위: 보드 전체에서 가장 낮은 등급(★1~★3) 중 고립된 칸
-    [★10 달성 후 - 최고 점수 득점 모드]
-      1순위: 긴급 탈출 (둘 곳이 없을 때, 즉시 배치 공간을 열어주는 최저 등급 칸)
-      2순위: 보드가 극도로 꽉 찼을 때(빈칸 <= 2), 가장 낮은 등급의 칸을 파괴하여 생명 연장 및 대량 연쇄 유도
+    """망치 대상 선택 (patch291: A: zero 전략 - 둘 곳 없을 때 비상 탈출 최적화):
+      1순위: 긴급 탈출 (현재 조각을 즉시 둘 수 있게 해주는 1칸 장애물 중 최저 등급 칸)
+      2순위: 보드 전체에서 가장 낮은 등급(★1~★3) 중 고립된 칸
     """
-    # [1] ★10 미달성 시: ★8 허브 블로커 정밀 파괴 (5개 합치기 ★10 직행 길 열기)
-    if not has_star10:
-        cnt8 = sum(1 for x in b if x == 8)
-        if cnt8 >= 3:
-            for i in range(E.N):
-                if 1 <= b[i] <= 3:
-                    nb8 = [n for n in E.NB[i] if b[n] == 8]
-                    if len(nb8) >= 2:
-                        comp_seen = set()
-                        total_conn = 0
-                        for n in nb8:
-                            g = E.group(b, n)
-                            gk = tuple(sorted(g))
-                            if gk not in comp_seen:
-                                comp_seen.add(gk)
-                                total_conn += len(g)
-                        if total_conn >= 4:
-                            log("★10 허브 피니셔 발동: ★8 %d개 허브를 가로막는 칸 %d(%d성) 파괴!" % (total_conn, i, b[i]))
-                            return i
-
-    # [2] 긴급 탈출 (둘 곳 없을 때 배치 가능하게 만드는 최저티어 칸)
+    # [1] 긴급 탈출 (둘 곳 없을 때 즉시 배치를 가능하게 만드는 1칸 장애물 칸)
     offs = [c for c, t in piece]
     cands = []
     for k in range(6):
@@ -660,7 +635,7 @@ def pick_hammer_target(b, piece, has_star10=False):
         cands.sort(key=lambda x: x[0])
         return cands[0][1]
 
-    # [3] 최저티어 고립 칸 (빈칸 확보용)
+    # [2] 최저티어 칸 (공간 확보용)
     lows = [(b[i], i) for i in range(E.N) if b[i] > 0]
     if lows:
         lows.sort(key=lambda x: x[0])
@@ -693,18 +668,6 @@ def do_move(im, r):
         mode_str = "최고 점수 득점 모드(생존/연쇄 극대화)" if has_star10 else "★10 달성 최우선 모드(허브 집중)"
         STATS["last_mode"] = "score" if has_star10 else "star10"
         log("수 %d [%s] 시작 (조각 %s, 빈칸 %d)" % (STATS["moves"] + 1, mode_str, norm_piece(cur), free_cells))
-    
-    # patch284: ★10 미달성 상태에서 ★8 허브를 가로막는 1~3성 블로커가 있다면 망치 선제 파괴
-    if V.hammer_available(im) and not has_star10 and any(x == 8 for x in b0):
-        target = pick_hammer_target(b0, cur, has_star10=False)
-        if target is not None:
-            nb8 = [n for n in E.NB[target] if b0[n] == 8]
-            if len(nb8) >= 2 and 1 <= b0[target] <= 3:
-                log("★10 선제 허브 개방: 칸 %d(%d성) 망치 파괴" % (target, b0[target]))
-                use_hammer(target)
-                st, im2, r2 = wait_settle(6, hold=0.3)
-                if st == "game" and r2:
-                    return do_move(im2, r2)
 
     mv = plan(r)
     if time.time() - _t > 3 or STATS["moves"] < 2:
@@ -723,9 +686,6 @@ def do_move(im, r):
                 if st == "game" and r2:
                     log("망치 파괴 후 판 재인식 성공 (칸 %d 빈칸화) -> 수 재계산" % target)
                     return do_move(im2, r2)
-        log("둘 곳 없음 (게임 끝 대기)")
-        time.sleep(2)
-        return False
         log("둘 곳 없음 (게임 끝 대기)")
         time.sleep(2)
         return False

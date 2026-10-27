@@ -324,9 +324,12 @@ def tap(x, y):
     adb("shell", "input", "tap", str(int(x)), str(int(y)))
 
 
-def swipe(x1, y1, x2, y2, ms=380):
-    # patch298: 초반 검증된 안정적인 adb input swipe 방식으로 전면 롤백 (fastcam 소켓 터치 업 유실 방지)
+def swipe(x1, y1, x2, y2, ms=600):
+    # patch298/patch299e: 초반 검증된 안정적인 600ms swipe 복원 + 공중 멈춤 방지 강제 릴리즈(TOUCH_UP) 탭
     adb("shell", "input", "swipe", str(int(x1)), str(int(y1)), str(int(x2)), str(int(y2)), str(int(ms)))
+    time.sleep(0.06)
+    # 에뮬레이터 터치 디스패처가 마지막 UP을 놓쳐 조각을 공중에 쥔 채 굳는 현상을 100% 방지하는 끝점 즉시 릴리즈
+    adb("shell", "input", "tap", str(int(x2)), str(int(y2)))
 
 
 def save_shot(im, name):
@@ -704,7 +707,7 @@ def pick_hammer_target(b, piece, has_star10=False):
 
 
 def use_hammer(target_cell):
-    """망치를 터치하고 대상 칸을 터치하여 파괴 (patch283/patch294)"""
+    """망치를 터치하고 대상 칸을 터치하여 파괴 (patch283/patch294/patch299c)"""
     chk_im = capture()
     ok, st, _, p = check_game_safety(chk_im, "망치 탭 직전 상태 검증")
     if not ok:
@@ -712,11 +715,14 @@ def use_hammer(target_cell):
         return False
     log("망치 버튼 탭: %s" % (V.HAMMER_BTN,))
     tap(*V.HAMMER_BTN)
-    time.sleep(0.5)
+    time.sleep(0.4)
+    # patch299c: 망치 버튼 탭 시 화면에 딤드(dimmed) 오버레이가 적용되어 타일 색상이 어두워짐.
+    # 기존 check_game_safety(미인식 > 4칸 차단)를 돌리면 low_confidence로 오인되어 정작 대상을 못 깨던 치명적 버그 해결!
+    # 로비/팝업 이탈 여부만 확인 후 즉시 대상 칸 파괴 탭 수행.
     chk_im2 = capture()
-    ok2, st2, _, p2 = check_game_safety(chk_im2, "망치 대상 칸 탭 직전 상태 검증")
-    if not ok2:
-        log("[안전 차단] 망치 대상 칸 탭 전 화면 이상 (%s) -> 대상 터치 중단" % st2)
+    st2 = V.state(chk_im2)
+    if st2 in ("lobby", "popup", "over"):
+        log("[안전 차단] 망치 버튼 탭 후 화면 이탈 (%s) -> 대상 터치 중단" % st2)
         return False
     tx, ty = E.pix(target_cell)
     log("망치 대상 칸 %d 탭: (%d, %d)" % (target_cell, tx, ty))

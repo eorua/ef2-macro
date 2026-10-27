@@ -373,8 +373,11 @@ def state(im):
     if b is not None and len(unk) <= 8:
         p_l = px(im, 60, 600, 4)
         p_r = px(im, 660, 600, 4)
+        # patch299d: RGB/BGR 채널 순서 무관하게 배경색 완벽 검출
         if (_near(p_l, (68, 61, 45), 20) or _near(p_r, (68, 61, 45), 20)
-                or _near(p_l, (20, 14, 12), 16) or _near(p_r, (20, 14, 12), 16)):
+                or _near(p_l, (45, 61, 68), 20) or _near(p_r, (45, 61, 68), 20)
+                or _near(p_l, (20, 14, 12), 16) or _near(p_r, (20, 14, 12), 16)
+                or _near(p_l, (12, 14, 20), 16) or _near(p_r, (12, 14, 20), 16)):
             return 'game'
 
     # 3. 로비 탭 색상(110, 212) 확인 (공방 탭: (121, 89, 47))

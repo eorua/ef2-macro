@@ -152,8 +152,24 @@ def restart_bluestacks(force=False):
     else:
         print("BlueStacks(오환2) 가 꺼져 있어 바로 실행합니다")
     print("BlueStacks(오환2) 다시 실행")
-    flags = 0x00000008 | 0x00000200      # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
-    subprocess.Popen(["cmd", "/c", "start", "", PLAYER, "--instance", INSTANCE], creationflags=0x08000000)
+    # patch300: CREATE_NO_WINDOW(0x08000000) 절대 사용 금지!
+    # cmd /c start 에 0x08000000 을 넘기면 BlueStacks 가 헤드리스(창 숨김)로 실행되어 윈도우 화면에서 창이 사라짐.
+    # os.startfile 또는 SW_SHOWNORMAL + DETACHED_PROCESS 로 실행하여 온전한 GUI 창으로 단독 분리 실행.
+    launched = False
+    try:
+        os.startfile(PLAYER, arguments=f"--instance {INSTANCE}")
+        launched = True
+    except Exception as e:
+        print("os.startfile 실행 실패:", e)
+    if not launched:
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 1  # SW_SHOWNORMAL
+        flags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen([PLAYER, "--instance", INSTANCE],
+                         startupinfo=si,
+                         creationflags=flags,
+                         close_fds=True)
     time.sleep(20)
     return wait_boot()
 

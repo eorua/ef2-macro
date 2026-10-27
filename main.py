@@ -1028,7 +1028,7 @@ def do_restart(kind, st=None):
     """kind: '정기', '튕김', '포커스'. 성공하면 True (patch294f: 튕김/포커스/정기 모두 BlueStacks 째로 완전 재부팅하여 렉 원천 해소)"""
     if st is None:
         st = load_state()
-    if kind in ("튕김", "포커스") and is_soul_offline_active(st):
+    if kind in ("튕김", "포커스", "크래시", "통신두절") and is_soul_offline_active(st):
         log("영혼의 휴식 오프라인 등반 중(앱 정상 종료 상태) -> %s 재시작 건너뜀" % kind)
         return False
     for attempt in range(1, MAX_RECOVER_FAILS + 1):
@@ -1700,16 +1700,32 @@ def main():
         img = cap()
         if img is None:
             cap_fails += 1
-            if cap_fails % 3 == 0:
-                adb_reconnect()
-            if cap_fails >= 30:
-                cap_fails = 0
-                log("화면 캡처가 계속 실패 → BlueStacks 재시작")
-                if GO:
-                    if do_restart("정기", st):
-                        st["last_restart"] = time.time()
-                    hist.clear()
-                    save_state(st)
+            # patch300: 영혼의 휴식 오프라인 등반 상태가 아닐 때, 블루스택 프로세스 크래시(터짐) 즉시 감지
+            if not is_soul_offline_active(st):
+                emu_pids = bsrestart.find_pids()
+                if not emu_pids:
+                    log(f"BlueStacks(오환2) 프로세스 크래시(터짐) 감지 (캡처 실패 {cap_fails}회) -> 즉시 BlueStacks 재시작")
+                    cap_fails = 0
+                    if GO:
+                        if do_restart("크래시", st):
+                            st["last_restart"] = time.time()
+                        hist.clear()
+                        save_state(st)
+                    time.sleep(3)
+                    continue
+                if cap_fails % 3 == 0:
+                    adb_reconnect()
+                if cap_fails >= 6:
+                    cap_fails = 0
+                    log("화면 캡처 연속 6회 실패 (ADB 통신 두절) → BlueStacks 재시작")
+                    if GO:
+                        if do_restart("통신두절", st):
+                            st["last_restart"] = time.time()
+                        hist.clear()
+                        save_state(st)
+            else:
+                if cap_fails % 10 == 0:
+                    adb_reconnect()
             time.sleep(3)
             continue
         cap_fails = 0

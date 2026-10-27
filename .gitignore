@@ -26,3 +26,9 @@ rec_cfg.json
 telegram.json
 .claude/
 유물공방_배포용/
+*.pdb
+tools/
+dist_package/
+hexa_train/*_result.txt
+
+

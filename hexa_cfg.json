@@ -1,11 +1,11 @@
 {
  "lift": [
-  0.0,
-  160.0
+  44.0,
+  137.6
  ],
  "rot_dir": 1,
  "colors": {},
- "swipe_ms": 380,
+ "swipe_ms": 600,
  "settle": 0.9,
  "depth": 3,
  "drop_fail": 0,

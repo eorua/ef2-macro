@@ -24,6 +24,32 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-27 (Antigravity, patch300) BlueStacks 프로세스 크래시(터짐) 즉시 감지 복구, 창 숨김(헤드리스) 버그 원천 해결 및 유물 공방 신규 룰 C 탐색기(search12.exe) 빌드** (`bsrestart.py`, `main.py`, `hexa.py`, `hexa_cfg.json`, `hexa_vision.py`, `hexa_train/core6.inc`, `hexa_train/search12.c`, `hexa_train/bench_v12.py`):
+  - **1) BlueStacks 크래시(터짐) 즉시 감지 및 자동 복구 (`main.py`)**:
+    - **원인 분석 ("블루스택이 아예 터졌을 때는 인식을 못하네 / 당연히 영혼의 휴식때는 해당되지 않고")**:
+      - 기존 메인 루프는 게임이 안드로이드 홈화면으로 튕긴 경우(`home_screen(img)`)만 즉시 감지하여 재시작했음.
+      - 블루스택 프로세스 자체가 크래시로 죽거나 터졌을 때는 `cap()`이 `None`을 반환하지만, `cap_fails >= 30`(약 90~120초) 동안 아무 조치 없이 `adb_reconnect()`만 반복하다가 뒤늦게 정기 재시작을 시도했음.
+    - **수정**:
+      - `img is None` 루틴에서 `not is_soul_offline_active(st)`(영혼의 휴식 오프라인 등반 상태 제외)일 때, 매 캡처 실패마다 `bsrestart.find_pids()`로 에뮬레이터 프로세스 생존 여부를 초고속 점검.
+      - 프로세스가 종료되었을 경우(`not emu_pids`), 120초를 기다리지 않고 **단 1회 실패(약 1초) 만에** `BlueStacks(오환2) 프로세스 크래시(터짐) 감지 -> 즉시 BlueStacks 재시작` 로그와 함께 `do_restart("크래시", st)` 호출 및 자동 재실행.
+      - 캡처 연속 6회(약 18초) 실패 시 ADB 통신두절 재시작(`do_restart("통신두절", st)`) 트리거.
+      - `do_restart()`에 `"크래시"`, `"통신두절"` 가드를 추가하여 영혼의 휴식 중에는 불필요한 재시작이 절대 발생하지 않도록 철저히 차단.
+    - **실전 검증**: PID 강제 종료 시뮬레이션 결과 1초 만에 크래시 즉시 감지 -> BlueStacks 자동 재실행 -> 부팅 확인 -> 게임 앱 실행 -> 오프라인 전투 팝업 닫기 -> 프리셋 활성화 -> 스킬 fastcam 연결까지 전 과정 완전 자동 복구 실측 완료.
+  - **2) BlueStacks 창 숨김(헤드리스) 버그 해결 (`bsrestart.py`)**:
+    - **원인 분석 ("이거 오환 블루스택 창을 자꾸 숨겨버리는데?")**:
+      - `bsrestart.py`에서 `subprocess.Popen(["cmd", "/c", "start", "", PLAYER, ...], creationflags=0x08000000)`으로 실행 시, `0x08000000`(`CREATE_NO_WINDOW`) 플래그가 상속되어 `HD-Player.exe`가 윈도우 GUI 없이 헤드리스 모드로 구동되어 화면에서 창이 완전히 사라졌던 버그.
+    - **수정**:
+      - `CREATE_NO_WINDOW` 플래그를 완전히 제거하고, Windows 쉘을 통해 정상 GUI 창으로 실행하는 `os.startfile(PLAYER, arguments=f"--instance {INSTANCE}")` 및 `SW_SHOWNORMAL` + `DETACHED_PROCESS` fallback을 적용하여 화면에 항상 온전한 BlueStacks 창이 보이도록 수정.
+  - **3) 유물 공방 실전 안정화 3종 (`hexa.py`, `hexa_cfg.json`, `hexa_vision.py`)**:
+    - **망치 미작동 버그 완치**: 망치 버튼 탭 후 보드 어두워짐(dimmed) 효과로 안전 가드가 8칸 미인식 오판을 내리던 현상 수정 (`use_hammer()`에서 목표 타일 즉시 탭).
+    - **조각 공중 멈춤 버그 완치**: 380ms 초고속 스와이프 시 터치 릴리즈 씹힘 방지를 위해 스와이프 속도 600ms 복원 및 끝점 강제 릴리즈 탭(`input tap x2 y2`) 추가.
+    - **화면 판정 BGR/RGB 이중 매칭**: 새 바닥색 RGB/BGR 순서 차이로 인한 15초 타임아웃 멈춤 수정.
+    - **회귀 테스트**: `tests/test_hexa_safety.py` 14개 테스트 전수 통과 (`Ran 14 tests in 19.343s - OK`).
+  - **4) 10/26 신규 룰(점 확정 + 망치 1회) C 탐색기(search12.exe) 빌드 및 저부하 벤치마크 (`hexa_train/`)**:
+    - 로컬 무설치 Zig 0.13.0을 구성하여 점 확정 합성 및 비상 탈출 망치가 포함된 C 탐색기 `search12.exe` 컴파일 완료.
+    - 크롬 및 PC 사용에 영향이 없도록 4스레드 + `IDLE_PRIORITY_CLASS` 최하위 우선순위로 벤치마크(`bench_v12.py`) 구동 (Arm A 10성 성공률 39.2% 달성 확인).
+
+
 - **2026-10-27 (Antigravity, patch299) 유물 공방 게임오버 마감 팝업(popup/over) 감지 시 정상 탈출 및 나가기 자동 클릭 처리** (`hexa.py`):
   - **원인 분석 ("나가기는 또 왜 안하는데?")**:
     - 마지막 조각을 드래그하여 보드가 꽉 차면 게임 화면 상태가 즉시 `popup`(공방 마감 창) 또는 `over`로 전이됨.

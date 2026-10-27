@@ -325,30 +325,7 @@ def tap(x, y):
 
 
 def swipe(x1, y1, x2, y2, ms=380):
-    c = _CAM[0]
-    if c:                     # patch292b/patch293c/patch294: 정밀 터치 안정화 (집기 50ms, smoothstep 보간, 안착 60ms)
-        try:
-            # 1. 터치 다운 (조각 집기 래치 50ms 대기)
-            c.touch(0, int(x1), int(y1))
-            time.sleep(0.050)
-
-            # 2. 60Hz 연속 보간 이동 (smoothstep 가감속)
-            steps = max(16, int(ms / 20))
-            dt = (ms / 1000.0) / steps
-            for i in range(1, steps + 1):
-                t = i / steps
-                s = 3.0 * t * t - 2.0 * t * t * t  # smoothstep
-                xi = int(x1 + (x2 - x1) * s)
-                yi = int(y1 + (y2 - y1) * s)
-                c.touch(2, xi, yi)
-                time.sleep(dt)
-
-            # 3. 목표 지점 칸 스냅 안착 60ms 대기 후 터치 업
-            time.sleep(0.060)
-            c.touch(1, int(x2), int(y2))
-            return
-        except Exception as ex:
-            _fast_off("스와이프 실패 %r" % (ex,))
+    # patch298: 초반 검증된 안정적인 adb input swipe 방식으로 전면 롤백 (fastcam 소켓 터치 업 유실 방지)
     adb("shell", "input", "swipe", str(int(x1)), str(int(y1)), str(int(x2)), str(int(y2)), str(int(ms)))
 
 

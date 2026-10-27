@@ -880,7 +880,15 @@ def do_move(im, r):
     st, im3, r3 = wait_settle(15)
     tm_add(after=time.time() - _t)
 
-    # 드래그 후 상태 검증 (원칙 1, 3, 4, 6)
+    # 드래그 후 상태 검증
+    # patch299: 드래그 후 게임오버(popup 공방 마감 팝업 또는 over 결과창)가 뜬 경우, 정상 게임오버로 처리하여 루프의 나가기/확인 탭으로 전이
+    if st in ("popup", "over"):
+        log("수 %d 드래그 후 게임 종료 감지 (상태: %s) -> 게임오버 정상 전이 (나가기/확인 탭 진행)" % (next_move_num, st))
+        NEXT["im"] = im3
+        NEXT["r"] = None
+        STATS["moves"] += 1
+        return True
+
     if st != "game" or not r3:
         p = save_shot(im3, "hexa_after_%03d.png" % next_move_num) if im3 is not None else ""
         log("[안전 중단] 수 %d 드래그 후 화면이 게임이 아님 (상태: %s, 저장: %s) -> 추가 입력 없이 안전 중단" % (

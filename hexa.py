@@ -273,7 +273,7 @@ def _cam():
     return _CAM[0] or None
 
 
-LOCK_FILE = os.path.join(HERE, "HEXA_RUNNING")
+LOCK_FILE = os.path.join(BASE, "HEXA_RUNNING")
 
 def _set_lock():
     try:
@@ -472,14 +472,29 @@ def grid_text(b):
 
 
 def norm_piece(p):
+    """patch304: 조각의 상대좌표 정규화 시 흰 점(●) 위치(dot_idx)를 정확하게 보존"""
+    if not p:
+        return ()
+    dot_idx = getattr(p, "dot_idx", 0)
+    if dot_idx is None or dot_idx < 0 or dot_idx >= len(p):
+        dot_idx = 0
+    dot_target = p[dot_idx]
     q0 = min(q for (q, r), t in p)
     r0 = min(r for (q, r), t in p)
-    return tuple(sorted(((q - q0, r - r0), t) for (q, r), t in p))
+    items = [((q - q0, r - r0), t) for (q, r), t in p]
+    target_norm = ((dot_target[0][0] - q0, dot_target[0][1] - r0), dot_target[1])
+    sorted_items = sorted(items)
+    new_dot = sorted_items.index(target_norm) if target_norm in sorted_items else 0
+    res = V.Piece(sorted_items)
+    res.dot_idx = new_dot
+    return res
 
 
 def rotated(p, k):
     offs = E.rot([o for o, t in p], k)
-    return norm_piece(list(zip(offs, [t for o, t in p])))
+    res = norm_piece(list(zip(offs, [t for o, t in p])))
+    res.dot_idx = getattr(p, "dot_idx", 0)
+    return res
 
 
 def wait_settle(timeout=12.0, need_tray=True, hold=None):
@@ -1206,11 +1221,15 @@ def play(n_games):
         if NEXT:                 # patch245: 놓은 뒤 확인한 판이 있으면 다시 찍지 않음
             im, r_next = NEXT["im"], NEXT["r"]
             NEXT.clear()
-            # patch294: NEXT 판이 있어도 현재 화면 상태 및 보드 신뢰도 검증
-            ok_next, st, info_next, p_next = check_game_safety(im, "NEXT 화면 상태 검증")
-            if not ok_next:
-                log("[안전 중단] NEXT 화면 안전 검증 실패 (%s, 저장: %s) -> 플레이 중단" % (st, p_next))
-                break
+            # patch304: 드래그 후 게임오버(popup/over)가 감지된 경우, check_game_safety(게임 화면 전용) 대신 정상 게임오버 분기로 전이
+            st_peek = V.state(im)
+            if st_peek in ("popup", "over"):
+                st = st_peek
+            else:
+                ok_next, st, info_next, p_next = check_game_safety(im, "NEXT 화면 상태 검증")
+                if not ok_next:
+                    log("[안전 중단] NEXT 화면 안전 검증 실패 (%s, 저장: %s) -> 플레이 중단" % (st, p_next))
+                    break
         else:
             r_next = None
             im = capture()

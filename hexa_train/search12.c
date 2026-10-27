@@ -536,10 +536,8 @@ int main(int argc, char **argv) {
 #define RD(x) do { if (sscanf(s, "%d%n", &(x), &pos) != 1) goto bad; s += pos; } while (0)
         RD(u);
         for (int i = 0; i < NC; i++) { RD(v); b[i] = (int8_t)v; }
-        RD(p.n); for (int j = 0; j < p.n; j++) { RD(p.off[j][0]); RD(p.off[j][1]); RD(p.t[j]); }
-        p.dot = 0;
-        RD(nx.n); for (int j = 0; j < nx.n; j++) { RD(nx.off[j][0]); RD(nx.off[j][1]); RD(nx.t[j]); }
-        nx.dot = 0;
+        RD(p.n); RD(p.dot); for (int j = 0; j < p.n; j++) { RD(p.off[j][0]); RD(p.off[j][1]); RD(p.t[j]); }
+        RD(nx.n); RD(nx.dot); for (int j = 0; j < nx.n; j++) { RD(nx.off[j][0]); RD(nx.off[j][1]); RD(nx.t[j]); }
         hasnx = nx.n > 0;
         RD(D); RD(B); RD(K); RD(k0);
         if (sscanf(s, "%lf %d %lld", &budget, &th, &seed) != 3) goto bad;

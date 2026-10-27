@@ -385,6 +385,10 @@ C_INFO = {}
 
 def _exe_path():
     if os.name == "nt":
+        # patch304: search12.c = 실시간 점(●) 위치 완벽 동기화 프로토콜 적용 (v13)
+        v13 = os.path.join(HERE, "hexa_search_v13.exe")
+        if os.path.exists(v13):
+            return v13
         # patch301: search12.c = 10/26 신규 룰(합성점 확정 합성 + 비상 탈출 망치 1회) 완벽 반영
         v12 = os.path.join(HERE, "hexa_search_v12.exe")
         if os.path.exists(v12):
@@ -527,7 +531,8 @@ def best_move_c(b, unlocked, piece, nxt, only_k0=False, D=3, B=8, K=8, budget_ms
             k, c2, t2, sc = r3
             return k, c2, t2, float(sc), "PY-CLUST D3(★8/9결합)"
     p = _cproc()
-    enc = lambda pc: [str(len(pc))] + ["%d %d %d" % (o[0], o[1], t) for o, t in pc]
+    # patch304: 조각의 점(●) 위치(dot_idx)를 C 탐색기(search12.exe/v13)에 실시간 전달
+    enc = lambda pc: [str(len(pc)), str(getattr(pc, "dot_idx", 0) if getattr(pc, "dot_idx", 0) is not None else 0)] + ["%d %d %d" % (o[0], o[1], t) for o, t in pc]
     line = " ".join([str(unlocked)] + [str(int(x)) for x in b] + enc(piece) + enc(nxt or []) +
                     [str(D), str(B), str(K), "1" if only_k0 else "0", str(int(budget_ms)), str(threads), str(seed)])
     p.stdin.write(line + "\n")

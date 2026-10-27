@@ -368,6 +368,10 @@ def open_quest30(say=log):
         if "max" in btxt.lower():
             say("  [30퀘] 30번이 이미 열려 있음 (버튼=%s, coin=%.2f) -> opened" % (btxt, coin))
             return "opened"
+        if not lv0:
+            # patch296: 이미 열린 줄(Lv.1 이상, 코인 아이콘 있음)이면 버튼은 '오픈'이 아니라 레벨업 -> 절대 누르지 않고 열린 것으로 처리
+            say("  [30퀘] 30번이 이미 열려 있음 (Lv.1 이상, coin=%.2f, 버튼=%s) -> 누르지 않고 opened" % (coin, btxt))
+            return "opened"
         if not active:
             say("  [30퀘] 오픈 버튼이 회색 (채도 %.0f, %s) -> 아직 골드 부족" % (sat, btxt))
             return "gray"
@@ -379,10 +383,10 @@ def open_quest30(say=log):
             _save("q30_after.png", img2)
             r2 = row30(img2)
             if r2 is not None:
-                _, _, active2, btxt2, sat2, _, coin2 = r2
-                # 눌렀는데도 여전히 회색 미오픈 상태면 실패
-                if not active2 and "max" not in btxt2.lower():
-                    say("  [30퀘] 눌렀는데 아직 미오픈 상태임 (sat=%.0f, %s)" % (sat2, btxt2))
+                _, _, active2, btxt2, sat2, lv02, coin2 = r2
+                # patch296: 버튼 회색 여부가 아니라 줄이 열렸는지(lv0 해제)로 판정 (열린 뒤에는 다음 레벨업 비용 부족으로 버튼이 회색이 됨)
+                if lv02 and "max" not in btxt2.lower():
+                    say("  [30퀘] 눌렀는데 아직 미오픈 상태임 (sat=%.0f, %s, coin=%.2f)" % (sat2, btxt2, coin2))
                     return "gray"
         return "opened"
     finally:

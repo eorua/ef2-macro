@@ -1470,6 +1470,32 @@ def hexa_on():
     return daily.setting("hexa_auto", True) or daily.setting("hexa_every", False)
 
 
+def is_hexa_running():
+    """patch303: 유물 공방(hexa.py)이 단발 또는 자동으로 실행 중인지 감지 (상호 배제 가드)"""
+    flag = os.path.join(BASE, "HEXA_RUNNING")
+    if os.path.exists(flag):
+        try:
+            with open(flag, "r", encoding="utf-8") as f:
+                pid_str = f.read().strip()
+            if pid_str and pid_str.isdigit():
+                pid = int(pid_str)
+                import ctypes
+                k32 = ctypes.windll.kernel32
+                SYNCHRONIZE = 0x00100000
+                h = k32.OpenProcess(SYNCHRONIZE, False, pid)
+                if h:
+                    k32.CloseHandle(h)
+                    return True
+                else:
+                    try: os.remove(flag)
+                    except Exception: pass
+                    return False
+            return True
+        except Exception:
+            return True
+    return False
+
+
 def hexa_auto_run(st, resume=False):
     """patch238~240/patch302: 유물 공방 티켓 확인 -> 5/5 면 1판, 다음 차례에 1장 이상이면 1판 더 (hexa.py auto). 시간 제한 없음"""
     # patch302: 공방 시작 전 전투 화면 복귀 보장 (영웅 탭/다른 창 열림 방지)
@@ -2246,6 +2272,16 @@ def main():
                         time.sleep(5)
                 else:
                     time.sleep(5)
+                continue
+
+            # patch303: 유물 공방이 실행 중이면 메인의 모든 조작(웨이브 업글, 일일작업, 프리셋 등) 일체 중단 대기
+            if is_hexa_running():
+                if time.time() - getattr(is_hexa_running, "last_log", 0) >= 15:
+                    is_hexa_running.last_log = time.time()
+                    log("[메인 대기] 유물 공방(hexa.py) 플레이 진행 중 -> 공방 완료까지 메인 루프 일시 정지")
+                hist.clear()
+                stuck.reset()
+                time.sleep(1.5)
                 continue
 
             # 웨이브 읽기 (최근 3번이 모두 기준 이상이면 고레벨 단계 시작)

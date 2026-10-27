@@ -13,5 +13,6 @@
  "c_depth": 3,
  "c_tenb": 100.0,
  "c_clust": 0.0,
- "c_hub": 60.0
+ "c_hub": 60.0,
+ "c_gatep": 3.0
 }

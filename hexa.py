@@ -273,6 +273,26 @@ def _cam():
     return _CAM[0] or None
 
 
+LOCK_FILE = os.path.join(HERE, "HEXA_RUNNING")
+
+def _set_lock():
+    try:
+        with open(LOCK_FILE, "w", encoding="utf-8") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        pass
+
+def _clear_lock():
+    try:
+        if os.path.exists(LOCK_FILE):
+            os.remove(LOCK_FILE)
+    except Exception:
+        pass
+
+import atexit
+atexit.register(_clear_lock)
+
+
 def fast_on():
     return bool(_CAM[0])
 
@@ -1167,6 +1187,7 @@ def play(n_games):
     if brain == "nt" and CFG.get("search", "c") == "c" and hasattr(NT, "c_available") and NT.c_available():
         brain = "nt+C(D%d B%d K%d, %d스레드)" % (CFG.get("c_depth", 3), CFG.get("c_B", 8), CFG.get("c_K", 8), CFG.get("c_threads", 6))
     log("=== 유물 공방 시작: %d판, 기기 %s, lift %s, rot %d, 두뇌 %s" % (n_games, SERIAL, CFG["lift"], CFG["rot_dir"], brain))
+    _set_lock()                  # patch303: 메인 루프 간섭 방지 락 파일 생성
     started = 0
     finished = 0
     unknown_since = None
@@ -1292,6 +1313,7 @@ def play(n_games):
             break
     if _CAM[0]:
         _fast_off("공방 정상 종료")
+    _clear_lock()                # patch303: 메인 루프 간섭 방지 락 파일 해제
     return finished              # patch243: 끝낸 판 수 (0 = 중간에 끊김)
 
 

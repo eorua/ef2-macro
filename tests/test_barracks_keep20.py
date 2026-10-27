@@ -17,15 +17,24 @@ class TestBarracksKeep20(unittest.TestCase):
         im_u = cv2.imread(undead_path)
         im_g = cv2.imread(golem_path)
 
-        # undead: yc=1121 -> total 19 (< 20 이므로 가용 0마리)
-        tot_u, vals_u = barracks.read_unit_total(im_u, 1121)
-        self.assertEqual(tot_u, 19)
-        self.assertEqual(max(0, tot_u - 20), 0)
+        # undead: find_unit(im_u, "hand") 줄 확인
+        y_hand = barracks.find_unit(im_u, "hand")
+        # yc=1035 (hand 줄: [3, 11, 0, 0, 1] = 15마리, 20 미만이므로 가용 0)
+        tot_hand, vals_hand = barracks.read_unit_total(im_u, y_hand)
+        self.assertEqual(tot_hand, 15)
+        self.assertEqual(max(0, tot_hand - 20), 0)
 
-        # golem: yc=862 -> total 49 (49 - 20 = 29마리 가용)
-        tot_g, vals_g = barracks.read_unit_total(im_g, 862)
-        self.assertEqual(tot_g, 49)
-        self.assertEqual(max(0, tot_g - 20), 29)
+        # golem: find_unit(im_g, "golem") 줄 확인 (yc=949, 10/11 샘플 당시 12마리)
+        y_golem = barracks.find_unit(im_g, "golem")
+        self.assertEqual(y_golem, 949)
+        tot_g, vals_g = barracks.read_unit_total(im_g, y_golem)
+        self.assertEqual(tot_g, 12)
+        self.assertEqual(max(0, tot_g - 20), 0)
+
+        # 862 줄 (인간 탭 1번째 다른 유닛, 49마리 보유)도 OCR 정상 동작 검증
+        tot_862, vals_862 = barracks.read_unit_total(im_g, 862)
+        self.assertEqual(tot_862, 49)
+        self.assertEqual(max(0, tot_862 - 20), 29)
 
     @patch("barracks.open_barracks", return_value=True)
     @patch("barracks.set_races_for", return_value=True)
@@ -46,12 +55,12 @@ class TestBarracksKeep20(unittest.TestCase):
 
         mock_tap.reset_mock()
 
-        # Case 2: 보유 23마리, min_keep=20 -> 가용 3마리 -> 4명 요청해도 3명만 배치
+        # Case 2: 사용자 계정 실전 상황: 보유 23마리, min_keep=20 -> 가용 3마리 -> 4명 요청해도 3명만 배치
         with patch("barracks.read_unit_total", return_value=(23, [23, 0, 0, 0, 0])):
             mock_cap.return_value = MagicMock()
             with patch("barracks.is_full", side_effect=[False, False, True]):
                 with patch("barracks.unit_score", return_value=0.9):
-                    got = barracks.deploy("hand", 4, min_keep=20)
+                    got = barracks.deploy("golem", 4, min_keep=20)
                     self.assertEqual(got, 3)
 
     @patch("barracks.release_tail", return_value=True)
@@ -84,12 +93,22 @@ class TestBarracksKeep20(unittest.TestCase):
             ok = barracks.phase1()
             self.assertTrue(ok)
             calls = m_dep.call_args_list
-            # 1: golem 4
             self.assertEqual(calls[0][0], ("golem", 4))
-            # 2: hand 4 -> 0 반환
             self.assertEqual(calls[1][0], ("hand", 4))
-            # 3: golem 추가 4 시도
             self.assertEqual(calls[2][0], ("golem", 4))
+
+        # Case 3: 현재 사용자 실제 상황: 골렘 23마리(가용 3), 죽손 넉넉 -> 골렘 3 + 죽손 5 = 8
+        def mock_deploy_golem_23(key, n, min_keep=0):
+            if key == "golem":
+                return min(n, 3)
+            return n
+
+        with patch("barracks.deploy", side_effect=mock_deploy_golem_23) as m_dep:
+            ok = barracks.phase1()
+            self.assertTrue(ok)
+            calls = m_dep.call_args_list
+            self.assertEqual(calls[0][0], ("golem", 4))  # 3 반환
+            self.assertEqual(calls[1][0], ("hand", 5))   # 부족분 5마리 채움
 
 
 if __name__ == "__main__":

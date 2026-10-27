@@ -191,16 +191,13 @@ def evaluate(b, unlocked, w=W):
         if t == lo and unlocked < 7:
             e += w['nextdead'] * len(g) * 0.5
         groups.setdefault(t, []).append(g)
-        # patch297: 8성 이상(t >= 8)만 2개 쌍(5합 허브 준비)에 온전한 pair 보너스 부여
-        # 1~7성 하위 등급은 2+2를 모으느라 보드를 채우지 않고 즉시 3합으로 터뜨려 공간을 비우도록 유도
+        # patch297: 8성 이상(t >= 8)만 5합 허브 준비를 위한 고가치 pair 보너스 부여
+        # 1~7성 하위 등급은 3합 준비를 위한 기본 인접만 평가하며, 2+2(5합) 특혜(bridge5)는 배제
         if len(g) == 2:
             if t >= 8:
                 e += w['pair'] * (1.0 + 0.15 * t)
             else:
-                if len(empties) < 10:
-                    e -= 2.5   # 공간 부족 시 하위 등급 2개 쌍 방치 억제(감점)
-                else:
-                    e += w['pair'] * 0.15
+                e += w['pair'] * 0.5
         else:
             # 혼자인 칸: 옆에 빈칸 없으면 더 나쁨
             if not any(b[v] == 0 for v in NB[i]):

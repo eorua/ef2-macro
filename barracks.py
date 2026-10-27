@@ -251,6 +251,12 @@ def read_cell_num(img, yc, x0):
                            capture_output=True, text=True, timeout=5,
                            creationflags=getattr(preset, "NOWIN", 0x08000000))
         out = r.stdout.strip()
+        if not out.isdigit():
+            # 단일 숫자 배지 등 psm 7 실패 시 psm 8(단일 단어)로 재시도
+            r2 = subprocess.run([TESS, p, "-", "--psm", "8", "-c", "tessedit_char_whitelist=0123456789"],
+                                capture_output=True, text=True, timeout=5,
+                                creationflags=getattr(preset, "NOWIN", 0x08000000))
+            out = r2.stdout.strip()
         return int(out) if out.isdigit() else 0
     except Exception:
         return 0

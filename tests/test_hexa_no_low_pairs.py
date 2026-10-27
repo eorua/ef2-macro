@@ -43,15 +43,26 @@ class TestHexaNoLowPairs(unittest.TestCase):
         # 8성 2+2는 4성 2+2 대비 월등히 높은 평가를 받아야 함 (bridge5 덕분)
         self.assertGreater(diff_8, diff_4 + 10.0)
 
-    def test_low_tier_pair_penalty_when_tight(self):
-        """빈칸이 10개 미만으로 부족할 때 하위 등급 2개 쌍 방치는 감점되어 즉시 3합 유도"""
-        # 보드에 빈칸이 8개만 남은 빡빡한 상황 (15칸 점유)
-        b_tight = [3] * 15 + [0] * 8
+    def test_low_tier_prefers_3merge_over_2pair(self):
+        """1~7성 하위 등급에서는 2+2 쌍을 모으는 것보다 3합으로 터뜨려 빈칸을 확보하는 것이 더 유리함을 검증"""
+        # 보드 1: 4성 2개 덩어리가 남아 있어 빈칸이 8개인 보드
+        b_pair = [0] * 23
+        b_pair[8] = 4
+        b_pair[9] = 4
+        for i in range(10, 23):
+            b_pair[i] = 5
 
-        # 하위 등급(3성) 2개 쌍이 있는 보드 vs 1개씩 분산된 보드
-        sc = E.evaluate(b_tight, unlocked=6)
-        # 평가 함수가 정상 계산되어야 함
-        self.assertIsInstance(sc, float)
+        # 보드 2: 4성 2개가 3합으로 터져 5성이 되고 빈칸이 9개로 늘어난 보드
+        b_merged = [0] * 23
+        b_merged[9] = 5
+        for i in range(10, 23):
+            b_merged[i] = 5
+
+        sc_pair = E.evaluate(b_pair, unlocked=8)
+        sc_merged = E.evaluate(b_merged, unlocked=8)
+
+        # 3합으로 공간을 확보한 보드가 더 높은 평가를 받아야 함
+        self.assertGreater(sc_merged, sc_pair)
 
 
 if __name__ == "__main__":

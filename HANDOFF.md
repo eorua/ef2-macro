@@ -1,4 +1,4 @@
-# HANDOFF.md — 작업 인수인계 문서
+﻿# HANDOFF.md — 작업 인수인계 문서
 
 Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진행 내역을 공유하는 문서입니다. 작업을 마칠 때마다 이 파일을 갱신하고 커밋해 주세요.
 
@@ -23,6 +23,11 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 ---
 
 ## 최근 작업
+
+- **2026-10-27 (Antigravity, patch295) 공방 중간 멈춤(08:21, 10:55) 원인 규명: hexa.log()의 cp949 인코딩 예외** (`hexa.py`, `tests/test_hexa_log_encoding.py`):
+  - **원인**: 메인이 `hexa.py auto` 를 파이프로 실행하면 stdout 이 cp949 인데, `log()` 가 `print` 를 파일 기록보다 먼저 호출. patch283/287/291 에서 추가된 `➜`(U+279C), `🎯` 가 포함된 로그(둘 곳 없음 ➜ 망치 발동, ★10 합성 ➜, 연쇄 조준)에서 `UnicodeEncodeError` -> `auto()` 예외 -> 프로세스 종료 -> '이어 하기 3번 실패'. 10:55 판은 오프라인 재현으로 실제 빈칸 8칸에 3줄 조각을 둘 곳이 없는 상태(망치 필요)였고, 망치 로그 `➜` 에서 죽음 (재현: `log('➜')` cp949 파이프 -> UnicodeEncodeError 확인). 08:21 은 수 45 직후 같은 유형(미확인 부분: 정확한 문자열, traceback 미저장).
+  - **수정**: `log()` 를 파일 우선 기록 + print 실패 시 대체 문자 출력(예외 없음), 시작 시 stdout/stderr 를 utf-8(errors=replace)로 재설정(메인이 utf-8 로 디코딩).
+  - **검증**: `tests.test_hexa_log_encoding` + `tests.test_hexa_safety` 15개 OK (실기기 입력 0회, 게임 조작 없음). 실전 미검증: 다음 공방 실행 시 확인 필요. 끊긴 판은 '이어 하기'로 자동 재개 예정.
 
 - **2026-10-27 (Antigravity, patch294h) 영혼의 휴식 중 웨이브 6500 제한 무시(던전/무랭전 숙제 정상 진행) 및 오프라인 기상 홈화면 재부팅 방지** (`daily.py`, `main.py`, `tests/test_daily_soul_wave.py`):
   - **원인 분석 ("휴식 중에는 웨이브 6500제한이 의미 없잖아 반영해줘")**:
@@ -626,3 +631,4 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
    - 주말 `+50%` 다이아 환생(`bonus.py`), 유물 공방 이어하기 및 조각 출현 기록(`shots/hexa_spawn.jsonl`), 영혼의 휴식 중 병행 작업에서 예외 상황이나 오독이 없는지 확인 및 보정.
 3. **파일 및 저장소 관리**:
    - 루트에 쌓이는 백업 파일(`*.bak*`)은 필요 시 `py cleanup.py go`로 `_archive/` 이동.
+

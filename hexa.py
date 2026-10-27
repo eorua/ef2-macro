@@ -21,6 +21,11 @@ import cv2
 
 import hexa_engine as E
 import hexa_vision as V
+for _s in (sys.stdout, sys.stderr):      # patch295: 메인이 utf-8 로 읽으므로 맞춤 + 인코딩 불가 글자도 예외 없이 대체
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 try:
     import hexa_nt as NT      # patch231
 except Exception:
@@ -79,9 +84,20 @@ def save_cfg():
 
 def log(*a):
     s = datetime.datetime.now().strftime("%m-%d %H:%M:%S ") + " ".join(str(x) for x in a)
-    print(s, flush=True)
-    with open(LOG_PATH, "a", encoding="utf-8") as f:
-        f.write(s + "\n")
+    # patch295: 파일에 먼저 기록하고, 콘솔 출력은 인코딩 실패(cp949 파이프에서 '➜' '🎯' 등)가 나도 절대 예외를 내지 않음
+    try:
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(s + "\n")
+    except Exception:
+        pass
+    try:
+        print(s, flush=True)
+    except Exception:
+        try:
+            enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+            print(s.encode(enc, "replace").decode(enc, "replace"), flush=True)
+        except Exception:
+            pass
 
 
 def learn(rec):

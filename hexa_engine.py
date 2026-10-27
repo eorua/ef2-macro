@@ -191,8 +191,16 @@ def evaluate(b, unlocked, w=W):
         if t == lo and unlocked < 7:
             e += w['nextdead'] * len(g) * 0.5
         groups.setdefault(t, []).append(g)
+        # patch297: 8성 이상(t >= 8)만 2개 쌍(5합 허브 준비)에 온전한 pair 보너스 부여
+        # 1~7성 하위 등급은 2+2를 모으느라 보드를 채우지 않고 즉시 3합으로 터뜨려 공간을 비우도록 유도
         if len(g) == 2:
-            e += w['pair'] * (1.0 + 0.15 * t)
+            if t >= 8:
+                e += w['pair'] * (1.0 + 0.15 * t)
+            else:
+                if len(empties) < 10:
+                    e -= 2.5   # 공간 부족 시 하위 등급 2개 쌍 방치 억제(감점)
+                else:
+                    e += w['pair'] * 0.15
         else:
             # 혼자인 칸: 옆에 빈칸 없으면 더 나쁨
             if not any(b[v] == 0 for v in NB[i]):
@@ -217,10 +225,17 @@ def evaluate(b, unlocked, w=W):
             e += w['hole']
         for t, d in touch.items():
             tot = sum(d.values())
-            if len(d) >= 2 and tot >= 4:
-                e += w['bridge5'] * (1 + 0.2 * (t - lo))
-            elif tot >= 2:
-                e += w['bridge4'] * 0.5
+            # patch297: 5합 준비(bridge5)는 오직 8성 이상(t >= 8)에만 적용!
+            # 8성 미만(1~7성)은 2+2(5합)를 대기시키지 않고 즉시 3합으로 터뜨려 공간 확보
+            if t >= 8:
+                if len(d) >= 2 and tot >= 4:
+                    e += w['bridge5'] * (1 + 0.2 * (t - lo))
+                elif tot >= 2:
+                    e += w['bridge4'] * 0.5
+            else:
+                # 8성 미만: 2개 이상 인접(3합 준비)만 약간 가산, 2+2(5합) 특혜 완전 배제
+                if tot == 2:
+                    e += w['bridge4'] * 0.2
     # 높은 등급(새로 안 나오는 등급)끼리 가까이: 같은 등급 사이 거리 2 이내면 보너스, 빈칸 없이 갇히면 감점
     if w.get('hi_near', 0) or w.get('hi_stuck', 0):
         for t, gs in groups.items():

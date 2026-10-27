@@ -220,6 +220,54 @@ def find_unit(img, key, thr=0.72):
     return best[1] if best[0] >= thr else None
 
 
+# ---------------------------------------------------------------- patch297: 병영 유닛 보유량 OCR 판독 (20마리 각성 유지)
+TESS = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+BK_SLOT_X0 = [20, 127, 234, 341, 446]  # 일반/시니어/1초/2초/3초월 5개 열 x 시작
+
+
+def read_cell_num(img, yc, x0):
+    """병영 한 칸의 우측 하단 숫자 배지 OCR (0마리면 0)"""
+    if not os.path.exists(TESS):
+        return 0
+    roi = img[yc + 6:yc + 42, x0 + 40:x0 + 112]
+    if roi.size == 0 or roi.shape[0] < 10 or roi.shape[1] < 10:
+        return 0
+    m = (roi.min(axis=2) > 225).astype(np.uint8) * 255
+    n, lab, st, _ = cv2.connectedComponentsWithStats(m, connectivity=8)
+    k = np.zeros_like(m)
+    for i in range(1, n):
+        if 11 <= st[i][3] <= 24 and st[i][4] >= 20:
+            k[lab == i] = 255
+    if not k.any():
+        return 0
+    t = cv2.bitwise_not(k)
+    t = cv2.resize(t, None, fx=6, fy=6, interpolation=cv2.INTER_CUBIC)
+    t = cv2.copyMakeBorder(t, 25, 25, 25, 25, cv2.BORDER_CONSTANT, value=255)
+    import tempfile, subprocess
+    p = os.path.join(tempfile.gettempdir(), f"bk_cell_{yc}_{x0}_{os.getpid()}.png")
+    cv2.imwrite(p, t)
+    try:
+        r = subprocess.run([TESS, p, "-", "--psm", "7", "-c", "tessedit_char_whitelist=0123456789"],
+                           capture_output=True, text=True, timeout=5,
+                           creationflags=getattr(preset, "NOWIN", 0x08000000))
+        out = r.stdout.strip()
+        return int(out) if out.isdigit() else 0
+    except Exception:
+        return 0
+    finally:
+        if os.path.exists(p):
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+
+
+def read_unit_total(img, yc):
+    """병영 줄 yc 의 총 보유량 (5개 열 합산) 및 각 칸별 수량 반환"""
+    vals = [read_cell_num(img, yc, x) for x in BK_SLOT_X0]
+    return sum(vals), vals
+
+
 # ---------------------------------------------------------------- 동작
 def open_hero_tab():
     img = capture()
@@ -507,8 +555,10 @@ def release_top_fast(keep=KEEP, total=10):
 CHUNK = 4          # 한 번에 연타할 배치 수 (줄이 사라지는 것을 중간중간 확인)
 
 
-def deploy(key, n):
-    """병영에서 key 유닛을 최대 n명 배치 (슬롯이 가득 차면 멈춤). 누른 횟수 반환"""
+def deploy(key, n, min_keep=0):
+    """병영에서 key 유닛을 최대 n명 배치 (슬롯이 가득 차면 멈춤).
+    min_keep > 0 이면 병영 보유 총량이 min_keep 초과하는 가용분(total - min_keep) 내에서만 배치.
+    누른 횟수 반환"""
     name, race = UNITS[key]
     if not load_tpls(key):
         log(f"{name} 템플릿 없음 (tpl\\bk_{key}1.png). py barracks.py mk {key} 줄번호 로 만드세요"); return 0
@@ -522,6 +572,21 @@ def deploy(key, n):
     y = locate(key)
     if y is None:
         log(f"{name} 줄을 못 찾음"); return 0
+
+    # patch297: min_keep 유닛 보존 로직 (골렘/죽손 20마리 각성 효과 유지)
+    if min_keep > 0:
+        cur_img = capture()
+        if cur_img is not None:
+            tot, vals = read_unit_total(cur_img, y)
+            avail = max(0, tot - min_keep)
+            log(f"{name} 보유 {tot}마리 (슬롯별 {vals}), 유지 {min_keep}마리 -> 가용 {avail}마리")
+            if avail <= 0:
+                log(f"{name} 가용 수량 없음({tot} <= {min_keep}) -> 배치 생략")
+                return 0
+            if n > avail:
+                log(f"{name} 요청 {n}명 > 가용 {avail}명 -> {avail}명으로 제한")
+                n = avail
+
     log(f"{name} 줄 y={y} -> 최대 {n}명 배치")
     done = 0
     while done < n:
@@ -799,21 +864,21 @@ def _release_tail_old(keep=KEEP, total=10):
     return True
 
 
-def topup(key, tries=3):
+def topup(key, tries=3, min_keep=0):
     """슬롯이 10/10 이 아니면 key 유닛을 한 명씩 더 배치 (연타 중 누락된 탭 보충)"""
     for _ in range(tries):
         img = snap(0.3)
         if img is None or is_full(img):
             return True
         log("슬롯이 덜 찼음 -> %s 1명 보충" % UNITS[key][0])
-        if deploy(key, 1) == 0:
+        if deploy(key, 1, min_keep=min_keep) == 0:
             return False
     img = snap(0.3)
     return img is not None and is_full(img)
 
 
 def phase1(after_release=None):
-    """불정 2명만 남기고 죽음의 손(부족하면 골렘)으로 채움 (patch190)"""
+    """불정 2명만 남기고 골렘과 죽음의 손 각각 20마리 이상 남기면서 8마리 혼합 채움 (patch297)"""
     if not release_tail():
         return False
     if after_release is not None:                      # patch130: 불정 2마리만 남았을 때 먼저 자리 잡기
@@ -823,14 +888,30 @@ def phase1(after_release=None):
             if type(e).__name__ == "Abort":
                 raise
             log("먼저 자리 잡기 오류: %r" % (e,))
-    need = 10 - KEEP
-    # patch190 (10-19 사용자): 죽음의 손이 20마리를 넘겨 펫(미라) 각성 효과 '병영에 있어도 최대 레벨업 +5' 가 적용됨
-    #   -> 골렘 대신 죽음의 손 8마리. 부족하면 골렘으로 채움
-    got = deploy("hand", need)
-    topup("hand", 2)
+    need = 10 - KEEP  # 8명 필요
+    MIN_KEEP = 20
+
+    # patch297: 골렘과 죽음의 손 각각 20마리 유지(각성 효과 유지) 혼합 배치
+    # ORDER: 인간(골렘) -> 언데드(죽음의 손)
+    # 기본 균등 분할 4마리씩 배치 시도. 한쪽이 부족하면 다른 쪽에서 남는 가용분으로 채움.
+    got_golem = deploy("golem", 4, min_keep=MIN_KEEP)
+    need_hand = need - got_golem
+    got_hand = deploy("hand", need_hand, min_keep=MIN_KEEP) if need_hand > 0 else 0
+    got = got_golem + got_hand
+
+    # 만약 죽음의 손이 부족해서 need(8)를 못 채웠고, 골렘을 더 넣을 수 있다면 골렘 추가 배치
+    if got < need:
+        rem = need - got
+        log(f"phase1: 배치 수량 부족 ({got}/{need}) -> 골렘 추가 배치 {rem}명 시도")
+        got_more = deploy("golem", rem, min_keep=MIN_KEEP)
+        got += got_more
+
+    # 탑업 및 확인 (탑업 시에도 20마리 유지 적용)
     img = capture()
-    if img is not None and not is_full(img) and got < need:
-        got += deploy("golem", need - got)
+    if img is not None and not is_full(img):
+        topup("golem", 1, min_keep=MIN_KEEP)
+        topup("hand", 1, min_keep=MIN_KEEP)
+
     close_barracks()
     img = snap(0.3)
     ok = img is not None and not barracks_open(img)
@@ -838,7 +919,7 @@ def phase1(after_release=None):
         shot_fail("barracks_phase1_no_units", img)
         log("phase1: 골렘/죽음의 손을 한 명도 배치하지 못함 -> 실패")
         return False
-    log("phase1 끝 (배치 시도 %d명)" % got, "OK" if ok else "병영이 안 닫힘")
+    log(f"phase1 끝 (골렘 {got_golem}명, 죽음의 손 {got_hand}명, 총 {got}명 배치)", "OK" if ok else "병영이 안 닫힘")
     return ok
 
 

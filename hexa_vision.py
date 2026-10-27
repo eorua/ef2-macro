@@ -319,7 +319,8 @@ def hammer_active(im):
 
 
 def _near(p, c, tol=22):
-    return all(abs(p[i] - c[i]) <= tol for i in range(3))
+    # patch302: uint8 언더플로우 방지 (int 캐스팅 필수)
+    return all(abs(int(p[i]) - int(c[i])) <= tol for i in range(3))
 
 
 def px(im, x, y, r=6):
@@ -333,16 +334,29 @@ POPUP_Y = [882]
 
 
 def popup_y(im):
-    """'공방 마감' 창의 나가기/다시 하기 버튼 줄 y (창 내용에 따라 위아래로 움직임). 없으면 None (patch268/patch294c)"""
-    dark_bottom = _near(px(im, 300, 1168), (28, 24, 18), 18) or _near(px(im, 300, 1093), (28, 24, 18), 18)
+    """'공방 마감' 창의 나가기/다시 하기 버튼 줄 y (창 내용에 따라 위아래로 움직임). 없으면 None (patch268/patch294c/patch302)"""
+    # patch302: BGR/RGB 양방향 하단 바닥 어두움 검출
+    p1168 = px(im, 300, 1168)
+    p1093 = px(im, 300, 1093)
+    dark_bottom = (_near(p1168, (18, 24, 28), 24) or _near(p1168, (28, 24, 18), 24)
+                   or _near(p1093, (18, 24, 28), 24) or _near(p1093, (28, 24, 18), 24))
     if not dark_bottom:
         return None
     hits = []
-    for y in range(770, 960, 3):
+    # patch302: 탐색 범위를 750~1020으로 확장 (신규/실전 팝업 y=920~990 대응)
+    for y in range(750, 1020, 3):
         a = px(im, 470, y, 3)
         b1, b2 = px(im, 211, y, 3), px(im, 240, y, 3)
-        b_ok = _near(b1, (45, 35, 28), 14) or _near(b2, (45, 35, 28), 14)
-        a_ok = (_near(a, (81, 48, 32), 16) or _near(a, (112, 59, 36), 18) or _near(a, (56, 50, 43), 10))
+        # b: 나가기 버튼 (어두운 회갈색 - BGR (28, 35, 45) 및 RGB (45, 35, 28) 양방향 지원)
+        b_ok = (_near(b1, (28, 35, 45), 22) or _near(b1, (45, 35, 28), 22)
+                or _near(b2, (28, 35, 45), 22) or _near(b2, (45, 35, 28), 22)
+                or _near(b1, (35, 35, 35), 22) or _near(b2, (35, 35, 35), 22)
+                or _near(b1, (50, 50, 50), 22) or _near(b2, (50, 50, 50), 22))
+        # a: 다시하기/확인 버튼 (주황/갈색 - BGR (36, 59, 112) 및 RGB (112, 59, 36) 양방향 지원)
+        a_ok = (_near(a, (36, 59, 112), 24) or _near(a, (112, 59, 36), 24)
+                or _near(a, (32, 48, 81), 24) or _near(a, (81, 48, 32), 24)
+                or _near(a, (25, 38, 88), 24) or _near(a, (88, 38, 25), 24)
+                or _near(a, (56, 50, 43), 16) or _near(a, (43, 50, 56), 16))
         if a_ok and b_ok:
             hits.append(y)
     runs, cur = [], []

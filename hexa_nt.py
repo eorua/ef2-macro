@@ -482,6 +482,9 @@ def _cproc():
     if _cfg.get("c_deadp"):
         env["DEADP"] = str(float(_cfg["c_deadp"]))
         env["DEADG"] = str(int(_cfg.get("c_deadg", 3)))
+    # patch302: 진짜 죽은 칸(등급 < 지금 나오는 최저 등급) 벌점 (hexa_cfg.json 의 c_gatep)
+    if "c_gatep" in _cfg:
+        env["GATEP"] = str(float(_cfg["c_gatep"]))
     # patch246: 3수째(첫 무작위 단계) 조각을 표본 K개 대신 모든 경우 가중평균 (hexa_cfg.json c_exact, bench_exact 가 정함)
     if _cfg.get("c_exact"):
         env["EXACT"] = "1"

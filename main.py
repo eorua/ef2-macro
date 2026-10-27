@@ -1471,7 +1471,14 @@ def hexa_on():
 
 
 def hexa_auto_run(st, resume=False):
-    """patch238~240: 유물 공방 티켓 확인 -> 5/5 면 1판, 다음 차례에 1장 이상이면 1판 더 (hexa.py auto). 시간 제한 없음"""
+    """patch238~240/patch302: 유물 공방 티켓 확인 -> 5/5 면 1판, 다음 차례에 1장 이상이면 1판 더 (hexa.py auto). 시간 제한 없음"""
+    # patch302: 공방 시작 전 전투 화면 복귀 보장 (영웅 탭/다른 창 열림 방지)
+    try:
+        daily.go_battle()
+        time.sleep(1.0)
+    except Exception:
+        pass
+
     # patch239: 환생당 1판. 5/5 로 꽉 차서 1판 돌렸으면 다음 환생에 1판 더(티켓 1장 이상이면)
     _need = 1 if st.get("hexa_extra") else 5
     _every = daily.setting("hexa_every", False)
@@ -1512,6 +1519,13 @@ def hexa_auto_run(st, resume=False):
     else:
         st["hexa_resume_n"] = 0
         st["hexa_resume_at"] = 0
+
+    # patch302: 공방 종료 후 잔류 창 방지 -> 전투 화면 100% 복귀 보장
+    try:
+        daily.go_battle()
+        time.sleep(1.0)
+    except Exception:
+        pass
 
     save_state(st)
 

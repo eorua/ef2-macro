@@ -437,7 +437,7 @@ def do_action():
         if pid and is_pid_alive(pid):
             return jsonify({"ok": True, "msg": "표키2가 이미 실행 중입니다 (PID: %d)" % pid})
         try:
-            p = subprocess.Popen([sys.executable, "main.py"], cwd=BASE_PYOKEY, creationflags=CREATE_NO_WINDOW)
+            p = subprocess.Popen([sys.executable, "main.py", "go"], cwd=BASE_PYOKEY, creationflags=CREATE_NO_WINDOW)
             with open(os.path.join(BASE_PYOKEY, "main.pid"), "w", encoding="utf-8") as f:
                 f.write(str(p.pid))
             return jsonify({"ok": True, "msg": "표키2 매크로를 시작했습니다 (PID: %d)" % p.pid})

@@ -1572,16 +1572,19 @@ def auto(need=5, games=2):
 
 
 def _after_play(fin):
-    """patch243: 판이 끝났으면 창 닫기. 중간에 끊겼으면(앱 꺼짐 등) 공방 화면일 때만 닫음 - 홈 화면을 누르지 않게"""
+    """patch243/patch302: 판이 끝났으면 창 닫기. 중간에 끊겼더라도 공방 관련 창이 남아있으면 닫아서 메인 방해 차단"""
     if fin:
         close_event()
         return
     try:
         im = _adb_capture()
-        if V.state(im) in ("lobby", "over", "popup") or menu_forge(im)[0] >= 0.8:
+        st = V.state(im)
+        if st in ("lobby", "over", "popup") or menu_forge(im)[0] >= 0.8:
             close_event()
+        elif st == "game":
+            log("AUTO 판이 중간에 끊김 (게임 보드 잔류) -> 창 닫기 생략 (메인이 복구 뒤 이어 하기)")
         else:
-            log("AUTO 판이 중간에 끊김 -> 창 닫기 생략 (메인이 복구 뒤 이어 하기)")
+            close_event()
     except Exception as ex:
         log("AUTO 판이 중간에 끊김 (화면 확인 실패 %r)" % (ex,))
 

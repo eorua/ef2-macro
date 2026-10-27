@@ -385,6 +385,10 @@ C_INFO = {}
 
 def _exe_path():
     if os.name == "nt":
+        # patch301: search12.c = 10/26 신규 룰(합성점 확정 합성 + 비상 탈출 망치 1회) 완벽 반영
+        v12 = os.path.join(HERE, "hexa_search_v12.exe")
+        if os.path.exists(v12):
+            return v12
         # patch244: 낮은 등급 벌점(c_deadp)을 아는 새 수 읽기가 있으면 그것 (벌점 0 이면 예전과 같음)
         v2 = os.path.join(HERE, "hexa_search_v2.exe")
         v3 = os.path.join(HERE, "hexa_search_v3.exe")   # patch246: v2 + 3수째 조각 전부 가중평균(c_exact). 끄면 v2 와 같음

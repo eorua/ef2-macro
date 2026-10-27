@@ -24,6 +24,14 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진�
 
 ## 최근 작업
 
+- **2026-10-27 (Antigravity, patch301) 유물 공방 10/26 신규 룰(점 확정 + 망치 1회) C 탐색기(hexa_search_v12.exe) 실전 배치 및 Arm A 기준(HUB 60 / TENB 100) 적용** (`hexa_nt.py`, `hexa_search_v12.exe`):
+  - **사용자 요청 ("그러면 일단은 A기준으로 실전에 패치시켜줄래? 나머지 더 좋은 결과 있으면 나중에 덮어씌우는 걸로 하고")**:
+    - 대규모 벤치마크에서 검증된 최신 C 탐색기 `search12.exe`를 `C:\macro\hexa_search_v12.exe`로 실전 배치.
+    - `hexa_nt.py`의 `_exe_path()` 1순위로 `hexa_search_v12.exe`를 지정하여, 공방 자동 플레이(`hexa.py`) 시 자동으로 신규 C 탐색기가 동작하도록 연결.
+    - `hexa_cfg.json`의 현재 실전 값(`c_hub: 60.0, c_tenb: 100.0`)이 Arm A의 파라미터와 100% 일치함을 확인하고 연동 완료.
+    - 인터랙티브 파이프 모드 파이프라인 테스트(`READY`, 7ms 수 계산 `OK`) 및 `hexa.py look` 정상 로드 검증 완료.
+
+
 - **2026-10-27 (Antigravity, patch300) BlueStacks 프로세스 크래시(터짐) 즉시 감지 복구, 창 숨김(헤드리스) 버그 원천 해결 및 유물 공방 신규 룰 C 탐색기(search12.exe) 빌드** (`bsrestart.py`, `main.py`, `hexa.py`, `hexa_cfg.json`, `hexa_vision.py`, `hexa_train/core6.inc`, `hexa_train/search12.c`, `hexa_train/bench_v12.py`):
   - **1) BlueStacks 크래시(터짐) 즉시 감지 및 자동 복구 (`main.py`)**:
     - **원인 분석 ("블루스택이 아예 터졌을 때는 인식을 못하네 / 당연히 영혼의 휴식때는 해당되지 않고")**:

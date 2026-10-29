@@ -6,11 +6,11 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 **지금 상태와 다
 **작성 규칙**
 - "최근 작업"은 최근 5개 패치까지만, 패치당 3~6줄(무엇을 / 근거 / 미검증·미빌드 / 백업). 넘치면 오래된 것부터 `docs/CHANGELOG.md` 맨 위로 옮깁니다.
 - 새 패치 번호 = 이 파일과 `docs/CHANGELOG.md`에 나온 **가장 큰 번호 + 1**. (patch266~268이 Claude/Antigravity 양쪽에서 중복 사용된 적 있음)
-- **마지막 패치 번호: patch279**
+- **마지막 패치 번호: patch280**
 
 ---
 
-## 현재 상태 (patch279 기준, 2026-10-29)
+## 현재 상태 (patch280 기준, 2026-10-29)
 
 - **환경**
   - 프로젝트 경로 `C:\macro`, 통합 패널·표키2 매크로 `C:\pyokey`, 웹 대시보드 `py web_panel.py` → `http://localhost:5000`.
@@ -35,6 +35,12 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 **지금 상태와 다
 
 ## 최근 작업 (최근 5개, 상세는 `docs/CHANGELOG.md`)
 
+- **2026-10-29 (Claude, patch280) 영혼의 휴식이 끝났는데 계속 휴식 중으로 아는 문제** (`soul.py`):
+  - 원인: 종료 시각을 '기록한 시작 시각 + 4시간' 내부 시계로만 계산, 종료 시각 전엔 화면을 전혀 안 봄 → 시작 시각이 틀리면(이미 휴식 중인 걸 발견해 지금 시각으로 기록 등) 게임은 끝났는데 매크로는 최대 4시간 더 멈춤.
+  - 수정 1: 휴식 화면이 보이면 10분마다 Windows OCR로 시간(`HH:MM:SS`/`N시간 M분`/`MM:SS`) 읽기 → 늘어나면 경과, 줄면 남은 시간으로 판별해 시작 시각 보정. 종료를 앞당기는 보정은 90초 뒤 다시 읽어 같을 때만. 0 또는 4:00에서 멈추면 종료 처리.
+  - 수정 2: 종료 시각 전에도 10분마다 휴식 화면 확인(가린 창 X 닫고 재확인), 연속 3번(약 30분) 안 보이면 끝난 것으로 보고 추적 종료(쿨타임 8시간 기록).
+  - 근거: 클라우드에서 가짜 입력으로 판별 시험(경과 3시간 오차 보정, 남은 0 종료, 4:00 멈춤 종료, 30분 미표시 종료) 통과. **실제 휴식 화면 OCR은 미검증** — 시간 글자 위치·형식 모름(ROI `0,150,720,640` 넓게 잡음). 못 읽으면 1시간마다 `shots/soul_timer_fail_*.png` 남기고 내부 시계로 계속.
+  - 확인: `py soul.py time`(휴식 화면에서). 메인 재시작 필요. 백업 `soul.py.bak280`.
 - **2026-10-29 (Claude, patch279) 인수인계 문서 정리 + 작업 절차 스킬** (`HANDOFF.md`, `docs/CHANGELOG.md`, `AGENTS.md`, `.claude/skills/ef2-patch/SKILL.md`, `.gitignore`):
   - HANDOFF 313줄(약 2.7만 토큰) → 이 형태로 축소, 기존 상세 기록은 `docs/CHANGELOG.md`로 원문 이동.
   - `AGENTS.md`: 패치 번호 규칙, HANDOFF/CHANGELOG 운용, 문서 불일치 수정(ADB 대체값 5586, wavecall patch273 반영).
@@ -43,12 +49,12 @@ Claude Code와 Antigravity CLI가 번갈아 작업할 때 **지금 상태와 다
 - **2026-10-26 (Antigravity, patch278)** 표키2 패스 일일 보상 자동화(`C:\pyokey\pass_quest.py`), 웹 패널 버튼 정리, Claude 권한 설정.
 - **2026-10-26 (Antigravity, patch277)** 보석 영웅 이름 판독 개선(`GEM_ROW_DY` 107→90, 크롭·패딩, `KNOWN_HEROES` 퍼지 매칭), 웹 패널 재시작 단독 구동.
 - **2026-10-26 (Antigravity, patch276)** 웹 패널 2차: 유물 공방 옵션 드롭다운 통합, 표키2 기능 이식.
-- **2026-10-25 (Antigravity, patch275)** 웹 패널 탭 구조·토스트·연결 상태 4단계 진단.
 
 ---
 
 ## 다음 할 일
 
+0. **(patch280) 영휴 시간 OCR 확인**: 휴식 중에 `py soul.py time` → 읽은 글자/초/종류 확인. 못 읽으면 휴식 화면 캡처(`py cap.py`)를 Claude에게 주면 ROI·형식 맞춤. `macro.log`에서 `휴식 시간 보정`/`안 보임 (n/3)` 로그 확인.
 0. **(patch279) PC에서 git 불일치 확인** — 위 ⚠️ 항목. 그리고 `git pull`로 이번 문서 정리 받기 (로컬에서 `HANDOFF.md`를 고친 게 있으면 충돌 가능 → 로컬 내용을 새 형식의 "최근 작업"에 옮겨 적으면 됨).
 1. **(patch263) 양궁 X 리셋 루프 실전 시험**: `py guild.py arch go`. 첫 미스 후 X 탈출 → 재진입 시 오늘 도전 기회가 차감되지 않는지 확인.
 2. **(patch265) `hexa_train\bench_hub3.bat` 결과 확인**: 합격 설정은 `hexa_cfg.json`에 자동 적용됨 (백업 `hexa_cfg.json.bak265`).

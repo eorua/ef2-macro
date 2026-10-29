@@ -2,6 +2,7 @@
 
   py soul.py look        지금 화면이 어떤 상태인지만 출력 (누르지 않음)
   py soul.py dia         HUD 다이아 개수 읽기 시험
+  py soul.py time        휴식 중 화면의 남은/경과 시간 OCR 시험 (patch280)
   py soul.py start go    (성 > 신전 > 영혼의 휴식 시작) 실제로 한 번 실행
   py soul.py end go      휴식 중 화면에서 종료창을 열어 2배로 받기까지 한 번 실행 (4시간 안 기다림, 시험용)
 
@@ -330,7 +331,7 @@ def _finish(st, got_x2):
     st["soul_next"] = now + COOLDOWN_SEC
     if st.get("last_restart"):
         st["last_restart"] = min(now, st["last_restart"] + dur)       # 쉰 시간은 정기 재시작 시간에 넣지 않음
-    log("영혼의 휴식 종료 처리 완료 (%.0f분, 훈장 %s)" % (dur / 60, "x2" if got_x2 else "x1"))
+    log("영혼의 휴식 종료 처리 완료 (%.0f분, 훈장 %s)" % (dur / 60, "x2" if got_x2 else ("x1" if got_x2 is False else "확인 못 함")))   # patch280: None = 화면 없이 종료
     try:
         _close_everything()
     except Exception as e:
@@ -376,6 +377,134 @@ def idle_sleep(st):
     return 3
 
 
+# ---------------------------------------------------------------- patch280: 화면의 휴식 시간 읽기
+# 원인: 종료 시각을 '매크로가 기록한 시작 시각 + 4시간' 내부 시계로만 계산 -> 시작 시각이 틀리면
+#   (이미 휴식 중인 걸 발견해 지금 시각으로 기록, 상태 파일 복구, 재시작 등) 게임에선 휴식이 끝났는데
+#   매크로는 계속 휴식 중으로 알고 모든 동작을 멈춤.
+# 수정: 휴식 화면이 보이면 10분마다 OCR 로 휴식 시간을 읽어 시작 시각을 보정하고,
+#   휴식 화면이 30분 넘게 안 보이면(가린 창도 없음) 휴식이 끝난 것으로 보고 추적을 풂.
+ROI_TIMER = (0, 150, 720, 640)      # patch280: 휴식 중 화면의 시간 글자를 찾을 범위 ('휴식 종료' 버튼 위쪽 포함)
+TIMER_EVERY = 600                   # patch280: 휴식 시간 읽기 주기 (초)
+TIMER_RECHECK = 90                  # patch280: 늘어나는지/줄어드는지 아직 모를 때 다시 읽는 간격
+MISS_EVERY = 600                    # patch280: 종료 시각 전 휴식 화면 확인 주기
+MISS_LIMIT = 3                      # patch280: 연속 이만큼 휴식 화면이 안 보이면 끝난 것으로 봄 (약 30분)
+FULL = SOUL_HOURS * 3600
+
+import re
+_RE_HMS = re.compile(r"(\d{1,2})\s*[:：;]\s*(\d{2})\s*[:：;]\s*(\d{2})")
+_RE_KOR = re.compile(r"(?:(\d{1,2})\s*시간)?\s*(?:(\d{1,2})\s*분)?\s*(?:(\d{1,2})\s*초)?")
+_RE_MS = re.compile(r"(?<![\d:])(\d{1,2})\s*[:：]\s*(\d{2})(?![\d:])")
+
+
+def parse_timer(text):
+    """글자 -> (초, 종류) 또는 (None, None). 종류: 'remain'(남은 시간) / 'elapsed'(경과) / None(모름)"""
+    kind = None
+    if re.search(r"남은|남음|후\s*종료|후에", text):
+        kind = "remain"
+    elif re.search(r"경과|지남", text):
+        kind = "elapsed"
+    m = _RE_HMS.search(text)
+    if m:
+        h, mi, s = (int(v) for v in m.groups())
+        if mi < 60 and s < 60:
+            return h * 3600 + mi * 60 + s, kind
+    for m in _RE_KOR.finditer(text):
+        if not any(m.groups()) or not re.search(r"시간|분", m.group(0)):
+            continue
+        h, mi, s = (int(v) if v else 0 for v in m.groups())
+        if mi < 60 and s < 60:
+            return h * 3600 + mi * 60 + s, kind
+    m = _RE_MS.search(text)
+    if m:
+        mi, s = int(m.group(1)), int(m.group(2))
+        if s < 60:
+            return mi * 60 + s, kind
+    return None, kind
+
+
+def read_timer(img):
+    """휴식 중 화면의 시간 -> (초, 종류, 읽은 글자). OCR 실패면 (None, None, '')"""
+    try:
+        import ocrx
+        x1, y1, x2, y2 = ROI_TIMER
+        sub = cv2.resize(img[y1:y2, x1:x2], None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        ws = ocrx.words(sub)
+    except Exception as e:
+        log("휴식 시간 OCR 오류: %r" % (e,))
+        return None, None, ""
+    if not ws:
+        return None, None, ""
+    ws = sorted(ws, key=lambda w: (round(w[2] / 30), w[1]))      # 줄(y) -> x 순서
+    text = " ".join(w[0] for w in ws)
+    sec, kind = parse_timer(text)
+    return sec, kind, text
+
+
+def _set_end_now(d, now, why):
+    """종료 시각을 지금으로 당김 -> 다음 tick 에서 바로 '휴식 종료'"""
+    d["start"] = now - FULL - END_GRACE
+    log("휴식 시간 읽기: %s -> 지금 종료 처리" % why)
+
+
+def check_timer(d, img, now):
+    """patch280: 휴식 화면에서 시간을 읽어 시작 시각 보정. 종료 시각을 '앞당기는' 보정은 두 번 연속 같은 결과일 때만"""
+    sec, kind, text = read_timer(img)
+    d["tm_at"] = now
+    if sec is None or sec > FULL + 120:                  # 4시간보다 크면 잘못 읽은 것
+        if now - d.get("tm_fail_note", 0) > 3600:
+            d["tm_fail_note"] = now
+            log("휴식 시간을 못 읽음 (글자: %r) -> 내부 시계로 계속" % text[:80])
+            shot("soul_timer_fail_%d" % int(now), img)
+        return
+    prev = d.get("tm")
+    d["tm"] = [now, sec]
+    if kind:
+        d["tm_kind"] = kind
+    kind = d.get("tm_kind")
+    if not kind and prev:                                # 이전 값과 비교해 늘어나는지(경과) 줄어드는지(남은 시간) 판별
+        dt, diff = now - prev[0], sec - prev[1]
+        tol = max(90, dt * 0.3)
+        if dt >= 60 and abs(diff) < 30 and (sec <= 30 or sec >= FULL - 60):    # 0 또는 4시간에서 멈춘 것만 (HH:MM 오독 방지)
+            d["tm_stop"] = d.get("tm_stop", 0) + 1       # 시간이 멈춤 = 휴식 끝남 (두 번 연속이어야 인정)
+            if d["tm_stop"] >= 2:
+                _set_end_now(d, now, "시간이 %s 에서 멈춤" % text[:40])
+            return
+        if dt >= 60 and abs(diff - dt) <= tol:
+            kind = d["tm_kind"] = "elapsed"
+        elif dt >= 60 and abs(diff + dt) <= tol:
+            kind = d["tm_kind"] = "remain"
+        if kind:
+            log("휴식 시간 표시 = %s" % ("경과 시간" if kind == "elapsed" else "남은 시간"))
+    d["tm_stop"] = 0
+    if not kind:
+        log("휴식 시간 %d분 읽음 (%r) - 늘어나는지/줄어드는지 확인 중" % (sec // 60, text[:40]))
+        d["tm_at"] = now - TIMER_EVERY + TIMER_RECHECK   # 90초 뒤 다시 읽어 비교
+        return
+    if kind == "elapsed":
+        cand = now - sec
+        done = sec >= FULL - 30
+    else:
+        cand = now - (FULL - sec)
+        done = sec <= 30
+    if done:
+        cand = now - FULL
+    old = d.get("start", now)
+    pc = d.get("tm_cand")
+    d["tm_cand"] = cand
+    if abs(cand - old) <= 180:
+        return                                           # 내부 시계와 거의 같음
+    if cand > old or (pc is not None and abs(pc - cand) <= 180):    # 늦추는 건 바로, 앞당기는 건 두 번 연속 같을 때
+        log("휴식 시간 보정: 화면 %s %d분 -> 시작 시각 %s -> %s (종료 %s)" % (
+            "경과" if kind == "elapsed" else "남음", sec // 60,
+            time.strftime("%H:%M", time.localtime(old)), time.strftime("%H:%M", time.localtime(cand)),
+            time.strftime("%H:%M", time.localtime(cand + FULL))))
+        d["start"] = cand
+        if done:
+            _set_end_now(d, now, "화면 시간이 끝남")
+    else:
+        d["tm_at"] = now - TIMER_EVERY + TIMER_RECHECK   # 앞당기는 보정은 90초 뒤 한 번 더 읽어서 확인
+
+
 def _clear_cover():
     """가린 창(우편함·이벤트 등)을 빨간 X 로 닫음 -> 닫은 개수"""
     n = 0
@@ -403,7 +532,27 @@ def tick(st, img):
     if not d:
         return False
     now = time.time()
+    if img is not None and running_view(img):           # patch280: 휴식 화면이 보이면 10분마다 화면 시간으로 보정
+        d["miss_n"] = 0
+        if now - d.get("tm_at", 0) >= TIMER_EVERY:
+            check_timer(d, img, now)
     end = end_time(d)
+    if now < end and img is not None and not end_dialog(img) and not running_view(img) \
+            and now - d.get("miss_at", 0) >= MISS_EVERY:
+        # patch280: 종료 시각 전인데 휴식 화면이 안 보임 -> 가린 창을 닫고 다시 확인, 연속 3번(약 30분)이면 끝난 것으로 봄
+        d["miss_at"] = now
+        _clear_cover()
+        cur = grab()
+        if cur is not None and (running_view(cur) or end_dialog(cur)):
+            d["miss_n"] = 0
+            return tick(st, cur)
+        d["miss_n"] = d.get("miss_n", 0) + 1
+        shot("soul_miss_%d" % int(now), cur if cur is not None else img)
+        log("종료 시각 전인데 휴식 화면이 안 보임 (%d/%d)" % (d["miss_n"], MISS_LIMIT))
+        if d["miss_n"] >= MISS_LIMIT:
+            log("휴식 화면이 %d분 넘게 안 보임 -> 휴식이 이미 끝난 것으로 보고 추적 종료" % (MISS_LIMIT * MISS_EVERY // 60))
+            _finish(st, None)
+            return False
     if now < end:
         if now - d.get("note", 0) > 1800:
             d["note"] = now
@@ -481,6 +630,12 @@ if __name__ == "__main__":
     img = preset.capture()
     if img is None:
         print("캡처 실패"); sys.exit(1)
+    if "time" in args:                                   # patch280: py soul.py time -> 휴식 시간 OCR 시험
+        print("휴식 중 화면:", running_view(img))
+        sec, kind, text = read_timer(img)
+        print("읽은 글자:", text)
+        print("시간: %s 초, 종류: %s" % (sec, kind))
+        sys.exit(0)
     if "dia" in args:
         print("다이아:", read_diamonds(img)); sys.exit(0)
     print("화면 상태:", screen_state(img))

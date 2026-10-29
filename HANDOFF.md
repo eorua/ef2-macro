@@ -1,312 +1,58 @@
 # HANDOFF.md — 작업 인수인계 문서
 
-Claude Code와 Antigravity CLI가 번갈아 작업할 때 현재 상태와 진행 내역을 공유하는 문서입니다. 작업을 마칠 때마다 이 파일을 갱신하고 커밋해 주세요.
+Claude Code와 Antigravity CLI가 번갈아 작업할 때 **지금 상태와 다음 할 일**만 공유하는 문서입니다.
+상세 패치 이력은 `docs/CHANGELOG.md`에 있습니다. (patch279에서 분리 — 이 파일은 짧게 유지)
+
+**작성 규칙**
+- "최근 작업"은 최근 5개 패치까지만, 패치당 3~6줄(무엇을 / 근거 / 미검증·미빌드 / 백업). 넘치면 오래된 것부터 `docs/CHANGELOG.md` 맨 위로 옮깁니다.
+- 새 패치 번호 = 이 파일과 `docs/CHANGELOG.md`에 나온 **가장 큰 번호 + 1**. (patch266~268이 Claude/Antigravity 양쪽에서 중복 사용된 적 있음)
+- **마지막 패치 번호: patch279**
 
 ---
 
-## 현재 상태
+## 현재 상태 (patch279 기준, 2026-10-29)
 
-- **환경**:
-  - 프로젝트 경로: `C:\macro` (통합 패널은 `C:\pyokey`에 위치)
-  - 대상 에뮬레이터: BlueStacks 인스턴스 `Pie64_3` (창 제목 `오환2`), 현재 ADB `127.0.0.1:5585` (`adbport.py` scan 으로 자동 탐색, 대체값 5586)
-  - **patch250**: `emu.json`으로 BlueStacks/뮤뮤(MuMu) 전환 가능. **patch259에서 `bluestacks`로 롤백됨** (뮤뮤는 `127.0.0.1:16384`, 점검 도구 `emucheck.py`).
-  - **유물 공방 탐색 설정 (patch260)**: `hexa_cfg.json` `c_tenb=10`, `c_clust=0` → 항상 C 탐색기(v5). CLUST 는 `hexa_train/bench_clust.bat` 결과 보고 결정.
-- **매크로 코드 상태 (patch246 기준)**:
-  - 메인 루프(`main.py`) 및 조작 패널(`panel.py`)을 통해 자동 환생 사이클, 일일 작업(`daily.py`, `dungeon.py`, `spirit.py`, `guild.py`, `friend.py`), 영혼의 휴식(`soul.py`), 무료 영입(`recruit.py`), 고층 스킬/웨이브호출 제어(`skillctl.py`, `wavecall.py`) 가동 중.
-  - 최근 업데이트된 주요 기능(현재 커밋 반영 완료):
-    - **유물 공방(헥사 머지) 자동화**: `hexa.py`, `hexa_engine.py`, `hexa_vision.py`, `hexa_nt.py` 및 C 탐색기(`hexa_search*.exe`), 가중치(`hexa_nt_w.*`), 학습 코드(`hexa_train/`). 환생 후 및 영혼의 휴식 중 티켓(`5/5`) 자동 확인·플레이 및 중단된 판 이어하기(`patch238~246`) 적용.
-    - **주말 환생 훈장 +50% 이벤트 대응**: `bonus.py` 및 `main.py`(`wk_x2` 옵션)에서 토·일(오전 9시 기준) 전투 화면 배지(`N/5`)와 성 함락 창 `+보너스` 확인 후 하루 5회 다이아 500 빨간 환생 기능(`patch235`) 적용.
-    - **영혼의 휴식 중 병행 작업 확대**: 휴식 중에도 던전 소탕, 정령의 고원, 무한랭킹전, 무료 영입, 유물 공방 티켓 확인을 수행하도록 개선(`patch233, 236, 240`).
-    - **영입 쿨타임 타이머 인식**: `recruit.py` 및 `tpl/rtimer/`를 통해 고용 화면의 남은 시간(`MM:SS`)을 읽어 다음 영입 시각 정밀 예약(`patch222`).
-    - **인간 종족 보너스 판 전용 30퀘 분기 (`q30.py`, `main.py`, `panel.py`)**: 좌상단 종족 아이콘을 판별(`check_reborn_tribe()`)하여 인간(`HUMAN`, 불의 정령) 판일 때만 기존 30퀘 루틴을 실행하고, 그 외(`ELF`, `UNDEAD`, `ORC`, `UNKNOWN`)에는 일반 모드로 진행하도록 분기 추가.
+- **환경**
+  - 프로젝트 경로 `C:\macro`, 통합 패널·표키2 매크로 `C:\pyokey`, 웹 대시보드 `py web_panel.py` → `http://localhost:5000`.
+  - 에뮬레이터: BlueStacks `Pie64_3` (창 제목 `오환2`). `emu.json` = `bluestacks` (patch259에서 뮤뮤에서 롤백).
+  - ADB: `adbport.py`가 찾아서 씀 (최근 실측 `127.0.0.1:5585`, 못 찾을 때 대체값 `5586`).
+- **메인 루프(`main.py`)**: 환생 사이클(저층 → 5000 중간 업글 → 6500 고레벨 2단계 → 7000 유물 기본 → 7200+ 스킬 수동 제어), 성 함락 이어하기/정체 환생, 주말 +50% 다이아 환생, 영혼의 휴식 및 휴식 중 병행 작업, 일일 숙제·던전·고원·무한랭킹전·영입, 유물 공방 자동, 복구·점검 대기.
+  - 웨이브 호출 AUTO: 게임 내 상시 켜짐 전제. patch273부터 메인은 확인·토글하지 않음 (`wavecall.tick/request_check` = no-op, CLI 진단만 남음).
+  - 인간 종족 판에서만 30퀘 (`q30_human_only`).
+  - 텔레그램 무음 알림: 환생(층수·종류·소요 시간·획득 훈장), 유물 공방 ★10. 토큰은 `telegram.json`(git 제외).
+- **유물 공방(헥사 머지)**: C 탐색기 `hexa_search_v8.exe`(search11.c, 합치기 처리 순서 반영) 최우선 → v7 → … → Python. 실전 설정(HANDOFF 기록 기준) `c_hub 30`, `c_tenb 10`, `c_clust 0` = ★10 올인(600판 ★10 20.3%).
+- **웹 대시보드**: 오환2/표키2 탭, 상태·환생 기록·로그·단발 실행·옵션 토글. 표키2 패스 일일 보상(`C:\pyokey\pass_quest.py`) 매일 6시 이후 자동.
 
----
-
-## 최근 작업
-
-- **2026-10-26 (Antigravity, patch278) 표키2 로젠가의 영애 패스 일일 보상 자동화 신설, 웹 대시보드 버튼 정리 및 권한 설정** (`pass_quest.py`, `C:\pyokey\main.py`, `C:\pyokey\settings.json`, `web_panel.py`, `templates/index.html`, `.claude/settings.local.json`, `.gitignore`):
-  - 1) **표키2 로젠가 영애 패스 일일 수령 자동화 (`pass_quest.py`)**:
-    - 홈 화면 `패스` 아이콘 진입 → `[패스 미션]` 탭 전환 → 일일 미션 6종 보상 수령 → `[패스 보상]` 탭 전환(달성 레벨 위치 자동 스크롤) → 최상단 무료 보상 2회 탭 수령 → 다이아몬드 X 닫기 복귀.
-    - `C:\pyokey\main.py`의 `TASKS`에 `"pass"`를 등록하여 매일 오전 6시 이후 다른 일퀘들과 함께 자동 실행되도록 연계 (`state.json`에 `pass_day` 성공 기록 확인).
-  - 2) **표키2 단발 화면 캡처 도구 (`cap.py`) 추가**:
-    - `C:\pyokey\cap.py` 신설하여 오환2처럼 표키2 화면도 즉시 캡처 저장(`C:\pyokey\shots\`) 지원.
-  - 3) **웹 패널 표키 대시보드 단발 버튼 정리**:
-    - 요청에 따라 불필요한 `루비`, `길드`, `버닝`, `일퀘 묶음`, `별빛교환소` 버튼 제거.
-    - `🎫 패스 보상 수령`, `📜 주간 미션`, `📸 화면 캡처 저장`으로 핵심 제어 정돈.
-  - 4) **Claude 권한(permissions.allow) 구성**:
-    - `C:\macro\.claude\settings.local.json` 및 `C:\Users\admin\.claude\settings.json`에 Bash(py, python, git, taskkill, adb), Read/Edit(C:/pyokey/**) 등록 완료.
-- **2026-10-26 (Antigravity, patch277) 보석 영웅 이름 판독 로직 전면 개선 및 웹 패널 재시작 자립화** (`recruit.py`, `recruit_left.json`, `web_panel.py`):
-  - 1) **보석 영웅 OCR 오인식·미인식 근본 원인 해결**:
-    - **행 간격 오차 수정**: 고용 목록 줄 간격 `GEM_ROW_DY`가 기존 `107px`로 잘못 설정되어 있어 2~4행의 보석 비율 및 이름 ROI가 최대 51px 밀려나던 문제를 실제 UI 규격인 `90px`(`GEM_ROW_DY = 90`)로 정확히 수정.
-    - **글자 잘림 방지 및 마진(Padding) 부여**: 기존 크롭(`y - 42:y - 4`)이 글자 하단 받침을 잘라먹고 테두리 여백이 없어 Windows OCR이 글자를 버리던(`[]` 반환) 문제를 `y - 25:y + 6, 160:430` 및 상하좌우 25px 패딩(`copyMakeBorder`) + 2배 보간으로 개선.
-    - **영웅 사전 퍼지 매칭 도입**: `KNOWN_HEROES` 사전과 `difflib.get_close_matches(cutoff=0.45)`를 연동하여 게임 폰트 특성상 발생하는 미세한 OCR 오탈자(`[데스나이트` -> `데스나이트`, `다크Ot처` -> `다크아처`, `일프궁병` -> `엘프궁병`)를 100% 정밀 보정.
-    - **다중 보석 영웅 지원**: 4행 전체를 탐색하여 보석 영웅이 여러 명인 경우 누락 없이 모두 수집(`폭탄병, 다크아처` 등).
-  - 2) **웹 패널 재시작 독립 구동 지원**:
-    - 데스크톱 Tkinter 패널이 꺼져 있어도 웹 패널의 `🔄 재시작` 버튼이 `main.pid` 종료 후 신규 프로세스를 직접 안전하게 재구동하도록 개선.
-- **2026-10-26 (Antigravity, patch276) 웹 통합 패널 2차 고도화: 유물 공방 옵션 통합, 표키2 기능 완전 이식, 불필요 버튼 정리 및 시인성 개선** (`web_panel.py`, `templates/index.html`):
-  - 1) **유물 공방 옵션 단일 드롭다운 통합**: 기존 체크박스 2개(`hexa_auto`, `hexa_every`)를 성 함락 이어하기와 같은 단일 드롭다운 목록(`사용 안 함`, `티켓 꽉 차면 (5/5)`, `환생마다 (1장 이상)`)으로 통합하고 `settings.json`과 양방향 실시간 동기화.
-  - 2) **표키2 전체 기능 및 단발 작업 완벽 이식**:
-    - 던전 티켓 9종(`총력전`, `하드총력전`, `수중전`, `던전`, `드래곤`, `블랙드래곤`, `시간의방`, `추격전`, `환영누각`) 누락 없이 실시간 칩(뱃지) 형태로 전광판 표시. 잔여량 1개 이상 항목은 강조 배지 표시.
-    - 표키2 단발 작업 즉시 실행 연동(`C:\pyokey\RUN_NOW`): `📮 일퀘 묶음 실행`, `💎 무료 루비 수령`, `📜 주간 미션`, `🏰 길드 출석/상점`, `⭐ 별빛 교환소`, `🔥 버닝 모드`.
-    - 표키2 설정 및 도구 연동: `표창 자동 합성 (상시)` 실시간 토글 및 `⚠️ 오늘 완료 기록 초기화`(`reset_day`) 지원.
-  - 3) **UI 정리 및 불필요 버튼 제거**:
-    - 오환2 단발 실행에서 불필요한 `👤 무료 영웅 영입`, `📋 일일 숙제 전체`, `⚔️ 던전 즉시 소탕` 제거하고 미니게임/캡처/정리 중심으로 정돈.
-    - 영웅 영입 요약 텍스트에서 불필요한 "무료" 글자 제거 (`5마리 (보석) · 27분 20초 뒤` 또는 `27분 20초 뒤`).
-- **2026-10-25 (Antigravity, patch275) 웹 통합 패널 전면 고도화: 탭 구조 분리, 토스트 피드백, 정밀 진단 및 기존 기능 완전 복원** (`web_panel.py`, `templates/index.html`):
-  - 1) **인스턴스별 탭(Tab) 구조 분리**:
-    - 상단 네비게이션에 `[🔄 오늘도 환생2 대시보드]`와 `[🎯 표키2 대시보드]` 탭 신설, 인스턴스별 상태 및 제어 화면 완벽 전환 지원.
-  - 2) **우측 하단 토스트 팝업 (Toast Notification) 피드백**:
-    - 모든 제어 버튼(시작/중지/재시작/일시정지/옵션변경/단발작업/녹화설정 등) 실행 시 브라우저 우측 하단에 부드럽게 나타났다 사라지는 토스트 팝업(애니메이션 + 3.5초 자동 소멸 + 성공/오류 색상 구분) 구현.
-  - 3) **기존 통합 패널 핵심 기능 완전 복원**:
-    - 오환2 단발 실행 8종: 일일 숙제 전체(`daily.py go`), 던전 소탕(`dungeon.py go`), 양궁(`arch2.py play go`), 화석 발굴(`fossil.py go`), 유물 공방(`hexa.py play go 1`), 무료 영입(`recruit.py go`), 화면 캡처(`cap.py`), 임시파일 정리(`cleanup.py go`).
-    - 오환2 자동화 옵션 실시간 토글(`settings.json`): `wk_x2`, `cont_skip`, `hexa_auto`, `hexa_every`, `q30_human_only`, `fall_continue_n`(이어하기 횟수 콤보박스).
-    - BlueStacks(오환2) 단독 재시작(`bsrestart.py go`), 고층 녹화 구간 장전/해제 및 최근 영상 열기 연동.
-    - 표키2: 런타임 상태, 루비 수령 쿨타임, 던전 티켓 현황, 재충전 횟수, 실시간 일일 로그 스트리밍.
-  - 4) **연결 상태 정밀 진단 시스템**:
-    - 단순 연결 끊김이 아닌 4단계 상태 정밀 감지:
-      ① BlueStacks 에뮬레이터 오프라인 (5585/5595 미연결)
-      ② 에뮬레이터 온라인 but 매크로 프로세스 미실행 ("▶ 시작 버튼을 눌러주세요" 원클릭 시작 트리거 제공)
-      ③ 일시정지(PAUSED) 상태 ("▶ 일시정지 해제" 버튼 제공)
-      ④ 매크로 정상 가동 중 (PID, 최고 층수 표시)
-- **2026-10-25 (Antigravity, patch274) 오환2 & 표키2 통합 웹 대시보드 구축** (`web_panel.py`, `templates/index.html`, `run_web.bat`):
-  - 사용자 요청: 로컬 매크로 및 블루스택 인스턴스를 웹 브라우저에서 모니터링하고 원격 제어할 수 있는 가벼운 웹 통합 패널 신설.
-  - 아키텍처 및 스택:
-    - Flask 기반 경량 웹 서버 (`web_panel.py`), 모던 다크 테마 반응형 웹 대시보드 (`templates/index.html`), 원클릭 실행 배치 (`run_web.bat`).
-    - 기존 매크로 core 로직에 일체 간섭하지 않는 완전 독립 구조.
-  - 대시보드 주요 기능:
-    - **실시간 상태 모니터링**: 2초 주기 비동기 폴링(`/api/status`), 오환2 매크로(PID/웨이브/종족/이어하기/영입쿨타임), 표키2 매크로(PID/실행여부), BlueStacks 인스턴스(5585, 5595 포트 연결 상태).
-    - **환생 기록 대시보드**: 최근 10회 환생 내역(층수, 종류, 걸린 시간, 획득 훈장, 환생 시각) 테이블 표시.
-    - **원격 제어 액션**: 오환2 시작/재시작(`restart_main.req`), 매크로 중지, 일시정지(`PAUSE` 토글), 텔레그램 연동 테스트 알림 전송, 최근 녹화 영상 열기(`os.startfile`), 고층 녹화 3회 장전, 표키2 시작/재시작.
-    - **실시간 로그 뷰어**: `macro.log` 최근 35줄 실시간 갱신 및 자동 스크롤.
-  - 실행 방법: `py web_panel.py` 또는 `run_web.bat` 실행 후 `http://localhost:5000` 접속.
-- **2026-10-25 (Antigravity, patch273) 웨이브 호출 AUTO 불필요한 검증·토글 루틴 완전 제거** (`main.py`, `wavecall.py`):
-  - 사용자 요청: 게임 내에서 웨이브 호출 AUTO가 상시 켜져 있으므로, 한 사이클에 2번씩 설정창에 들어가서 켜짐 여부를 확인하거나 토글하던 불필요한 루틴을 제거.
-  - 제거 내역:
-    - `main.py`의 `record_rebirth`에서 환생 직후 `wavecall.request_check(st, "환생")` 예약 제거.
-    - `main.py`의 `after_restart_setup`에서 재시작 직후 `wavecall.request_check(st, "재시작")` 예약 제거.
-    - `main.py`의 메인 루프에서 `wavecall.tick(st, w)` 정기 30분/예약 검증 호출 완전 제거.
-    - `wavecall.py`의 `tick()` 및 `request_check()`를 no-op으로 전환하여 외부 호출 시에도 설정창 팝업이 뜨지 않도록 방어.
-    - `state.json`의 `wc_*` 잔여 상태 키 정리.
-    - 단발 진단 명령(`py wavecall.py look / on go / off go`)은 CLI 도구로 그대로 보존.
-- **2026-10-25 (Antigravity, patch272) 텔레그램 환생 알림 내용 확장 (소요 시간 + 획득 훈장 추가)** (`rebirth.py`, `main.py`):
-  - 사용자 요청: 환생할 때마다 텔레그램 알림에 '이번 환생에 걸린 시간'과 '이번 환생을 통해 얻은 훈장' 2개 항목 추가.
-  - 소요 시간 계산:
-    - 직전 환생 기록(`lst[-1]["t"]`)과의 차이 `now - prev_t`를 초 단위로 계산 (`54분 0초`, 1시간 이상 시 `1시간 2분 15초`).
-    - 직전 기록이 없는 예외 상황에서는 성 함락 창의 게임 내 표시(`마지막 환생 이후 지난 시간 : 53M`) OCR 판독값(`53분`)을 fallback으로 활용.
-  - 획득 훈장 판독:
-    - 환생결과 팝업(`title_result.png`, `btn_confirm.png`)에서 `ocrx`로 최종 획득 훈장(`3.12c (x3)` 또는 `2.89c (x2)`) 정밀 판독 (`rebirth.parse_result_medal`).
-    - 성 함락/환생하기 창에서도 `17.2b + 1.03c` 공식 및 지난 시간을 fallback 판독 (`rebirth.parse_fall_info`).
-    - `rebirth.after_click(st)`에서 결과 팝업 확인 클릭 직전에 화면 저장(`snap_reward`)과 훈장 판독을 함께 수행하도록 개선.
-  - 텔레그램 메시지 포맷:
-    ```
-    🔄 [오늘도환생2] 환생
-    • 층수: 8001층
-    • 종류: 환생(💎x2)
-    • 걸린 시간: 54분 0초
-    • 획득 훈장: 3.12c (x3)
-    • 시각: 10-25 22:20:28
-    ```
-  - `st["rebirths"]` 항목에도 `"dur"`, `"medal"` 함께 기록되어 패널/로그에서도 확인 가능.
-- **2026-10-25 (Claude, patch271) 텔레그램 무음 알림 연동** (`telegram_bot.py`, `notify.py`, `main.py`, `hexa.py`, `.gitignore`):
-  - 토큰·chat_id 를 코드에서 빼서 `telegram.json`(새 파일, `.gitignore` 추가)으로 분리. `send_telegram(msg, silent=True, block=False)` = 무음(`disable_notification`) + 백그라운드 스레드 전송, `esc()` 로 HTML 이스케이프.
-  - `main.py` `record_rebirth()` 에서 환생 기록 직후 알림(층수·종류·시각) — 환생 경로 4곳(성 함락/💎x2/정체/감지)이 모두 여기를 지남.
-  - `hexa.py` `check_result()` 에서 실제 판과 맞은 예상(`hit`)의 `made`(=(원래 등급, 칸 수, 결과 등급)) 결과 등급이 10 이상일 때만 ★10 알림.
-  - `notify.py`: 토스트 무음(`ToastAudio(silent=True)`) + 같은 내용 텔레그램 전송(`block=True`, 짧은 프로세스라 기다림).
-  - 미검증: 실제 텔레그램 수신(컨테이너에서 네트워크 불가, 문법 컴파일만 확인), ★10 알림은 실전 ★10 발생 전까지 미확인. git commit 은 Claude 쪽 셸이 없어 **아직 안 함** — 커밋 전 `telegram_bot.py` 예전 커밋에 토큰이 남아 있으면 BotFather `/revoke` 권장.
-- **2026-10-25 (Claude, patch270) 영혼의 휴식 중 작업이 휴식 끝까지 멈추던 문제** (`main.py`):
-  - 원인: 14:56 유물 공방 '공방 마감' 창(patch268 이전엔 못 알아봄)이 화면을 덮은 채 영입 뒤 복귀 확인 실패 → `soul.no_tasks=True` → 그 휴식이 끝날 때까지(17:11) 영입·던전·고원 등 전부 건너뜀.
-  - 수정: 멈출 때 `no_tasks_at` 기록, 30분 지난 뒤 지금 화면에 휴식 표시(`soul.running_view`)가 보이면 `no_tasks` 해제하고 재개. 예전 상태(시각 없음)는 바로 확인.
-  - 근본 원인인 마감 창 인식은 patch268 에서 해결. 백업 `main.py.bak270`.
-  - 참고(미수정): 티켓 0/5 로비는 시작 버튼 대신 회색 타이머라 `hexa_vision.state()`가 로비로 못 알아봄 -> AUTO 가 "공방 창을 못 엶 -> 닫고 건너뜀"(결과는 같음, 로그만 지저분).
-
-- **2026-10-25 (Claude, patch269) 합치기 처리 순서 실측 반영 (엔진 + C 탐색기 v8)**:
-  - 원인: 15:36 판 '예상 빗나감' 3건 모두 드래그가 아니라 두 그룹 동시 합성의 처리 순서 차이 (예: ★5·★4·★5 → 실제는 ★4 그룹이 먼저 ★5, 그 칸이 ★5 그룹과 이어져 ★6 이 그 자리).
-  - 규칙: 한 번에 한 그룹, 낮은 등급 먼저(같으면 놓은 순서), 연쇄면 직전 결과 칸이 결과 칸. 로그 2458수 재현 97.88% → **98.94%** (불일치 52 → 26, 새로 틀린 수 0). 남은 26 = 드래그 실패 5 / 옛 로그 -1 11 / 기타 10.
-  - `hexa_engine.py` `resolve()` 교체, `hexa_train/core5.inc` + `search11.c`(= search10.c 에 core5 포함) → `hexa_search_v8.exe` (zig cc x86_64-windows-gnu -O3). `hexa_nt._exe_path` v8 최우선.
-  - 검증: C·Python resolve 99,654경우(로그 전체 수×후보 + 무작위 2만 판) 결과 완전 일치. 리눅스 빌드로 READY/OK 응답·sim 정상 확인. **Windows exe 실행은 PC 첫 판에서 확인 필요** (실패하면 hexa_nt 가 Python 탐색으로 내려감).
-  - n-tuple 가중치는 예전 규칙으로 학습된 것 그대로 (재학습 안 함). 롤백: `hexa_search_v8.exe` 삭제 + `hexa_engine.py.bak269`.
-
-- **2026-10-25 (Claude, patch268) '공방 마감' 창 못 알아보던 문제** (`hexa_vision.py` `popup_y`):
-  - 티켓이 없으면 '다시 하기' 버튼이 회색(56,50,43)이라 창 인식 실패 → "화면을 모르겠음 -> 멈춤"으로 나가기를 안 누름 (15:44 판). 회색도 인정.
-  - 회귀: 캡처 26장 중 바뀐 것은 그 창 2장(`hexa_unknown.png` → popup y801, `hexa_after_136.png` → y815)뿐, 게임·로비·기존 결과창 판정은 그대로.
-  - 같은 판(136수) 결과: patch266/267 뒤 판 기록에 못 읽은 칸(-1) **0칸**, 예상 빗나감 2번.
-  - 백업 `hexa_vision.py.bak268`.
-
-- **2026-10-25 (Claude, patch267) 못 읽은 칸 추가 복원 + 확실한 ★9 인정** (`hexa.py`만):
-  - `LAST`(칸별 마지막 확인 등급 1~8, 새 판마다 비움): 예상 판에서도 벽(모름)이거나 예상이 빗나간 수의 `-1` 칸을 마지막 확인 등급으로 채움. 로그 재현 `-1` 86 → 60칸, 채운 값 검증 167/167 일치.
-  - `read_all()`: HI 기억에 없는 ★9 라도 `V.hi_art()`가 도끼 그림으로 확인하면 ★9 로 인정하고 HI 에 넣음 (예전엔 무조건 벽 → ★10 합성 기회 손실). 캡처 15장: ★9 13칸 전부 인정, 남은 모르는 칸은 알림 배너에 가린 1칸뿐.
-  - 백업 `hexa.py.bak267` (= patch266 판).
-
-- **2026-10-25 (Claude, patch266) 유물 공방 ★8·★9 판독 + 못 읽은 칸 예상 채우기**:
-  - **근거(로그 실증, `shots/hexa_spawn.jsonl` 2323수)**: 엔진(`E.moves`/`E.apply`) 재현 일치율 엄격 81.4% → `-1` 무시 97.8%. 직후 판 `-1` 592칸 중 직전 값이 ★8 인 경우 196. 합성 규칙 확정: 결과 칸은 놓은 칸 중 하나(어느 칸인지는 위치·이웃 6개 기준 모두 50% 미만 → 랜덤 취급), 3~4개 +1 / 5개 이상 +2 / 결과 1개, ★4 이상도 같음.
-  - `hexa_vision.py`: `hi_art()` 추가 — 그림 가운데 색 + 칸 왼쪽 위 모서리 색이 모두 맞으면 ★8(루비)/★9(도끼)로 확정해 색 판독보다 우선. BlueStacks 캡처 15장 실측 마진: 같은 등급 가운데 ≤7 / 모서리 ≤16, 다른 등급 가운데 ≥25 또는 모서리 ≥52 (기준 15/35). 회귀: ★9 를 8(5칸)·3·1·-1 로 읽던 것과 ★8 을 -1 로 읽던 것만 바뀜, 나머지 칸 변화 0.
-  - `hexa.py`: `check_result()`가 맞은 예상 번호를 돌려주고, `do_move()`가 그 예상 판으로 화면의 `-1` 칸(1~8등급)을 채움(읽은 칸이 전부 예상과 같을 때만). 로그 재현: `-1` 592 → 86칸, 채운 값이 뒤에 실제로 읽혔을 때 159/159 일치. 판 끝 로그에 "못 읽은 칸 예상으로 채움 N" 추가.
-  - **바꾸지 않은 것**: 결과 칸 기댓값 평가는 이미 구현돼 있음(C `search10.c` 203~229행 `tot / nbr`, Python `_outs` 평균). 로그 시점 보정도 불필요 — 남은 불일치 50수 중 시점 문제 0, 드래그 실패 5, 직전 판 -1 18, 연쇄 순서 차이 등 27.
-  - **참고(미적용 제안)**: 두 그룹이 한 번에 합쳐질 때 낮은 등급 그룹을 먼저 처리하고 그 결과가 높은 그룹에 이어 붙는 것으로 보이는 사례(줄 402·615 등)가 있음 → 엔진 `resolve()` 처리 순서 검토 거리 (C 재빌드 필요).
-  - 백업 `hexa.py.bak266`, `hexa_vision.py.bak266`. 검증 스크립트 `tools/hexa_merge_verify266.py`. **git 커밋은 아직 안 함** (Claude 쪽에서 PC 명령 실행 불가).
-
-- **2026-10-24 (Antigravity CLI) 인간 종족 보너스 판에서만 30퀘 루틴 분기 구현**:
-  - **[설계 요약]**:
-    - **기존 루틴 100% 재사용**: 30퀘 상태 머신(`pre` → `collect` → `open` → `restore` → `done`), 환생 조건(정체 감지·성 함락·주말 500다이아 환생), 6500 고레벨 병영 편성 사이클은 일절 변경하지 않고 `q30.on(st)` 분기 조건만 확장.
-    - **크롭 좌표 및 템플릿 생성 (`720x1280` 기준)**:
-      - 외곽 호박·박쥐·꽃 이벤트 테두리(상단 `y<=55`, 좌우 `x<=37` / `x>=95`)와 하단 `"Lv.80"` 글자(`y>=118`)가 전혀 닿지 않는 순수 초상화 중심부 **`TRIBE_TPL_BOX = (43, 64, 89, 106)` (`46×42` px)** 크롭, 탐색 영역은 **`TRIBE_ROI = (37, 58, 95, 112)` (`58×54` px, `±6px` 여유)** 적용.
-      - `shots/`의 실제 전투 캡처에서 4종족 템플릿 생성 완료 (`tpl/tribe_*.png` 및 `templates/tribe_*.png` 양쪽 배치):
-        - `tribe_human.png` (`shots/cont_cd_3.png`, 불의 정령)
-        - `tribe_elf.png` (`shots/chest_noboost_5.png`, 드루이드)
-        - `tribe_undead.png` (`shots/chest_after.png`, 다크아처)
-        - `tribe_orc.png` (`shots/bk_notfull_1024_210839.png`, 전장의 북소리)
-      - 4종족 교차 검증 결과(`py q30.py tribe`): 동일 종족 `1.000`, 타 종족 2위 최고 점수 `0.171~0.199` (마진 **`+0.801~+0.829`**).
-    - **종족 판별 (`q30.check_reborn_tribe(st, img, retries=5, delay=1.5)`)**:
-      - `cv2.TM_CCOEFF_NORMED`로 모든 `tribe_*.png` 비교 후 `best_score >= TRIBE_SCORE_TH(0.75)` 및 `best_score - second_score >= TRIBE_MARGIN_TH(0.15)` 만족 시 종족 확정 (`settings.json`의 `tribe_score_th`, `tribe_margin_th`로 조정 가능).
-      - 환생 직후 아이콘 지연 대비 1.5초 간격 최대 5회 재시도, 실패 시 `"UNKNOWN"` 반환 및 `shots/tribe_unknown.png` 저장.
-      - 호출 시점: 매크로 시작 시(`main.py` 초기화, 화면 가림 시 기존 저장된 종족 보존) + 환생 직후 `need_low` 프리셋 설정 직전(`record_rebirth()`에서 `reborn_tribe_checked = False`로 리셋).
-      - `state.json`에 `reborn_tribe`, `reborn_tribe_score`, `reborn_tribe_2nd`, `reborn_tribe_ts`, `reborn_tribe_checked` 저장하여 재시작 후에도 유지.
-    - **패널 UI (`panel.py`)**:
-      - 옵션 탭에 `"인간 판에서만 30퀘"` (`q30_human_only`, 기본 켜짐 `True`) 체크박스 추가 (`settings.json`에 `"q30_open": true, "q30_human_only": true` 반영).
-      - 최근 환생 카드 우측에 `종족: 인간(HUMAN 1.00)` 형태로 현재 판 종족 및 매칭 점수를 실시간 표시.
-    - **TODO / 참고**:
-      - 현재 30퀘 오픈 목표 골드는 기존 `q30.py`의 `TARGET = "200ao"`(오픈골드 감소 유물 + 레오 펫 장착 기준)를 그대로 사용 중이며, 향후 레벨/유물 변화로 실제 30퀘 오픈 비용 임계치 조정이 필요하면 `q30.py`의 `TARGET` 상수만 수정하면 됨.
-      - 오토 모드 지침에 따라 실행 중인 매크로 프로세스(`main.py`)는 재시작하지 않았으므로, 원하는 시점에 `New-Item -Path C:\macro\restart_main.req -ItemType File -Force` (또는 패널의 `메인 재시작` 버튼)로 반영 가능.
-
-- **2026-10-24 (Claude Code, patch250) 뮤뮤 플레이어 전환 지원**:
-  - `adbport.py`: `emu.json`(`"emu": "bluestacks" | "mumu"`, 환경변수 `MACRO_EMU` 우선) 추가. 뮤뮤면 기본 주소 `127.0.0.1:<mumu_port=16384>`, `scan` 시 `MuMuManager info -v <mumu_index>`의 `adb_port` → 후보 포트(16384+32·i, 5555, 7555) 순으로 확인. 뮤뮤는 `scan` 없는 `sync()`에서 주소를 되돌리지 않음. BlueStacks 경로는 기존 로직 그대로.
-  - `bsrestart.py`: 뮤뮤면 `find_pids()`/`restart_bluestacks()`가 MuMuManager `info`/`control -v N shutdown·launch`로 해당 인스턴스만 제어 (함수 이름 호환 유지), `kill_target()` 추가.
-  - `main.py`: `_kill_bluestacks()`만 뮤뮤일 때 `bsrestart.kill_target()`로 위임 (서버 점검 대기용 종료).
-  - `emucheck.py` 신규: 연결·`wm size/density`·게임 포커스·screencap·웨이브 인식·fastcam fps·터치(show_touches 전/후 비교) 점검.
-  - `emu.json`(로컬, `.gitignore`)·`emu.json.example` 추가. **현재 값 `mumu`** (23:43 전환).
-  - 뮤뮤 점검 결과(23:46): 720x1280 / DPI 240(BlueStacks와 동일, 사용자가 900x1600·320에서 변경) / screencap·fastcam(45fps) 정상, 화면 배치 BlueStacks와 동일. `emucheck.py` 앞 화면 판독을 Android 15(`dumpsys window`)용으로 수정.
-  - **patch251** `wave.py`: 웨이브 숫자 옆 어두운 배경이 폭 넓은 덩어리로 붙어 미인식되던 문제 → 폭 130 초과 덩어리 제외. tests/img 67장 회귀: 변화 1장(`hero_auto_fail.png` None→6200, 정답 6299)뿐. 백업 `wave.py.bak251`.
-  - **23:51 메인(`main.py go`) 뮤뮤로 가동 확인**: 로그 `ADB 주소: 127.0.0.1:16384`, 펫 교체·프리셋 저장·영웅 AUTO 레벨업·보물상자 클릭 정상. `emucheck.py tab/ftab go`(하단 탭 전환으로 ADB·fastcam 터치 확인, patch252) 문제 없음. 남은 미검증: MuMuManager `control` 실제 재시작(6시간 정기/복구 시 로그 확인).
-
-- **2026-10-24 (Antigravity CLI)**:
-  - 원격 병합 과정에서 누락되었던 `daily.py`의 `patch234` (`MY_LEVEL = 72` → `80`) 1줄 반영 및 커밋·푸시.
-  - Claude Code와 Antigravity CLI 공용 프로젝트 설명 및 규칙 문서 `AGENTS.md` 작성 (프로젝트 목적, 폴더·주요 파일 역할, 실행 방법, 주요 기능 목록, 필수 안전 규칙 및 코딩 규칙 정리).
-  - `CLAUDE.md` (`@AGENTS.md`) 및 `GEMINI.md` (`@./AGENTS.md`) 생성하여 양쪽 AI 도구가 동일한 `AGENTS.md`를 참조하도록 설정.
-  - 작업 인수인계 문서 `HANDOFF.md` 최초 작성 및 공용 설명 파일 Git 커밋 (`AI 공용 설명 파일 추가`).
-  - `C:\macro\restart_main.req` 요청 파일을 통해 오환2 `main.py` 단독 재시작 완료(PID `333416` 기동 확인, 표키2 매크로·통합 패널 무간섭 유지) 및 `AGENTS.md`에 "매크로 재시작 방법 (`restart_main.req`)"과 주의사항 문서화.
-  - **유물 공방 조각 출현 규칙 분석 및 상한 실험 수행 (`hexa_train/bench_oracle.py`, `bench_oracle.bat`, `analyze_spawn.py`)**:
-    - **① 현재 봇의 오른쪽 상자(다음 조각 `prev`) 활용 여부 확인**:
-      - `hexa_vision.py:preview()`가 오른쪽 미리보기 상자(`PREV_C = (575, 997)`)에서 다음 조각 1개의 모양·칸별 등급을 판독 (`shots/hexa_spawn.jsonl` 285수 중 **281수 = 98.6%** 인식 성공).
-      - `hexa.py:plan()`이 `r["prev"]`를 C 탐색기(`hexa_nt.py:best_move_c()` → `search8.c:deep()`)에 전달하여, 3수 탐색(`D=3`)에서 **1수째는 지금 조각(`tray`)**, **2수째는 오른쪽 상자의 확정된 다음 조각(`prev`, `N=1`)**, **3수째는 미지 조각의 모든 모양·등급 확률 가중평균(`c_exact=1`)**으로 이미 수 읽기에 사용 중임을 확인 (`r["prev"]` 미인식 1.4%에서만 `D=1` 폴백).
-    - **② 시뮬레이터 미래 조각 $N$개 사전 인지 상한 실험 결과 (`bench_oracle.py`, 동일 난수 스트림 24판, `hexa_nt_w.bin`, `B1=16, B=8`)**:
-
-      | 설정 (사전 인지 범위) | 탐색 수 | 평균 판 길이 | 중앙값 | ★9+ 달성 | ★10 달성 | `N=1`(2수 확정) 대비 | **현재 실전 3수 봇 대비** |
-      | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-      | **`N = 0`** (지금 조각만, 상자 미사용) | 1수 | **102.9수** | 94.5수 | 29% | 0% | -36.6% | -42.9% |
-      | **`N = 1`** (다음 1개 확정 = 오른쪽 상자만) | 2수 | **162.2수** | 162.0수 | 96% | 0% | 기준 (0.0%) | -9.9% |
-      | **현재 봇** (`N = 1` 확정 + 3수째 확률평균) | 3수 | **180.1수** | 173.5수 | 100% | 17% | +11.0% | **기준 (0.0%)** |
-      | **`N = 2`** (다음 2개 확정 = 상자 + 1개 더) | 3수 | **196.2수** | 194.0수 | 100% | 21% | +21.0% | **+8.9%** |
-      | **`N = 3`** (다음 3개 확정 = 상자 + 2개 더) | 4수 | **193.7수** | 188.5수 | 100% | 8% | +19.4% | **+7.5%** |
-      | **`N = 5`** (다음 5개 확정 = 상자 + 4개 더) | 6수 | **205.7수** | 199.0수 | 92% | 25% | **+26.8%** | **+14.2%** |
-
-      - **요약**: 오른쪽 상자 다음 조각(`N=1`) + 3수째 확률평균을 쓰는 현재 봇(180.1수, C 200판 `EXACT=1` 기준 181.0수)이 이미 기대 이득의 대부분을 흡수하고 있음. 현재 3수 봇 대비 앞으로 나올 조각을 `N=2~3`개까지 완벽히 알아도 상승 폭은 **+7.5% ~ +8.9%**(10% 미만)이며, `N=5`개까지 완벽히 알 때만 **+14.2%** (`N=1` 2수 확정 대비로는 `N=3` +19.4%, `N=5` +26.8%) 증가함.
-
-    - **③ 조각 출현 규칙 4대 가설 검정 결과 (`analyze_spawn.py`)**:
-      - **데이터셋 특징**:
-        1. `shots/hexa_learn.jsonl` (총 383수, 12판 / `meta.spawn` 포함 318수): `hexa.py:check_result()`에서 합침이 발생하면서 결과 칸 후보가 2개 이상(`len(preds) > 1`)인 수(`target`, 354수)와 예측 불일치(`mismatch`, 29수)만 기록됨. 구조상 **1칸 조각은 합침 결과 칸이 항상 1개(`len(preds) == 1`)라 `target`에서 100% 제외**되며, 합침 성사 수만 발췌된 비연속 표본임.
-        2. `shots/hexa_spawn.jsonl` (총 285수, 2판 전수 연속 기록): `patch246`으로 매 수(`mv=0..145`)의 `tray`, `prev`, `board`, `u`를 빠짐없이 연속 기록한 데이터(`1칸` 36.5%, `2칸` 37.9%, `3칸` 25.6%). 선택 편향 분리를 위해 두 파일을 교차 검정함.
-
-      | 가설 | 데이터셋 및 표본 수 | 검정 통계량 및 결과 | 판단 | 근거 요약 |
-      | :--- | :--- | :--- | :---: | :--- |
-      | **① 묶음(가방) 방식**<br>(N개 단위로 모양이 고르게 나오는지) | • `learn`: 355수 ($N=5$ 블록 71개, $N=10$ 블록 33개)<br>• `spawn`(연속): 280수 ($N=5$ 블록 56개, $N=10$ 블록 27개) | • `learn` 관측/독립 분산비: $N=5$ **1.067** ($\chi^2=296.9, df=284$), $N=8$ **0.995**, $N=10$ **0.972**<br>• `spawn` 관측/독립 분산비: $N=5$ **1.000** ($\chi^2=218.3, df=224$), $N=8$ **1.048**, $N=10$ **1.115**, $N=15$ **1.013** | **기각** | 가방(비복원) 방식이면 블록 내 분산비가 $1.0$보다 뚜렷이 작아야 하나($<0.5$), 모든 $N(5,8,10,15)$에서 분산비가 **1.00 내외**로 다항 독립 추출(i.i.d.)과 일치함 |
-      | **② 같은 모양 연속 출현 제한** | • `learn`: 연속 371쌍<br>• `spawn`(연속): 실제 연속 283쌍 | • `learn` 5종 모양 연속: 관측 **28.0%** vs 독립기대 **26.1%** ($z=+0.84, p=0.402$)<br>• `spawn` 5종 모양 연속: 관측 **30.7%** vs 독립기대 **29.9%** ($z=+0.31, p=0.754$, 최대 **5연속 3회**·4연속 6회 관측)<br>• `spawn` 칸수(1/2/3) 연속: 관측 **36.0%** vs 기대 **34.2%** ($z=+0.64, p=0.522$) | **기각** | 직전 모양과 같은 모양이 나올 확률이 독립 기대치($\sum p_i^2$)와 일치하며, 실제로 같은 모양이 **최대 5번 연속** 출현함 |
-      | **③-1 판이 꽉 찰수록 1칸 조각 비율 증가** | • `learn`: 383수 (`target`은 1칸 조각 구조적 제외)<br>• `spawn`(연속): 285수 (여유 168 / 보통 110 / 혼잡 7) | • `learn`: `target` 조건(`len(preds)>1`)상 1칸 조각이 기록되지 않아 단독 판별 불가 ($r=-0.060, p=0.238$)<br>• `spawn`: 빈칸 14+ **36.9%**, 빈칸 9~13 **35.5%**, 빈칸 0~8 **42.9%**, 상관계수 $r(\text{빈칸수}, \text{1칸}) = \mathbf{+0.053}$ ($t=+0.90, p=0.370$) | **기각**<br><small>(`learn` 단독은 판별 불가)</small> | 빈 칸이 줄어들어도 1칸 조각 비율(약 36%)은 변하지 않으며 유의미한 상관관계가 없음 (단, `empty<=8` 극혼잡 표본은 7수이므로 추가 누적 시 재확인 가능) |
-      | **③-2 판이 꽉 찰수록 합칠 수 있는 등급 비율 증가** | • `learn`: 383수 (합침 성사 수만 기록)<br>• `spawn`(연속): 해금 4+ 242조각 (458칸) | • `learn`: 합침 발생 수만 기록되므로 전 구간 즉시합침 98.5~100% (선택 편향)<br>• `spawn`: 판에 놓인 칸이 많아지면 자연히 합침 가능 자리는 늘어나나(58.9%→85.5%), 스폰되는 조각 자체의 상대 등급 분포(`lo/lo+1/hi`)는 빈 칸 수와 무관함 | **기각** | 판이 찼을 때 특정 등급을 맞춰 주는 보정은 없으며, 칸이 많아져 판 위에 존재하는 등급 종류가 늘어나는 자연 현상뿐임 |
-      | **④-A 판에 많은 등급이 더 자주 나오는지** | • `learn`: 해금 4+ 879칸 (351조각)<br>• `spawn`(연속): 해금 4+ 458칸 (242조각) | • `learn`: 합침 성사 수만 기록된 편향으로 2+칸일 때 비율이 높게 보임($z=+2.66\sim+5.07$)<br>• `spawn`(전수 기록, 등급별 층화 검정):<br>  - `lo`(54.8%): 판 0칸 **53.1%** / 1칸 **62.0%** / 2+칸 **52.9%** ($z=-0.83, p=0.405$)<br>  - `lo+1`(28.8%): 판 0칸 **23.9%** / 1칸 **30.1%** / 2+칸 **30.5%** ($z=+0.88, p=0.381$)<br>  - `hi`(16.4%): 판 0칸 **17.9%** / 1칸 **8.9%** / 2+칸 **18.6%** ($z=+1.71, p=0.088$) | **기각** | 전수 기록(`spawn`)에서 상대 등급(`lo, lo+1, hi`)별로 층화 검정하면 판에 해당 등급이 0칸일 때와 2칸 이상일 때 출현 확률 차이가 전혀 없음 ($p > 0.08$) |
-      | **④-B 모양·회전과 등급의 관련성** | • `learn`: 해금 4+ 879칸 (다칸 327조각)<br>• `spawn`(연속): 해금 4+ 458칸 (다칸 157조각) | • 모양×등급 독립성: `learn` $\chi^2=13.42, df=8, p=0.098$ / `spawn` $\chi^2=10.51, df=8, p=0.230$<br>• `spawn` 다칸 단일등급(모든 칸이 같은 등급) 비율:<br>  - 2칸: 관측 **42.3%** (41/97) vs 독립기대 **41.0%** ($z=+0.25, p=0.803$)<br>  - 3칸: 관측 **15.0%** (9/60) vs 독립기대 **19.3%** ($z=-0.84, p=0.399$)<br>• `spawn` 회전 방향 균등성: 2칸($p=0.339$), 3칸-직선($p=0.184$), 3칸-꺾임($p=0.938$), 3칸-삼각($p=0.706$) | **기각** | 조각의 모양·회전 방향과 등급 사이에 통계적 관련성이 없으며, 2·3칸 조각 내부의 각 칸 등급도 서로 완전히 독립적으로 추출됨 |
+### ⚠️ git 과 PC 실제 상태가 다를 수 있음 (patch279 확인, PC에서 `git status`로 점검 필요)
+클라우드 사본(커밋 `cf04615`) 기준으로 아래가 HANDOFF 기록과 다릅니다. Claude 쪽 패치 일부가 PC에만 있고 커밋되지 않은 것으로 보입니다.
+- `hexa_cfg.json`(git): `c_tenb 180`, `c_clust 1.0`, `c_hub` 없음 = **patch259 값**. 기록상 실전 값은 `c_tenb 10 / c_clust 0`(patch260) + `c_hub 30`(patch264).
+- `hexa_train/search9.c`(git): 기본값 `TENB 180 / CLUST 1.0` (patch260에서 0으로 되돌렸다고 기록됨).
+- git에 없는 파일: `hexa_train/search10.c`, `bench_clust.*`, `bench_hub*.py/.bat`, `bench_hub*_result.txt`.
+- `hexa_nt.py`·`search11.c`·`core5.inc`(patch260~269)는 git에 있음.
+→ PC에서 `git status` / `git diff hexa_cfg.json` 확인 후, 실전 값이 맞으면 해당 파일들을 커밋해 주세요. **설정값 자체는 이번 패치에서 건드리지 않았습니다.**
 
 ---
 
-- **patch253 (웨이브 호출 AUTO 방어 로직 복구)**: patch224 이후 `wavecall.tick()`이 `wc_off`(매크로가 직접 끈 기록)가 있을 때만 켜도록 되어 있어, 뮤뮤 전환·게임 재시작 등 외부 요인으로 AUTO가 꺼지면 다시 켜지 않던 문제 수정. 이제 매크로 시작 직후·환생 직후(`record_rebirth`)·재시작 직후(`after_restart_setup`)·30분마다 설정창을 열어 실제 상태를 확인하고 꺼져 있으면 켬. 끄는 코드는 없음.
+## 최근 작업 (최근 5개, 상세는 `docs/CHANGELOG.md`)
 
-- **patch254 (뮤뮤에서 병영 '10/10' 미인식 → 영웅 목록 헛스크롤 / '환생팀 편성' X 못 닫음)**:
-  - `barracks.is_full`: 뮤뮤는 '10/10' 글자가 x+3, y+1 에 그려져 짝수 dx만 보던 탐색이 실패(최고 0.57<0.75) → 슬롯이 가득 찼는데도 `topup`이 드루이드/죽음의 손을 찾느라 17칸×2회 스크롤 반복, phase2를 실패로 처리. 1px 단위(x −6~+12, y −2~+2)로 확인하도록 수정(뮤뮤 캡처에서 0.82로 인식).
-  - 조기 종료: `deploy` 시작 전, `_locate_impl` 첫 화면, `_scroll_search` 매 스크롤마다 10/10이면 스크롤 중단.
-  - 유닛 템플릿 임계값(0.72)은 문제 아님: 찾을 때 0.97~0.98, 못 찾을 때 0.21~0.47(줄이 실제로 없음).
-  - `closer.close_buttons`: '환생팀 편성' 창 X(686,59)가 Y_MIN 150 밖 + 상태바에 잘려 높이 39px → Y_MIN 30, 화면 맨 위(y<90, x≥660)만 최소 크기 34 허용. tests/img 40장 회귀 변화 없음.
-  - 백업 `barracks.py.bak254`, `closer.py.bak254`.
+- **2026-10-29 (Claude, patch279) 인수인계 문서 정리 + 작업 절차 스킬** (`HANDOFF.md`, `docs/CHANGELOG.md`, `AGENTS.md`, `.claude/skills/ef2-patch/SKILL.md`, `.gitignore`):
+  - HANDOFF 313줄(약 2.7만 토큰) → 이 형태로 축소, 기존 상세 기록은 `docs/CHANGELOG.md`로 원문 이동.
+  - `AGENTS.md`: 패치 번호 규칙, HANDOFF/CHANGELOG 운용, 문서 불일치 수정(ADB 대체값 5586, wavecall patch273 반영).
+  - `.claude/skills/ef2-patch/` 신설(패치 작업 절차). `.gitignore`의 `.claude/`를 `.claude/*` + `!.claude/skills/`로 바꿔 스킬만 추적 (`settings.local.json`은 계속 제외).
+  - 코드·설정 변경 없음. 메인 재시작 불필요.
+- **2026-10-26 (Antigravity, patch278)** 표키2 패스 일일 보상 자동화(`C:\pyokey\pass_quest.py`), 웹 패널 버튼 정리, Claude 권한 설정.
+- **2026-10-26 (Antigravity, patch277)** 보석 영웅 이름 판독 개선(`GEM_ROW_DY` 107→90, 크롭·패딩, `KNOWN_HEROES` 퍼지 매칭), 웹 패널 재시작 단독 구동.
+- **2026-10-26 (Antigravity, patch276)** 웹 패널 2차: 유물 공방 옵션 드롭다운 통합, 표키2 기능 이식.
+- **2026-10-25 (Antigravity, patch275)** 웹 패널 탭 구조·토스트·연결 상태 4단계 진단.
 
-- **patch255 (유물 공방 환생마다 옵션)**: 패널 옵션 `hexa_every` "유물 공방 환생마다 (티켓 1장 이상이면 1판)" 추가(기본 꺼짐). 켜면 `hexa_auto_run`의 기준 장수가 항상 1 → 환생 3분 뒤(일괄 레벨업 1번 후) 매 환생 1판, 영휴 중엔 1시간마다. `hexa_on()` = `hexa_auto` 또는 `hexa_every` 가 켜져 있으면 확인. 백업 `main.py.bak255`, `panel.py.bak255`.
-- **patch256 (뮤뮤에서는 에뮬레이터 재시작 안 함)**: `main.NO_EMU_RESTART`(emu=mumu). 정기 6시간 재시작 건너뜀, `restart_bluestacks_full`은 뮤뮤를 끄지 않고 게임만 force-stop 후 재실행(ADB 죽었으면 실패 반환), 점검 대기 `_kill_bluestacks`도 게임만 종료. 뮤뮤 바탕화면 감지: `tpl/mumu_ef2_icon.png`('오늘도 환생 2' 아이콘, 약 617,447) 매칭 0.75 → `home_screen` True, `launch_game` 후에도 바탕화면이면 아이콘 직접 터치. 게임 화면 98장 오탐 최고 0.31. 백업 `main.py.bak256`.
-
-- **유물 공방 0단계 진단(`patch251`, `diag9.py`/`bench_calib.py`) 및 계획 B(`patch253`, `nt3.c`/`train_b.py`) 설계**: 1수 학습 두뇌(`V`)는 1수 정책(`101.5수`)에선 편향이 거의 없으나(`|bias|<=3.9`), 3수 탐색(`176.8수`) 시 `u`별 음의 편향(`u3 -88.3` → `u9 -22.4`)이 발생함을 확인하고, 2수 탐색 정책(`POL=2`, 전 구간 `all` / `u>=7` `late`)으로 이어서 학습·선별하는 1~5단계 파이프라인(`train_b.py`) 구성 완료.
-- **2026-10-25 (Antigravity CLI, patch259) 블루스택 롤백 및 유물 공방 ★10 확정 달성 올인 전환**:
-  - **블루스택 즉시 롤백**: `emu.json`을 `"bluestacks"`로 원복(`py adbport.py scan` → `127.0.0.1:5585` 연결 확인), `wavecall.py`(`patch253` AUTO 방어) 및 `barracks.py`(`patch254` `10/10` 조기 종료) 정상 작동 확인.
-  - **탐색기 ★10 올인 설정 (`hexa_cfg.json`, `hexa_train/search9.c`, `hexa_nt.py`)**:
-    - `TEN_BONUS`(`TENB` / `c_tenb`)를 **`180.0`**으로 상향.
-    - 필드에 ★8·★9가 등장했을 때 빈칸 확보보다 고등급 인접·합각(★9-★9 인접 `+28`, ★9-★9 공통이웃 징검다리 `+10~+18`, ★9-★8 인접 `+9`, ★8-★8 인접 `+5`, 떨어져 고립된 복수 ★9 패널티 `-16`)을 우선하는 결합 가중치 **`cluster_eval` (`CLUST = 1.0`)** 반영 (`3×★8 → ★9 → ★10` 단조 이득 보장).
-  - **계획 B 학습/선별(`hexa_train/nt3.c`, `hexa_train/train_b.py`) ★10 최우선 보상 반영**:
-    - `nt3.c`를 `core4.inc`(`G10A/G10B` 추적) 기반으로 전환하고, TD(0) 학습 보상에 `TENB=180, STAR9B=15, STAR8B=3` 및 탐색 정책 내 `cluster_eval`(`CLUST=1.0`)을 반영(기본값 `0`일 때 `nt2` 회귀 100% 호환 유지).
-    - `train_b.py` 5단계 후보 선별 기준을 평균 생존 수가 아닌 **★10 달성률(`res10`) 최우선**으로 변경.
-- **2026-10-25 (Antigravity CLI, patch260(양궁)) 양궁 70점 퍼펙트 무한 리트라이 루프 추가 및 발사 타이밍 미세 튜닝 (`arch.py`, `arch2.py`)**:
-  - **발사 타이밍 미세 튜닝**: 최근 25발 실측 중앙값(`0.7020초`)에 맞춰 `LEAD0 = 0.702`(`0.697 → 0.702`), 조준 오프셋 `AIM_PX = 2.0`(`4.0 → 2.0`, R1·R7 조기 탄착 보정), 발사 직전 대기 임계치 `0.022초`(`0.03 → 0.022`, 고속 라운드 1~2프레임 추가 관찰) 및 `wait_until` 마지막 2ms 정밀 폴링 적용, 화살 관측 이상치(`0.66~0.75초` 범위 밖) 무시 안전장치 추가. (`arch_rec_1020_115024.mp4` 리플레이 오차 R2~R7 전원 `±6px` 이내, 평균 `-0.8px` 달성).
-  - **70점 퍼펙트 무한 리셋 루프**: 발사 후 중앙 점수 팝업(`HIT_ROI = (150, 775, 570, 820)`)에서 `'☆ PERFECT! 7점!'`(콤보 포함 7라운드 합산 70점 만점, 폭 `198~401px`)이 아닌 하위 점수(`6점!` 이하, 폭 `43~59px`) 또는 불발/미스 감지 즉시 우상단 빨간 X(`ARCH_X = (683, 181)`)를 눌러 놀이터로 탈출 후 `BLD_PLAY = (360, 653)`를 눌러 재도전하도록 구현 (`'오늘 도전 끝'` 텍스트 `done_today(img)` 인식 시 즉시 예외 탈출).
-
-- **2026-10-25 (Claude, patch260) patch259 ★10 올인 되돌림 (검증 전까지)**:
-  - 근거: `bench_ten_result.txt`(300판) ★10 보너스 0/10/30 → ★10 8.3/9.0/8.7%, 171수 / 100·300 → 7.0·7.7%, 169수. 보너스 크게 주면 둘 다 하락. `cluster_eval` 은 가상 대전 검증 없음.
-  - 문제였던 점: v6.exe 미빌드라 ★8 이상이 뜨면 `best_move_c`가 C(3수째 정확 평균) 대신 Python D3(3수째 무작위 K=8)로 내려감 → 후반에 수 읽기가 약해짐. `search9.c` 기본값이 TENB 180/CLUST 1.0 으로 바뀌어 재빌드 시 기존 벤치 기준선이 조용히 바뀜.
-  - 변경: `hexa_cfg.json` `c_tenb` 180→10, `c_clust` 1.0→0 / `hexa_nt.py` `_TENB`·`_CLUST` 및 설정 없을 때 기본값 0 / `search9.c` 기본값 TENB=0 CLUST=0 / `train_b.py` `TEN_RW`=TENB10(STAR9B·STAR8B·CLUST 0), `TEN_SIM`=TENB10 CLUST0, 5단계 선별 = 판 길이 +3% 관문 + ★10 은 동률 보조.
-  - 신규: `hexa_train/search9clust.exe`(search9.c 기본값 0 빌드, MinGW -O3 static), `bench_clust.py`/`.bat` (A: 10/0, B: 10/0.5, C: 10/1.0, D: 180/1.0 × 600판).
-  - 메인 재시작 불필요 (유물 공방은 판마다 `hexa.py` 새로 실행, 설정은 매 수 다시 읽음). `cluster_eval` 함수·C 코드는 지우지 않음.
-  - 참고: `hexa_cfg.json` `lift` 130→100 은 `hexa.py` 드래그 자동 보정 값(정상).
-
-- **2026-10-25 (Claude, patch262) ★8 허브 보너스 실험 준비 (실전 미적용)**:
-  - 근거: 밤샘 실전 11판(`shots/hexa_spawn.jsonl`) ★10 0회, ★9 3개 동시 0회, ★8 최대 4개(덩어리 2+1+1). 로그상 5~7개 합치기 = +2등급 확인 → ★8 5개(2+2 쌍이 빈 칸 하나를 둘러쌈) → ★10 이 ★9 3개(★8 9개분)보다 재료 절반 이하. 분석 문서: 프로젝트 `claude/유물공방_실전로그분석_1025.md`.
-  - 신규: `hexa_train/search10.c` (= search9.c + `hub_tier`, 환경변수 `HUB`/`HUB7`, 기본 0 이면 search9 와 동일), `search10.exe` (zig cc x86_64-windows-gnu -O3), `bench_hub.py`/`.bat` (A 기준 / B HUB5 / C HUB15 / D HUB30 / E HUB15+HUB7 5 / F CLUST1.0 × 600판, 자동 적용 없음). F 가 patch260 의 bench_clust 를 대신함.
-  - 기존 FIVEB(모든 등급 5개 합치기 보너스)는 판 길이 하락으로 실패했었음 → HUB 는 ★8(★7) 구조에만 작용.
-
-- **2026-10-25 (Antigravity CLI, patch263) 양궁 70점 퍼펙트 루프 보강 (`arch.py`, `arch2.py`)**:
-  - **재시도 상한 및 보상 수령 보장 (`arch2.run`)**: `max_tries` `50 → 10` 축소 및 전체 시간 상한 10분(`MAX_BUDGET_SEC = 600.0`) 추가. 상한 도달 시 `perfect_only=False`로 1판 정상 완주 후 결과창 `RES_OK`를 눌러 보상을 수령하고 `"done"`을 반환하여 `guild.do_archery`가 `"timeout"`(`False`)으로 매 일일 점검마다 50판씩 재시도하며 메인 루프를 막는 문제 차단.
-  - **판정 순서 보강 (`arch2.play`)**: `phase == "post"`의 화살 궤적 수집 및 `hit_judge`를 `if x is None:` 분기 앞으로 이동하여 과녁이 화면에서 사라진 프레임에서도 `fired` 상태면 판정 수행(실제로 `arch_rec_1020_115024.mp4` 리플레이에서 기존 `x is None`으로 누락되던 6라운드 PERFECT까지 정상 감지됨). 라운드 종료(`GONE_SEC`) 직전에도 `hit_judge(img) == "perfect"`를 한 번 더 확인.
-  - **미스 오판 방지 (`arch2.play`)**: `"perfect"`는 1프레임 즉시 확정(우선), `"miss"`는 기존 연속 2프레임 대신 `0.15초 이상 연속 + 그 사이 perfect 0회`(`MISS_CONFIRM_SEC = 0.15`)일 때만 확정. `1.15초` 마감(`JUDGE_DEADLINE`) 시점에 `hit_judge`가 `None`이면 `shots\arch_judge_none_<라운드>.png` 저장 후 리셋.
-  - **재진입 안전장치 (`arch2._exit_and_reenter`)**: 우상단 X(`y < 240`, `RES_OK(360,602)` 근처 배제) 터치 후 2.5초 내 `title_score(img) < 0.70 and not result_visible(img)` 이탈이 확인됐을 때만 `BLD_PLAY` 터치. 미확인 시 `BLD_PLAY` 터치 없이 `shots\arch_exit_fail.png` 저장 후 `"timeout"` 반환.
-  - **LEAD 보정 이상치 경고 (`arch2._calib_lead`)**: `0.66~0.75초` 범위 밖 관측이 3라운드 연속(`out_streak >= 3`) 발생 시 `"LEAD 범위 재검토 필요"` 경고 로그 출력 후 기존 `lead` 유지.
-  - **검증 근거 및 미검증 항목**:
-    - 문법 및 리플레이 검증: `py -m py_compile arch.py arch2.py guild.py` 통과. `py arch2.py replay shots\rec\arch_rec_1020_115024.mp4` (`perfect_only=False`) 결과 기존 대비 변화 없음 — **R1: `-41ms (-8px)`, R2: `-9ms (-2px)`, R3: `-15ms (-4px)`, R4: `+23ms (+6px)`, R5: `+6ms (+1px)`, R6: `-7ms (-2px)`, R7: `-16ms (-4px)`** (R2~R6 5개 라운드 모두 `★ PERFECT` 판정 확인).
-    - **미검증(실전)**: 금일 양궁 도전은 이미 완료되었고 패널 `archery` 옵션이 꺼져 있어 실전 X 리셋 및 재진입 루프는 내일 오전 9시 이후 실전 시험 예정. 백업 `arch.py.bak263`, `arch2.py.bak263`.
-
-- **2026-10-25 (Claude, patch262 적용 + patch264) ★10 올인 - 허브 보너스 실전 적용**:
-  - `bench_hub_result.txt`(600판): A 기준 ★10 8.5%/169.7수, B HUB5 10.7%, C HUB15 14.7%/167.8수, **D HUB30 20.3%/161.8수**(★10 123회 중 ★8×5 경로 108회), E HUB15+HUB7 5 9.8%, F CLUST1.0 1.2%/149.5수(CLUST 폐기).
-  - 사용자 결정: ★9까지 보상은 다 받아서 ★10 외엔 의미 없음 → 판 길이 손해 감수하고 D(HUB 30) 적용, ★10 완전 올인.
-  - 변경: `hexa_search_v7.exe`(= hexa_train/search10.exe, zig cc 빌드, `_exe_path` 최우선), `hexa_nt.py` c_hub/c_hub7 → 환경변수 HUB/HUB7 전달, `hexa_cfg.json` `c_hub: 30`. 백업 `hexa_nt.py.bak262`, `hexa_cfg.json.bak262`. 롤백: v7 삭제 또는 c_hub 0.
-  - 메인 재시작 불필요 (판마다 hexa.py 새로 실행).
-  - patch264: `hexa_train/bench_hub2.py`/`.bat` - HUB 30/45/60/80/120, HUB60+TENB50 × 600판, ★10 달성률만으로 판정(오차 약 ±3.3%p), 자동 적용 없음.
-
-- **2026-10-25 (Claude, patch265) HUB x TENB 조합 실험**:
-  - `bench_hub2_result.txt`(600판): HUB 30 20.3% / 45 10.7% / 60 6.3% / 80 4.5% / 120 3.0% (HUB 단독은 30이 최고, 넘으면 ★8만 쌓다 죽음), **HUB 60 + TENB 50 = 23.0%** → TENB 가 과한 HUB 를 보정.
-  - 신규 `hexa_train/bench_hub3.py`/`.bat`: A HUB30/TENB10(실전) / B 30·50 / C 30·100 / D 20·50 / E 40·50 / F 45·100 / G 60·100 × 600판. ★10 이 A 보다 ±3.3%p 넘게 높은 최고 설정을 `hexa_cfg.json`(c_hub, c_tenb)에 자동 적용, 백업 `hexa_cfg.json.bak265`. bat 끝에 notify.py 알림.
-
-- **2026-10-25 (Antigravity CLI, patch266) 유물 공방 로비 티켓 N/5 Tesseract 고속 인식 및 재시도 보강 (`hexa.py`)**:
-  - **원인 분석**: 기존 `read_tickets()`가 3배 확대(`fx=3`) + CUBIC 보간 후 윈도우 내장 OCR(`ocrx.py`, PowerShell 기반)을 호출하여, 폰트 경계 번짐 및 작은 크롭 ROI 제약으로 인해 빈 문자열(`[]`)을 반환하거나 지연되며 매번 `AUTO 티켓 ?/5` 오인식이 발생함.
-  - **Tesseract 우선 적용**: `dungeon.py`와 동일하게 PC에 설치된 `C:\Program Files\Tesseract-OCR\tesseract.exe`(`--psm 7`, `0123456789/` 화이트리스트)를 우선 호출하도록 개선 (실제 로비 캡처 검증 결과 0.05초 만에 `1/5`, `3/5` 100% 정상 판독).
-  - **ocrx 폴백 및 다중 패턴 지원**: Tesseract 실패 시 2배 확대(`fx=2`) 기반 `ocrx` 폴백 및 `[0-5]/[S$]`, `[0-5]5` 등 오인식 보정 패턴 추가.
-  - **로비 렌더링 지연 재시도**: `auto()`에서 로비 진입 직후 애니메이션 지연 대비 최대 3회(0.7초 간격) 재시도 및 실패 시 `shots/hexa_ticket_none.png` 디버그 저장. 백업 `hexa.py.bak264`.
-
-- **2026-10-25 (Antigravity CLI, patch267) 병영 및 고레벨 단계 실패 시 즉시 화면 캡처 저장 보강 (`barracks.py`, `main.py`)**:
-  - **문제점**: 6500층 고레벨 편성 중 UI 프리징/글리치(예: 상세창 미오픈, 해제 버튼 미노출 등) 발생 시 복구 루틴(`closer.close_all()`, `_barracks_fallback()`)이 창을 모두 닫은 뒤에야 실패 스크린샷(`high_fail_N.png`)을 저장하여, 정작 문제 발생 순간의 글리치 UI가 사진에 남지 않던 문제 해결.
-  - **`main.py` 창 닫기 직전 캡처**: `_retry_step()`(단계 실패 시 창 닫기 전 `step_fail_<단계이름>.png` 즉시 캡처) 및 `_barracks_fallback()`(기본 프리셋 복구 전 `barracks_fallback_<이유>.png` 즉시 캡처) 추가.
-  - **`barracks.py` 세부 실패 캡처**: 상세창 미오픈(`barracks_detail_not_open`), 해제 버튼 미노출(`barracks_release_btn_not_found`), 해제 후 창 잔존(`barracks_still_open_after_release`), 배치 실패(`barracks_phase1_no_units`) 등 이상 발생 즉시 타임스탬프 스크린샷 자동 저장. 백업 `main.py.bak267`, `barracks.py.bak267`.
-
-- **2026-10-25 (Antigravity CLI, patch268) 7500~8000 고층 구간 자동 녹화 제어 및 관리 도구 (`rec.py`, `skillctl.py`)**:
-  - **배경**: 7500~8000층 등반 중 충분한 딜량에도 불구하고 간혹 발생하는 조기 성 함락 원인을 정밀 분석하기 위해 고층 구간 화면 자동 녹화 기능 제공.
-  - **도구 (`rec.py`)**: `py rec.py on [N]`(N판 녹화 예약), `py rec.py off`(끄기), `py rec.py set [시작] [종료]`, `py rec.py list`(영상 목록), `py rec.py open [번호]`(영상 재생) CLI 제공.
-  - **엔진 (`skillctl.py`)**: `fastcam` 프레임을 PC에서 비동기로 15fps MP4(360x640) 인코딩하여 블루스택 부하 0. 화면 좌하단에 `HH:MM:SS | W[현재웨이브]` 실시간 오버레이를 각인하여 사고 순간의 정확한 시간과 웨이브 파악 용이. 8050층 정상 도달 시 또는 환생 시 자동 저장 및 남은 횟수 차감. 백업 `skillctl.py.bak268`.
+---
 
 ## 다음 할 일
 
-0-A. **(patch263) 내일 오전 9시 이후 양궁 실전 시험**: 사용자가 `py guild.py arch go` 로 직접 실행 예정 (패널 `archery` 옵션은 건드리지 않음). **중점 확인 사항**: 첫 미스 발생 시 우상단 X 탈출 후 놀이터 재진입했을 때 오늘 도전 기회가 차감 없이 남아 있는지 확인.
-
-0. **(patch265) `hexa_train\bench_hub3.bat` PC 실행** → 합격 설정은 자동 적용됨. 결과만 확인.
-
-0-0. (patch262 의 F 로 대체됨) **(patch260) `hexa_train\bench_clust.bat` PC 실행** → `bench_clust_result.txt`에서 A(CLUST 0) 대비 B/C 가 판 길이·★10 둘 다 낫거나, ★10 이 오차(약 ±2.3%p) 넘게 나을 때만 search9.c 로 `hexa_search_v6.exe` 빌드 후 `c_clust` 적용.
-
-0-1. (보류) **뮤뮤 재시험**: `emu.json`을 `mumu`로 바꾼 뒤 `py adbport.py scan` → `py emucheck.py fast` → `py emucheck.py touch X Y go`로 확인, 이후 `restart_main.req`로 메인 재시작. MuMuManager `control` 명령(재시작/종료)은 실제 뮤뮤 버전에서 아직 미검증 → `py bsrestart.py`(시험 모드) 출력 확인 필요.
-
-1. **유물 공방 봇 방향성**:
-   - 조각 출현이 가방·연속제한·판 상태 보정 없는 독립 무작위(i.i.d.)이고, 현재 봇 대비 `N=2~3`개를 완벽히 알아도 상승 폭이 `+7.5~8.9%` 수준이므로, **출현 예측기(카운팅) 추가는 불필요**함.
-   - 다만 실제 게임(`hexa_spawn.jsonl`, 해금 4+ 458칸)의 상대 등급 비율(`lo: 54.8%, lo+1: 28.8%, hi: 16.4%`)과 칸 수 비율(`1칸: 36.5%, 2칸: 37.9%, 3칸: 25.6%`)이 현재 C 탐색기 `core4.inc`의 상수(`W_N={0.29,0.36,0.35}`, `W_T={0.58,0.22,0.20}`)와 소폭 차이가 있으므로, `hexa_spawn.jsonl` 표본이 1,000수 이상 쌓이면 `W_N`, `W_T` 확률 가중치만 실측치로 미세 보정하는 것을 검토.
-   - PC에서 더 많은 판수로 상한 실험을 재확인하려면 `C:\macro\hexa_train\bench_oracle.bat [판수]` 실행 가능.
-2. **실행 중 로그(`macro.log`, `shots/hexa_log.txt`) 모니터링**:
-   - 주말 `+50%` 다이아 환생(`bonus.py`), 유물 공방 이어하기 및 조각 출현 기록(`shots/hexa_spawn.jsonl`), 영혼의 휴식 중 병행 작업에서 예외 상황이나 오독이 없는지 확인 및 보정.
-3. **파일 및 저장소 관리**:
-   - 루트에 쌓이는 백업 파일(`*.bak*`)은 필요 시 `py cleanup.py go`로 `_archive/` 이동.
+0. **(patch279) PC에서 git 불일치 확인** — 위 ⚠️ 항목. 그리고 `git pull`로 이번 문서 정리 받기 (로컬에서 `HANDOFF.md`를 고친 게 있으면 충돌 가능 → 로컬 내용을 새 형식의 "최근 작업"에 옮겨 적으면 됨).
+1. **(patch263) 양궁 X 리셋 루프 실전 시험**: `py guild.py arch go`. 첫 미스 후 X 탈출 → 재진입 시 오늘 도전 기회가 차감되지 않는지 확인.
+2. **(patch265) `hexa_train\bench_hub3.bat` 결과 확인**: 합격 설정은 `hexa_cfg.json`에 자동 적용됨 (백업 `hexa_cfg.json.bak265`).
+3. **유물 공방 확률 상수 보정 검토**: `hexa_spawn.jsonl`이 1,000수 이상 쌓이면 실측 비율(칸 수 1/2/3 = 36.5/37.9/25.6%, 상대 등급 lo/lo+1/hi = 54.8/28.8/16.4%)로 `core*.inc`의 `W_N`, `W_T` 보정 검토. 출현 예측기(카운팅)는 불필요(i.i.d. 확인).
+4. **(보류) 뮤뮤 재시험**: `emu.json` → `mumu`, `py adbport.py scan` → `py emucheck.py fast` → `touch X Y go`. MuMuManager `control` 재시작은 미검증.
+5. **로그 모니터링**: `macro.log`, `shots/hexa_log.txt` — 주말 다이아 환생, 유물 공방 이어하기, 영휴 중 병행 작업 오독 여부.
+6. 루트 `*.bak*` 정리는 `py cleanup.py go`.

@@ -10,10 +10,13 @@
    - 모든 화면 캡처와 입력은 ADB(`C:\platform-tools\adb.exe`) 또는 창 없는 `scrcpy-server` 직접 소켓 통신(`fastcam.py`)으로만 처리합니다.
    - 자식 프로세스 호출 시 콘솔 창이 깜빡이며 포커스를 빼앗지 않도록 주의합니다 (`CREATE_NO_WINDOW = 0x08000000` 활용).
 2. **타 BlueStacks 인스턴스 종료 절대 금지**: 오환2용 BlueStacks 인스턴스(`Pie64_3`, 창 제목에 `오환2` 포함) 외 **다른 BlueStacks 인스턴스는 절대 종료하거나 재시작하지 마세요.** (`taskkill /IM HD-Player.exe` 전체 종료 금지, 반드시 창 제목/인스턴스 확인 후 해당 PID만 제어)
-3. **ADB 포트**: 오환2 BlueStacks(`Pie64_3`)의 ADB 포트는 `adbport.py`가 찾아서 씀 (2026-10-25 현재 **`5585`**, 대체값 `5586`). 포트를 코드에 직접 박지 말고 `adbport.py`를 거칩니다.
+3. **ADB 포트**: 오환2 BlueStacks(`Pie64_3`)의 ADB 포트는 `adbport.py`가 후보 포트를 훑어서 찾아 씀 (최근 실측 **`5585`**, 못 찾을 때 대체값 `BS_FALLBACK = 5586`). 포트를 코드에 직접 박지 말고 `adbport.py`를 거칩니다.
    - **에뮬레이터 선택 (patch250)**: `C:\macro\emu.json`의 `"emu"`가 `"bluestacks"`(기본, 파일 없을 때도 동일) 또는 `"mumu"`. 뮤뮤는 `mumu_port`(기본 `16384`, 인스턴스마다 +32)·`mumu_index`(기본 `0`) 사용, 재시작/종료는 `MuMuManager.exe control -v <번호>`로 해당 인스턴스만 제어. 롤백은 `"emu": "bluestacks"` 한 단어만 바꾸고 `main.py` 재시작. 단발 시험은 환경변수 `MACRO_EMU=mumu`.
 4. **통합 패널 위치**: 여러 프로젝트를 아우르는 통합 패널은 별도 폴더 `C:\pyokey`에 있습니다 (`C:\macro\panel.py`는 오환2 단독 조작 패널).
 5. **작업 종료 시 인수인계 및 커밋**: 작업을 마치면 반드시 `HANDOFF.md`를 최신 상태로 갱신("현재 상태 / 최근 작업 / 다음 할 일")하고 `git commit` 합니다.
+   - `HANDOFF.md`는 **짧게 유지**합니다 (최근 5개 패치, 패치당 3~6줄). 넘치는 오래된 항목은 `docs/CHANGELOG.md` 맨 위로 옮깁니다. 긴 분석·벤치 표는 `docs/` 아래 별도 파일로 두고 HANDOFF에는 경로만 적습니다.
+   - **패치 번호**: 작업 시작 시 `HANDOFF.md` 상단의 "마지막 패치 번호" + 1 을 쓰고, 끝나면 그 값을 갱신합니다. (patch266~268 중복 사용 사례 있음)
+   - 작업 절차 전체는 `.claude/skills/ef2-patch/SKILL.md`에 정리되어 있습니다 (Antigravity도 같은 순서를 따름).
 6. **검토용 diff 남기기 (Claude 검토 사용량 절약)**: 작업을 **시작할 때** 기준 커밋을 적어 두고, 커밋까지 **끝낸 뒤** 그 기준부터의 변경을 `C:\macro\review.diff` 한 파일로 남깁니다 (덮어쓰기, `.gitignore` 대상).
    ```powershell
    # 시작할 때
@@ -40,8 +43,10 @@
 - `C:\macro\` : 프로젝트 루트 (모든 주요 실행 스크립트 위치)
 - `tpl/` : OpenCV 템플릿 매칭용 기준 이미지 모음 (`tpl/bonus/`, `tpl/rtimer/` 등 하위 폴더 포함)
 - `shots/` : 디버그용 캡처, 실행 로그(`hexa_log.txt`, `arch2_log.txt`, `raid_log.txt`), 학습/추적 데이터 저장 폴더 (Git 추적 제외)
+- `.claude/skills/` : Claude Code 프로젝트 스킬 (`ef2-patch` = 패치 작업 절차)
 - `hexa_train/` : 유물 공방(헥사 머지) n-tuple 네트워크 학습용 C/Python 코드 및 도구
-- `tests/` : 단위 테스트 및 이미지 판별 검증 스크립트
+- `tests/` : 단위 테스트 및 이미지 판별 검증 스크립트 (`tests/img/` 캡처는 git 제외 → 클라우드 세션에서는 회귀 불가)
+- `docs/` : 상세 패치 이력(`CHANGELOG.md`) 및 분석 문서
 - `_archive/` : `cleanup.py`로 정리된 구버전 백업(`*.bak*`) 및 패치 파일 보관소
 
 ### 주요 파일 역할
@@ -49,7 +54,7 @@
 #### 핵심 제어 및 인프라
 - `main.py` : 메인 자동화 루프. 웨이브 추적, 단계별 업그레이드(중간 업글·고레벨 단계·병영 교체·프리셋 전환), 성 함락/정체 환생, 팝업 닫기, 일일 작업 및 이벤트 호출, 앱/에뮬레이터 복구를 총괄.
 - `panel.py` : 오환2 전용 Tkinter GUI 조작 패널. 시작(`F5`)/중지(`F6`)/일시정지(`F7`), 미니게임 단발 실행, 옵션(`settings.json`) 토글, 실시간 로그 표시 및 코드 변경 시 자동 재시작 지원. (전체 통합 패널은 `C:\pyokey`에 별도 존재)
-- `adbport.py` : BlueStacks(`Pie64_3`) ADB 주소(`127.0.0.1:5586` 고정 기본값 및 설정 확인) 관리 및 전 모듈 동기화. (patch250: `emu.json`으로 뮤뮤 선택 시 `127.0.0.1:16384` + MuMuManager `info` 포트 확인)
+- `adbport.py` : BlueStacks(`Pie64_3`) ADB 주소 탐색(`scan`, 후보 5555~5606, 대체값 `127.0.0.1:5586`) 및 전 모듈 동기화. (patch250: `emu.json`으로 뮤뮤 선택 시 `127.0.0.1:16384` + MuMuManager `info` 포트 확인)
 - `emucheck.py` : (patch250) 에뮬레이터 연결·해상도/DPI·screencap·fastcam·터치 점검 도구 (`py emucheck.py [fast]`, `py emucheck.py touch X Y go`).
 - `bsrestart.py` : 창 제목에 `'오환2'`가 포함된 `HD-Player.exe` PID만 찾아 안전하게 단독 재시작 (`Pie64_3` 외 다른 인스턴스 보호).
 - `fastcam.py` : `scrcpy-server`와 직접 소켓 통신하여 창/마우스 없이 최대 60fps 실시간 화면 수신 및 즉시 터치 전송.
@@ -68,7 +73,7 @@
 - `newspirit.py` : 고레벨 2단계에서 새로 배치한 불의정령 2마리 훈장 강화 1000 + 골드 레벨 1000 달성.
 - `drum.py` : 고레벨 2단계 후 전장의북 2마리 훈장 강화 2000 달성.
 - `skillctl.py` : 고층(7200 웨이브 이상)에서 액티브 스킬 3개를 겹치지 않게 수동 쿨타임 제어.
-- `wavecall.py` : 고층 진입 시 웨이브 호출 AUTO 끄기 / 환생 후 저층에서 다시 켜기.
+- `wavecall.py` : 웨이브 호출 AUTO 설정창 진단 CLI (`py wavecall.py look / on go / off go`). patch273부터 게임 내 상시 켜짐 전제로 메인 루프는 확인·토글하지 않음 (`tick`/`request_check` = no-op).
 - `recruit.py` : 영웅 탭 무료 영입(고용/새로고침) 자동화, 보석 가격 회피(훈장만 구매), 쿨타임 타이머(`MM:SS`) 판독.
 
 #### 일일 숙제 · 미니게임 · 유틸리티
@@ -148,7 +153,7 @@ py cleanup.py              # 정리 대상 백업/임시 파일 확인 (py clean
    - 고층(`HIGH_WAVE = 6500`, 상한 탐색 `probe` 지원):
      - 1단계: `최대레벨` 프리셋 + 백호/맘보 펫으로 전환, 병영에서 죽음의 손/골렘 배치 후 최대 레벨업.
      - 2단계: `렙뻥` 프리셋 + 사르크 펫 전환, 병영에서 드루이드 6·불의정령 1·전장의북 1 재배치, 불의정령 1000강/1000렙(`newspirit.py`) 및 전장의북 2000강(`drum.py`), 성 영웅 배치 정리(`arrange.py`).
-   - 유물 기본 전환(`RELIC_BASIC_WAVE = 7000`) 및 7200층 이상 웨이브 호출 AUTO 해제(`wavecall.py`)·액티브 스킬 수동 제어(`skillctl.py`).
+   - 유물 기본 전환(`RELIC_BASIC_WAVE = 7000`) 및 7200층 이상 액티브 스킬 수동 제어(`skillctl.py`). 웨이브 호출 AUTO는 상시 켜짐 전제(patch273).
    - 성 함락 시 이어하기(`fall_continue_n`, 최대 3회) 및 환생 처리. 주말 이벤트(`wk_x2`) 조건 충족 시에만 다이아 500 빨간 환생(하루 5회), 그 외에는 항상 초록 무료 환생 클릭.
    - 일정 시간(`STUCK_SEC = 180`초) 동안 웨이브가 오르지 않으면 좌상단 천사 아이콘으로 직접 정체 환생.
 2. **주기적·일일 자동 작업**

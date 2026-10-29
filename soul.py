@@ -1,6 +1,7 @@
 """soul.py - 신전 '영혼의 휴식' 자동화 (최대 4시간 자리비움 보상. 끝날 때 다이아로 훈장 2배 선택)
 
   py soul.py look        지금 화면이 어떤 상태인지만 출력 (누르지 않음)
+  py soul.py alive go    성 > 신전 목록 버튼 색으로 휴식 진행 여부 확인 (휴식 버튼은 누르지 않음, patch305)
   py soul.py dia         HUD 다이아 개수 읽기 시험
   py soul.py start go    (성 > 신전 > 영혼의 휴식 시작) 실제로 한 번 실행
   py soul.py end go      휴식 중 화면에서 종료창을 열어 2배로 받기까지 한 번 실행 (4시간 안 기다림, 시험용)
@@ -283,8 +284,71 @@ def _find_row():
     return img, row_y(img)
 
 
-def ensure_rest_view():
-    """patch293: 메인 화면 등에서 성 > 신전 > 영혼의 휴식 화면(running_view 또는 end_dialog)으로 진입"""
+def rest_alive():
+    """patch305: 성 > 신전 목록의 '영혼의 휴식' 버튼 색으로 휴식이 진행 중인지 확인 (버튼은 누르지 않음)
+    -> 'run'(회색, 휴식 중) / 'ended'(갈색 시간 단축 또는 초록 시작 = 이미 끝남) / None(판별 못 함)
+    원인: 종료 시각을 '기록한 시작 시각 + 4시간'으로만 계산 -> 게임에선 끝났는데 매크로는 계속 휴식 중으로 알고 멈춤 (10-29)"""
+    try:
+        if not _open_temple():
+            log("휴식 확인: 신전 패널을 못 열었음")
+            _close_everything()
+            return None
+        res = None
+        for k in range(2):                               # 두 번 연속 같은 색일 때만 인정
+            img, y = _find_row() if k == 0 else (grab(), None)
+            if y is None:
+                y = row_y(img)
+            if y is None:
+                shot("soul_alive_norow", img)
+                res = None
+                break
+            stt = button_state(img, y)
+            cur = "run" if stt == "run" else ("ended" if stt in ("cool", "ready") else None)
+            if cur is None:
+                shot("soul_alive_unknown", img)
+            if k == 0:
+                res = cur
+                time.sleep(1.0)
+            elif cur != res:
+                res = None
+            if res is None:
+                break
+        if res == "ended":
+            shot("soul_alive_ended_%d" % int(time.time()), img)
+        _close_everything()
+        return res
+    except Exception as e:
+        log("휴식 확인 오류: %r" % (e,))
+        try:
+            _close_everything()
+        except Exception:
+            pass
+        return None
+
+
+def check_alive(st, why=""):
+    """patch305: 휴식 진행 여부 확인 -> 끝났으면 추적 종료 후 False. 진행 중/모름이면 True"""
+    d = st.get("soul")
+    if not d:
+        return False
+    now = time.time()
+    d["alive_at"] = now
+    res = rest_alive()
+    el = (now - d.get("start", now)) / 60
+    log("휴식 진행 확인%s: %s (기록상 시작 %s, %.0f분 경과)" % (
+        " (" + why + ")" if why else "", {"run": "휴식 중", "ended": "이미 끝남", None: "판별 못 함"}[res],
+        time.strftime("%H:%M", time.localtime(d.get("start", now))), el))
+    if res == "ended":
+        log("게임에서는 영혼의 휴식이 이미 끝났음 -> 추적 종료, 일반 등반으로 복귀")
+        _finish(st, None)
+        return False
+    return True
+
+
+def ensure_rest_view(st=None):
+    """patch293: 메인 화면 등에서 성 > 신전 > 영혼의 휴식 화면(running_view 또는 end_dialog)으로 진입
+    patch305: 줄 버튼이 갈색(시간 단축)/초록(시작)이면 휴식이 이미 끝난 것 -> 누르지 않음 (갈색은 다이아 시간 단축 버튼).
+              st 를 주면 그 자리에서 추적 종료 처리"""
     try:
         img = grab()
     except Exception:
@@ -300,6 +364,15 @@ def ensure_rest_view():
         log("영혼의 휴식 줄을 찾지 못함")
         shot("soul_fail_ensure_row", img)
         _close_everything()
+        return False
+    stt = button_state(img, y)
+    if stt in ("cool", "ready"):                         # patch305
+        log("영혼의 휴식 버튼 = %s -> 휴식이 이미 끝났음 (누르지 않음)" % stt)
+        shot("soul_already_ended_%d" % int(time.time()), img)
+        if st is not None and st.get("soul"):
+            _finish(st, None)
+        else:
+            _close_everything()
         return False
     tap((ROW_BTN_X, y), "영혼의 휴식 줄 터치", 1.5)
     for _ in range(6):
@@ -384,7 +457,7 @@ def _finish(st, got_x2):
     st["soul_next"] = now + COOLDOWN_SEC
     if st.get("last_restart"):
         st["last_restart"] = min(now, st["last_restart"] + dur)       # 쉰 시간은 정기 재시작 시간에 넣지 않음
-    log("영혼의 휴식 종료 처리 완료 (%.0f분, 훈장 %s)" % (dur / 60, "x2" if got_x2 else "x1"))
+    log("영혼의 휴식 종료 처리 완료 (%.0f분, 훈장 %s)" % (dur / 60, "x2" if got_x2 else ("x1" if got_x2 is False else "이미 끝나 있었음")))   # patch305
     try:
         _close_everything()
     except Exception as e:
@@ -416,6 +489,7 @@ def _resolve_end(st, img):
     return False, want_x2
 
 
+ALIVE_EVERY = 1800                  # patch305: 휴식 진행 여부(신전 버튼 색) 확인 최소 간격
 END_GRACE = 60                      # patch232: 4시간 + 이만큼 지나면 종료 처리
 END_GIVEUP = 3600                   # patch232: 종료 시각 뒤 이만큼 휴식 화면을 못 찾으면 추적 종료 (patch223 기준 유지)
 
@@ -461,6 +535,11 @@ def tick(st, img):
         return False
     now = time.time()
     end = end_time(d)
+    if (now < end and img is not None and not running_view(img) and not end_dialog(img)
+            and now - d.get("alive_at", d.get("start", now)) >= ALIVE_EVERY):
+        # patch305: (온라인 모드) 종료 시각 전인데 휴식 화면이 안 보이면 30분마다 신전 버튼 색으로 진행 여부 확인
+        if not check_alive(st, "휴식 화면이 안 보임"):
+            return False
     if now < end:
         if now - d.get("note", 0) > 1800:
             d["note"] = now
@@ -491,10 +570,12 @@ def tick(st, img):
     if now - d.get("ensure_try", 0) > 20:
         d["ensure_try"] = now
         log("종료 시각 도달 -> 영혼의 휴식 화면 진입 시도")
-        if ensure_rest_view():
+        if ensure_rest_view(st):                         # patch305: 이미 끝났으면 그 안에서 추적 종료
             cur = grab()
             if cur is not None and (running_view(cur) or end_dialog(cur)):
                 return tick(st, cur)
+        if not st.get("soul"):
+            return False
     # 종료 시각이 지났는데 휴식 화면이 안 보임 -> 이때만 가린 창을 닫고 다시 확인
     if now - end > END_GIVEUP:
         log("종료 시각 뒤 %d분 동안 휴식 화면을 못 찾음 -> 추적 종료 (상태 확인 필요)" % (END_GIVEUP // 60))
@@ -552,6 +633,9 @@ if __name__ == "__main__":
     img = preset.capture()
     if img is None:
         print("캡처 실패"); sys.exit(1)
+    if "alive" in args:                                  # patch305: py soul.py alive go -> 신전 버튼 색으로 휴식 진행 여부 (버튼은 안 누름)
+        print("휴식 진행 여부:", rest_alive())
+        sys.exit(0)
     if "dia" in args:
         print("다이아:", read_diamonds(img)); sys.exit(0)
     print("화면 상태:", screen_state(img))

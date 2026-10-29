@@ -800,6 +800,27 @@ def stop_game():
     adb_out(["shell", "am", "force-stop", PKG])
 
 
+def soul_offline_stop(st, _sd, _wake_t, _now):
+    """patch305: 영혼의 휴식 오프라인 등반 - 매크로가 잠들 때 한 번만 게임을 끔.
+    그 뒤에 게임이 다시 켜져 있으면 사용자가 직접 접속한 것으로 보고 강제 종료하지 않음 (다음 기상 작업이 끝나면 다시 한 번 끔)"""
+    if not is_app_running():
+        return
+    if _sd.get("offline_stopped"):
+        if not _sd.get("user_on_note"):
+            _sd["user_on_note"] = True
+            save_state(st)
+            log("영혼의 휴식 중 게임이 다시 켜져 있음 -> 직접 접속한 것으로 보고 강제 종료 안 함 (다음 기상: %s)"
+                % time.strftime('%H:%M', time.localtime(_wake_t)))
+        return
+    log(f"영혼의 휴식 오프라인 등반 모드: 오환2 앱 종료 (다음 기상: {time.strftime('%H:%M:%S', time.localtime(_wake_t))}, {int((_wake_t - _now) / 60)}분 뒤)")
+    stop_game()
+    time.sleep(2)
+    if not is_app_running():                 # 꺼진 걸 확인했을 때만 기록 (안 꺼졌으면 다음 루프에서 다시)
+        _sd["offline_stopped"] = True
+        _sd["user_on_note"] = False
+        save_state(st)
+
+
 def is_soul_offline_active(st):
     """patch294e: 영혼의 휴식 오프라인 등반 상태(미접속 취침 유지 구간)인지 확인
     이 상태에서는 오환2 앱이 종료되어 바탕화면(홈화면)이 보이는 것이 정상이므로,
@@ -1725,10 +1746,7 @@ def main():
                 _want_hexa_now = os.path.exists(os.path.join(BASE, "hexa_now.req"))
 
                 if _now < _wake_t - 20 and not _want_hexa_now:
-                    if is_app_running():
-                        log(f"영혼의 휴식 오프라인 등반 모드: 오환2 앱 종료 (다음 기상: {time.strftime('%H:%M:%S', time.localtime(_wake_t))}, {int((_wake_t - _now) / 60)}분 뒤)")
-                        stop_game()
-                        time.sleep(2)
+                    soul_offline_stop(st, _sd, _wake_t, _now)       # patch305: 잠들 때 한 번만 종료, 직접 접속은 그대로 둠
 
                     if _now - _sd.get("last_offline_log", 0) >= 600:
                         _sd["last_offline_log"] = _now
@@ -2015,7 +2033,7 @@ def main():
                                 log("게임 복귀 실패 -> 30초 후 재시도")
                                 time.sleep(30)
                                 continue
-                        _sm.ensure_rest_view()
+                        _sm.ensure_rest_view(st)             # patch305: 이미 끝났으면(갈색/초록 버튼) 누르지 않고 추적 종료
                         _cur_img = cap()
                         _sm.tick(st, _cur_img)
                         if not st.get("soul"):
@@ -2033,10 +2051,7 @@ def main():
 
                         # 아직 기상 시각 전 (취침 / 미접속 유지 구간)
                         if _now < _wake_t - 20 and not _want_hexa_now:
-                            if is_app_running():
-                                log(f"영혼의 휴식 오프라인 등반 모드: 오환2 앱 종료 (다음 기상: {time.strftime('%H:%M:%S', time.localtime(_wake_t))}, {int((_wake_t - _now) / 60)}분 뒤)")
-                                stop_game()
-                                time.sleep(2)
+                            soul_offline_stop(st, _sd, _wake_t, _now)       # patch305: 잠들 때 한 번만 종료, 직접 접속은 그대로 둠
 
                             if _now - _sd.get("last_offline_log", 0) >= 600:
                                 _sd["last_offline_log"] = _now
@@ -2054,6 +2069,8 @@ def main():
                             log("hexa_now.req 감지 -> 오프라인 기상하여 유물 공방 확인")
                         else:
                             log("영혼의 휴식 정기 기상 (영입 주기 도달) -> 게임 접속")
+                        if not (_sd.get("offline_stopped") and is_app_running()):
+                            _sd["offline_stopped"] = False      # patch305: 기상 작업 뒤 잠들 때 다시 한 번 종료 (직접 접속 중이었으면 계속 안 끔)
 
                         if not is_app_running() or not game_in_focus():
                             log("오프라인 기상: 게임 실행")
@@ -2062,6 +2079,16 @@ def main():
                                 log("게임 실행/복귀 실패 -> 1분 뒤 재시도")
                                 time.sleep(60)
                                 continue
+
+                        # patch305: 기상할 때마다 신전 버튼 색으로 휴식이 아직 진행 중인지 확인
+                        #   (10-29 게임에선 휴식이 끝났는데 기록상 시작 19:19 + 4시간까지 계속 휴식 중으로 알고 등반이 멈춤)
+                        if time.time() - _sd.get("alive_at", 0) >= 600:
+                            if not _sm.check_alive(st, "오프라인 기상"):
+                                after_restart_setup(st)
+                                log("영혼의 휴식이 이미 끝나 있었음 -> 프리셋/웨이브 복구 후 일반 등반 재개")
+                                save_state(st)
+                                continue
+                            save_state(st)
 
                         # A. 영입 (30초 전후 도달 시 정확한 대기 후 실행)
                         _n_rec = st.get("next_recruit", 0)
